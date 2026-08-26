@@ -6,7 +6,7 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tạo giao diện chuẩn bo góc & thẻ chỉ số
+# CSS giao diện
 st.markdown("""
 <style>
     .metric-card {
@@ -24,10 +24,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 1. LOAD DỮ LIỆU TỪ GOOGLE DRIVE HOẶC CỤC BỘ
+# 1. HÀM TẢI DỮ LIỆU TỐI ƯU RAM (CHỈ ĐỌC CỘT CẦN THIẾT)
 @st.cache_data(ttl=86400)
 def load_data():
-    FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag" # Giữ nguyên ID của bạn
+    # --------------------------------------------------------------------------
+    # ĐIỀN ID FILE GOOGLE DRIVE CỦA FILE data.parquet VÀO ĐÂY:
+    FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag" 
+    # --------------------------------------------------------------------------
+    
     local_file = Path("data.parquet")
     win_path = Path(r"C:\Users\Win 10\Desktop\streamlit\data.parquet")
 
@@ -37,17 +41,33 @@ def load_data():
             with st.spinner("Đang tải dữ liệu từ Google Drive..."):
                 gdown.download(url, str(local_file), quiet=False, use_cookies=False)
         else:
-            st.error("Chưa cấu hình FILE_ID!")
-            return pl.DataFrame()
+            st.warning("Chưa điền Google Drive FILE_ID! Đang dùng dữ liệu mẫu tạm thời.")
+            return pl.DataFrame({
+                "tg_quydinhphat": ["01-08-2026 08:00:00"] * 10,
+                "tien_cuoc": [1000000.0] * 10,
+                "ma_phieu_gui": [f"DON_{i}" for i in range(10)],
+                "ma_khachhang": ["KH01"] * 10,
+                "ma_chinhanh_ht": ["HNI"] * 10,
+                "doi_tac": ["DoiTac_A"] * 10,
+                "loai_don": ["Nhanh"] * 10,
+                "lydo": ["Không liên hệ được KH"] * 10
+            })
 
     file_to_read = local_file if local_file.exists() else win_path
     
-    # Dùng polars scan_parquet (Lazy) để tiết kiệm RAM tối đa khi khởi động
+    # Chỉ đọc các cột có chứa từ khóa liên quan để tiết kiệm RAM tối đa tránh tràn bộ nhớ
     try:
-        df = pl.scan_parquet(file_to_read).collect()
-    except Exception as e:
-        st.error(f"Lỗi đọc file parquet: {e}")
-        df = pl.DataFrame()
+        schema = pl.read_parquet_schema(file_to_read)
+        columns_to_load = [c for c in schema.keys() if any(k in c.lower() for k in [
+            'cuoc', 'tien', 'phieu', 'ma_don', 'khach', 'ma_kh', 'chinhanh', 'ma_cn', 
+            'doitac', 'doi_tac', 'loai', 'dichvu', 'lydo', 'nguyen_nhan', 'reason', 'tg_quydinhphat'
+        ])]
+        if not columns_to_load:
+            columns_to_load = None
+            
+        df = pl.read_parquet(file_to_read, columns=columns_to_load)
+    except Exception:
+        df = pl.read_parquet(file_to_read)
 
     df = df.rename({c: c.strip() for c in df.columns})
     
@@ -83,7 +103,6 @@ with tab_doanh_thu:
     st.markdown("<h4 style='color: #c62828; margin-bottom: 0;'>DOANH THU</h4>", unsafe_allow_html=True)
     st.markdown("<h1 style='margin-top: 0; margin-bottom: 15px;'>Dashboard Doanh thu</h1>", unsafe_allow_html=True)
     
-    # Filter ngang
     f1, f2, f3, f4, f5, f6 = st.columns(6)
     with f1:
         min_date = df_raw["ngay_phat"].min() if "ngay_phat" in df_raw.columns else None
@@ -104,7 +123,6 @@ with tab_doanh_thu:
     with f6:
         st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="dt_tl")
 
-    # Filter dữ liệu
     df_dt = df_raw
     if "ngay_phat" in df_dt.columns and isinstance(filter_date, tuple) and len(filter_date) == 2:
         df_dt = df_dt.filter((pl.col("ngay_phat") >= filter_date[0]) & (pl.col("ngay_phat") <= filter_date[1]))
@@ -113,7 +131,6 @@ with tab_doanh_thu:
     if col_doitac and filter_dt != "Tất cả": df_dt = df_dt.filter(pl.col(col_doitac) == filter_dt)
     if col_loaidon and filter_ld != "Tất cả": df_dt = df_dt.filter(pl.col(col_loaidon) == filter_ld)
 
-    # Metrics Doanh thu
     tong_dt = (df_dt[col_cuoc].sum() / 1e9) if col_cuoc else 0.0
     tong_sl = df_dt[col_phieu].n_unique() if col_phieu else len(df_dt)
     
@@ -143,9 +160,7 @@ with tab_doanh_thu:
 
     st.divider()
 
-    # --- BẢNG BÁO CÁO DOANH THU THEO TUẦN / THÁNG / NĂM ---
     st.subheader("📊 BÁO CÁO TỔNG HỢP DOANH THU THỜI GIAN")
-    
     if "ngay_phat" in df_dt.columns and col_cuoc:
         df_summary = (
             df_dt.filter(pl.col("ngay_phat").is_not_null())
@@ -165,7 +180,7 @@ with tab_doanh_thu:
     
     st.write("")
     st.subheader("📋 Bảng Tổng Hợp Chi Tiết Dữ Liệu Lọc")
-    st.dataframe(df_dt.head(1000).to_pandas(), use_container_width=True)
+    st.dataframe(df_dt.head(500).to_pandas(), use_container_width=True)
 
 
 # ==========================================
