@@ -25,41 +25,29 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 1. LOAD DỮ LIỆU TỪ GOOGLE DRIVE HOẶC CỤC BỘ
-@st.cache_data(ttl=86400) # Lưu Cache 24h để không tải lại liên tục
+@st.cache_data(ttl=86400)
 def load_data():
-    # --------------------------------------------------------------------------
-    # ĐIỀN ID FILE GOOGLE DRIVE CỦA FILE data.parquet VÀO ĐÂY:
-    FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag" 
-    # --------------------------------------------------------------------------
-    
+    FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag" # Giữ nguyên ID của bạn
     local_file = Path("data.parquet")
     win_path = Path(r"C:\Users\Win 10\Desktop\streamlit\data.parquet")
 
-    # Ưu tiên 1: Đọc file trong thư mục máy tính/dự án nếu có sẵn
-    if local_file.exists():
-        df = pl.read_parquet(local_file)
-    elif win_path.exists():
-        df = pl.read_parquet(win_path)
-    else:
-        # Ưu tiên 2: Tải từ Google Drive bằng gdown khi chạy trên Streamlit Cloud
+    if not local_file.exists() and not win_path.exists():
         if FILE_ID != "thay_ma_file_id_cua_ban_vao_day":
-            url = f"https://drive.google.com/uc?id={FILE_ID}"
-            with st.spinner("Đang tải dữ liệu từ Google Drive (lần đầu có thể mất vài giây)..."):
-                gdown.download(url, str(local_file), quiet=False)
-            df = pl.read_parquet(local_file)
+            url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
+            with st.spinner("Đang tải dữ liệu từ Google Drive..."):
+                gdown.download(url, str(local_file), quiet=False, use_cookies=False)
         else:
-            # Dữ liệu dự phòng nếu chưa dán FILE_ID
-            st.warning("Chưa điền Google Drive FILE_ID! Đang dùng dữ liệu mẫu tạm thời.")
-            df = pl.DataFrame({
-                "tg_quydinhphat": ["01-08-2026 08:00:00"] * 10,
-                "cuoc_phi": [1000000.0] * 10,
-                "ma_don": [f"DON_{i}" for i in range(10)],
-                "ma_kh": ["KH01"] * 10,
-                "ma_cn": ["HNI"] * 10,
-                "doi_tac": ["DoiTac_A"] * 10,
-                "loai_don": ["Nhanh"] * 10,
-                "lydo": ["Không liên hệ được KH"] * 10
-            })
+            st.error("Chưa cấu hình FILE_ID!")
+            return pl.DataFrame()
+
+    file_to_read = local_file if local_file.exists() else win_path
+    
+    # Dùng polars scan_parquet (Lazy) để tiết kiệm RAM tối đa khi khởi động
+    try:
+        df = pl.scan_parquet(file_to_read).collect()
+    except Exception as e:
+        st.error(f"Lỗi đọc file parquet: {e}")
+        df = pl.DataFrame()
 
     df = df.rename({c: c.strip() for c in df.columns})
     
