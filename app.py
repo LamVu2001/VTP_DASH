@@ -2,6 +2,7 @@ import streamlit as st
 import polars as pl
 import plotly.express as px
 from pathlib import Path
+import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
@@ -23,40 +24,43 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 1. LOAD DỮ LIỆU THỰC TẾ
-DATA_PATH = Path(r"C:\Users\Win 10\Desktop\streamlit\data.parquet")
-
-@st.cache_data
+# 1. LOAD DỮ LIỆU TỪ GOOGLE DRIVE HOẶC CỤC BỘ
+@st.cache_data(ttl=86400) # Lưu Cache 24h để không tải lại liên tục
 def load_data():
-    # 1. Tìm file parquet hoặc csv nằm ngay trong thư mục dự án (GitHub)
-    local_parquet = Path("data.parquet")
-    win_parquet = Path(r"C:\Users\Win 10\Desktop\streamlit\data.parquet")
+    # --------------------------------------------------------------------------
+    # THAY ID FILE GOOGLE DRIVE CỦA FILE data.parquet VÀO ĐÂY:
+    FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag" 
+    # --------------------------------------------------------------------------
     
-    if local_parquet.exists():
-        df = pl.read_parquet(local_parquet)
-    elif win_parquet.exists():
-        df = pl.read_parquet(win_parquet)
+    local_file = Path("data.parquet")
+    win_path = Path(r"C:\Users\Win 10\Desktop\streamlit\data.parquet")
+
+    # Ưu tiên 1: Đọc file trong thư mục dự án / máy tính nếu có sẵn
+    if local_file.exists():
+        df = pl.read_parquet(local_file)
+    elif win_path.exists():
+        df = pl.read_parquet(win_path)
     else:
-        # Tìm tất cả file csv trong thư mục hiện tại
-        csv_files = list(Path(".").glob("*.csv")) + list(Path(r"C:\Users\Win 10\Desktop\streamlit").glob("*.csv"))
-        if csv_files:
-            dfs = [pl.read_csv(f, encoding="latin1", null_values=["N/A", ""], infer_schema_length=None, ignore_errors=True) for f in csv_files]
-            df = pl.concat(dfs, how="vertical_relaxed")
+        # Ưu tiên 2: Tải từ Google Drive bằng gdown khi chạy trên Streamlit Cloud
+        if FILE_ID != "thay_ma_file_id_cua_ban_vao_day":
+            url = f"https://drive.google.com/uc?id={FILE_ID}"
+            with st.spinner("Đang tải dữ liệu từ Google Drive (lần đầu có thể mất vài giây)..."):
+                gdown.download(url, str(local_file), quiet=False, fuzzy=True)
+            df = pl.read_parquet(local_file)
         else:
-            # 2. Nếu KHÔNG tìm thấy dữ liệu nào, tự tạo dữ liệu MẪU để app không bị crash
-            import datetime
-            dates = [datetime.date(2026, 8, i) for i in range(1, 32)]
+            # Tạo dữ liệu dự phòng nếu chưa điền FILE_ID
+            st.warning("Chưa điền Google Drive FILE_ID! Đang dùng dữ liệu mẫu tạm thời.")
             df = pl.DataFrame({
-                "tg_quydinhphat": [d.strftime("%d-%m-%Y 08:00:00") for d in dates * 10],
-                "cuoc_phi": [1500000000.0] * 310,
-                "ma_don": [f"DON_{i}" for i in range(310)],
-                "ma_kh": ["KH001", "KH002", "KH003"] * 103 + ["KH001"],
-                "ma_cn": ["HNI", "HCM", "DNI"] * 103 + ["HNI"],
-                "doi_tac": ["DoiTac_A", "DoiTac_B"] * 155,
-                "loai_don": ["Nhanh", "TietKiem"] * 155,
-                "lydo": ["Khách hẹn giao lại", "Không liên hệ được KH"] * 155
+                "tg_quydinhphat": ["01-08-2026 08:00:00"] * 10,
+                "cuoc_phi": [1000000.0] * 10,
+                "ma_don": [f"DON_{i}" for i in range(10)],
+                "ma_kh": ["KH01"] * 10,
+                "ma_cn": ["HNI"] * 10,
+                "doi_tac": ["DoiTac_A"] * 10,
+                "loai_don": ["Nhanh"] * 10,
+                "lydo": ["Không liên hệ được KH"] * 10
             })
-    
+
     df = df.rename({c: c.strip() for c in df.columns})
     
     if "tg_quydinhphat" in df.columns:
@@ -155,7 +159,6 @@ with tab_doanh_thu:
     st.subheader("📊 BÁO CÁO TỔNG HỢP DOANH THU THỜI GIAN")
     
     if "ngay_phat" in df_dt.columns and col_cuoc:
-        # Nhóm theo Tuần, Tháng, Năm
         df_summary = (
             df_dt.filter(pl.col("ngay_phat").is_not_null())
             .with_columns([
