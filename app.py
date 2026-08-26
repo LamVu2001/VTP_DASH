@@ -28,14 +28,14 @@ st.markdown("""
 @st.cache_data(ttl=86400) # Lưu Cache 24h để không tải lại liên tục
 def load_data():
     # --------------------------------------------------------------------------
-    # THAY ID FILE GOOGLE DRIVE CỦA FILE data.parquet VÀO ĐÂY:
+    # ĐIỀN ID FILE GOOGLE DRIVE CỦA FILE data.parquet VÀO ĐÂY:
     FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag" 
     # --------------------------------------------------------------------------
     
     local_file = Path("data.parquet")
     win_path = Path(r"C:\Users\Win 10\Desktop\streamlit\data.parquet")
 
-    # Ưu tiên 1: Đọc file trong thư mục dự án / máy tính nếu có sẵn
+    # Ưu tiên 1: Đọc file trong thư mục máy tính/dự án nếu có sẵn
     if local_file.exists():
         df = pl.read_parquet(local_file)
     elif win_path.exists():
@@ -45,10 +45,10 @@ def load_data():
         if FILE_ID != "thay_ma_file_id_cua_ban_vao_day":
             url = f"https://drive.google.com/uc?id={FILE_ID}"
             with st.spinner("Đang tải dữ liệu từ Google Drive (lần đầu có thể mất vài giây)..."):
-                gdown.download(url, str(local_file), quiet=False, fuzzy=True)
+                gdown.download(url, str(local_file), quiet=False)
             df = pl.read_parquet(local_file)
         else:
-            # Tạo dữ liệu dự phòng nếu chưa điền FILE_ID
+            # Dữ liệu dự phòng nếu chưa dán FILE_ID
             st.warning("Chưa điền Google Drive FILE_ID! Đang dùng dữ liệu mẫu tạm thời.")
             df = pl.DataFrame({
                 "tg_quydinhphat": ["01-08-2026 08:00:00"] * 10,
