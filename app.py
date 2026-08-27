@@ -156,85 +156,194 @@ with tab_doanh_thu:
     d_dt_vals = [days_dt_dict.get(d, (0, 0))[0] for d in sorted_days_dt]
     d_sl_vals = [days_dt_dict.get(d, (0, 0))[1] for d in sorted_days_dt]
 
-    # Cấu trúc Cây Đối tác -> Mã KH
-    tree_dt_data = con.execute(f"""
+    # Query 1: Theo Mã Đối tác, Mã KH, Tỉnh phát, Bưu cục
+    tree_raw_data = con.execute(f"""
         SELECT 
             COALESCE(ma_doitac, 'Khác') as dt,
             COALESCE(ma_khgui, 'Khác') as kh,
+            COALESCE(tinh_phat, 'Khác') as tinh,
+            COALESCE(ma_buucuc_phat, 'Khác') as bc,
             SUM(tong_cuoc)/1e9 as tong_dt,
             COUNT(ma_phieugui) as tong_sl
         FROM orders 
         WHERE {where_sql_dt}
-        GROUP BY ma_doitac, ma_khgui
+        GROUP BY ma_doitac, ma_khgui, tinh_phat, ma_buucuc_phat
         ORDER BY dt, tong_dt DESC
     """).fetchall()
 
-    dt_tree_struct = {}
-    for dt, kh, dt_val, sl_val in tree_dt_data:
-        if dt not in dt_tree_struct: dt_tree_struct[dt] = {'dt': 0, 'sl': 0, 'khs': {}}
-        dt_tree_struct[dt]['dt'] += dt_val
-        dt_tree_struct[dt]['sl'] += sl_val
-        dt_tree_struct[dt]['khs'][kh] = {'dt': dt_val, 'sl': sl_val}
+    dt_structure = {}
+    for dt, kh, tinh, bc, dt_val, sl_val in tree_raw_data:
+        if dt not in dt_structure:
+            dt_structure[dt] = {'dt': 0, 'sl': 0, 'khs': {}, 'tinhs': {}}
+        dt_structure[dt]['dt'] += dt_val
+        dt_structure[dt]['sl'] += sl_val
 
-    # HTML Doanh thu
-    rows_html_dt_section = ""
-    for idx_dt, (dt_name, dt_data) in enumerate(dt_tree_struct.items()):
-        dt_val = dt_data['dt']
-        dt_clean_id = f"dt_section_{idx_dt}"
+        if kh not in dt_structure[dt]['khs']:
+            dt_structure[dt]['khs'][kh] = {'dt': 0, 'sl': 0}
+        dt_structure[dt]['khs'][kh]['dt'] += dt_val
+        dt_structure[dt]['khs'][kh]['sl'] += sl_val
 
-        rows_html_dt_section += f"""
-        <tr class="sub-row-1 group_dt_root" style="display:none; background-color: #f4f6f8; font-weight:600;" onclick="toggleRow('{dt_clean_id}', event, 'btn_{dt_clean_id}')">
-            <td style="padding-left: 20px;"><span class="toggle-btn" id="btn_{dt_clean_id}">[+]</span> Đối tác: <b>{dt_name}</b></td>
-            <td>10</td><td>100.00</td>
-            <td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td class="text-green">+6.8%</td>
-            <td>{dt_val:.2f}</td><td>{dt_val:.2f}</td><td>{dt_val:.2f}</td><td>{dt_val:.2f}</td><td>{dt_val:.2f}</td><td class="text-green">+6.8%</td>
-            <td>{dt_val:.2f}</td><td>{dt_val:.2f}</td><td class="text-green">+6.8%</td>
-            <td>10</td><td class="text-green">+6.8%</td>
-        </tr>
-        """
+        if tinh not in dt_structure[dt]['tinhs']:
+            dt_structure[dt]['tinhs'][tinh] = {'dt': 0, 'sl': 0, 'bcs': {}}
+        dt_structure[dt]['tinhs'][tinh]['dt'] += dt_val
+        dt_structure[dt]['tinhs'][tinh]['sl'] += sl_val
 
-        for kh_name, kh_data in dt_data['khs'].items():
-            kh_dt_val = kh_data['dt']
-            rows_html_dt_section += f"""
-            <tr class="sub-row-2 {dt_clean_id}" style="display:none; background-color: #ffffff; color: #1565c0;">
-                <td style="padding-left: 40px;">• Mã KH: <b>{kh_name}</b></td>
+        dt_structure[dt]['tinhs'][tinh]['bcs'][bc] = {'dt': dt_val, 'sl': sl_val}
+
+    # Query 2: Theo Tỉnh phát Độc lập (Cấp cao nhất ngang hàng với Mã đối tác)
+    tinh_raw_data = con.execute(f"""
+        SELECT 
+            COALESCE(tinh_phat, 'Khác') as tinh,
+            COALESCE(ma_buucuc_phat, 'Khác') as bc,
+            SUM(tong_cuoc)/1e9 as tong_dt,
+            COUNT(ma_phieugui) as tong_sl
+        FROM orders 
+        WHERE {where_sql_dt}
+        GROUP BY tinh_phat, ma_buucuc_phat
+        ORDER BY tong_dt DESC
+    """).fetchall()
+
+    tinh_independent_struct = {}
+    for tinh, bc, dt_val, sl_val in tinh_raw_data:
+        if tinh not in tinh_independent_struct:
+            tinh_independent_struct[tinh] = {'dt': 0, 'sl': 0, 'bcs': {}}
+        tinh_independent_struct[tinh]['dt'] += dt_val
+        tinh_independent_struct[tinh]['sl'] += sl_val
+        tinh_independent_struct[tinh]['bcs'][bc] = {'dt': dt_val, 'sl': sl_val}
+
+    # Sinh HTML động cho từng Section
+    def generate_matrix_rows(is_doanh_thu=True):
+        rows_html = ""
+        prefix = "dt_sec" if is_doanh_thu else "sl_sec"
+        fmt = lambda v: f"{v:.2f}" if is_doanh_thu else f"{v//1:,.0f}"
+
+        # 1. Các dòng ĐỐI TÁC
+        for idx_dt, (dt_name, dt_data) in enumerate(dt_structure.items()):
+            val_dt = dt_data['dt'] if is_doanh_thu else dt_data['sl']
+            dt_clean_id = f"{prefix}_{idx_dt}"
+
+            rows_html += f"""
+            <tr class="sub-row-1 group_{prefix}_root" style="display:none; background-color: #f4f6f8; font-weight:600;" onclick="toggleRow('{dt_clean_id}', event, 'btn_{dt_clean_id}')">
+                <td style="padding-left: 20px;"><span class="toggle-btn" id="btn_{dt_clean_id}">[+]</span> Đối tác: <b>{dt_name}</b></td>
                 <td>10</td><td>100.00</td>
-                <td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td class="text-green">+6.8%</td>
-                <td>{kh_dt_val:.2f}</td><td>{kh_dt_val:.2f}</td><td>{kh_dt_val:.2f}</td><td>{kh_dt_val:.2f}</td><td>{kh_dt_val:.2f}</td><td class="text-green">+6.8%</td>
-                <td>{kh_dt_val:.2f}</td><td>{kh_dt_val:.2f}</td><td class="text-green">+6.8%</td>
-                <td>10</td><td class="text-green">+6.8%</td>
+                <td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td class="text-green">+6.8%</td>
+                <td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td class="text-green">+6.8%</td>
+                <td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td class="text-green">+6.8%</td>
+                <td>{"10" if is_doanh_thu else "-"}</td><td class="text-green">{"Wait" if is_doanh_thu else "-"}</td>
             </tr>
             """
 
-    # HTML Sản lượng
-    rows_html_sl_section = ""
-    for idx_dt, (dt_name, dt_data) in enumerate(dt_tree_struct.items()):
-        sl_val = dt_data['sl']
-        dt_clean_id = f"sl_section_{idx_dt}"
+            # Theo Mã KH
+            kh_group_id = f"{dt_clean_id}_kh_grp"
+            rows_html += f"""
+            <tr class="sub-row-2 {dt_clean_id}" style="display:none; background-color: #ffffff; font-weight:600; color: #1565c0;" onclick="toggleRow('{kh_group_id}', event, 'btn_{kh_group_id}')">
+                <td style="padding-left: 40px;"><span class="toggle-btn" id="btn_{kh_group_id}">[+]</span> <b>THEO MÃ KHÁCH HÀNG</b></td>
+                <td>-</td><td>-</td>
+                <td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td class="text-green">+6.8%</td>
+                <td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td class="text-green">+6.8%</td>
+                <td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td class="text-green">+6.8%</td>
+                <td>-</td><td>-</td>
+            </tr>
+            """
+            for kh_name, kh_data in dt_data['khs'].items():
+                val_kh = kh_data['dt'] if is_doanh_thu else kh_data['sl']
+                rows_html += f"""
+                <tr class="sub-row-3 {kh_group_id}" style="display:none; background-color: #ffffff; color: #333;">
+                    <td style="padding-left: 60px;">• Mã KH: <b>{kh_name}</b></td>
+                    <td>10</td><td>100.00</td>
+                    <td>{fmt(val_kh/7)}</td><td>{fmt(val_kh/7)}</td><td>{fmt(val_kh/7)}</td><td>{fmt(val_kh/7)}</td><td>{fmt(val_kh/7)}</td><td>{fmt(val_kh/7)}</td><td>{fmt(val_kh/7)}</td><td class="text-green">+6.8%</td>
+                    <td>{fmt(val_kh)}</td><td>{fmt(val_kh)}</td><td>{fmt(val_kh)}</td><td>{fmt(val_kh)}</td><td>{fmt(val_kh)}</td><td class="text-green">+6.8%</td>
+                    <td>{fmt(val_kh)}</td><td>{fmt(val_kh)}</td><td class="text-green">+6.8%</td>
+                    <td>{"10" if is_doanh_thu else "-"}</td><td class="text-green">{"Wait" if is_doanh_thu else "-"}</td>
+                </tr>
+                """
 
-        rows_html_sl_section += f"""
-        <tr class="sub-row-1 group_sl_root" style="display:none; background-color: #f4f6f8; font-weight:600;" onclick="toggleRow('{dt_clean_id}', event, 'btn_{dt_clean_id}')">
-            <td style="padding-left: 20px;"><span class="toggle-btn" id="btn_{dt_clean_id}">[+]</span> Đối tác: <b>{dt_name}</b></td>
-            <td>10</td><td>100.00</td>
-            <td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td class="text-green">+5.22%</td>
-            <td>{sl_val:,.0f}</td><td>{sl_val:,.0f}</td><td>{sl_val:,.0f}</td><td>{sl_val:,.0f}</td><td>{sl_val:,.0f}</td><td class="text-green">+5.22%</td>
-            <td>{sl_val:,.0f}</td><td>{sl_val:,.0f}</td><td class="text-green">+5.22%</td>
+            # Theo Tỉnh phát trong Đối tác
+            tinh_group_id = f"{dt_clean_id}_tinh_grp"
+            rows_html += f"""
+            <tr class="sub-row-2 {dt_clean_id}" style="display:none; background-color: #ffffff; font-weight:600; color: #2e7d32;" onclick="toggleRow('{tinh_group_id}', event, 'btn_{tinh_group_id}')">
+                <td style="padding-left: 40px;"><span class="toggle-btn" id="btn_{tinh_group_id}">[+]</span> <b>THEO TỈNH PHÁT</b></td>
+                <td>-</td><td>-</td>
+                <td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td>{fmt(val_dt/7)}</td><td class="text-green">+6.8%</td>
+                <td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td class="text-green">+6.8%</td>
+                <td>{fmt(val_dt)}</td><td>{fmt(val_dt)}</td><td class="text-green">+6.8%</td>
+                <td>-</td><td>-</td>
+            </tr>
+            """
+            for idx_tinh, (tinh_name, tinh_data) in enumerate(dt_data['tinhs'].items()):
+                val_tinh = tinh_data['dt'] if is_doanh_thu else tinh_data['sl']
+                tinh_sub_id = f"{tinh_group_id}_tinh_{idx_tinh}"
+
+                rows_html += f"""
+                <tr class="sub-row-3 {tinh_group_id}" style="display:none; background-color: #fcfcfc; color: #2e7d32;" onclick="toggleRow('{tinh_sub_id}', event, 'btn_{tinh_sub_id}')">
+                    <td style="padding-left: 60px;"><span class="toggle-btn" id="btn_{tinh_sub_id}">[+]</span> Tỉnh phát: <b>{tinh_name}</b></td>
+                    <td>10</td><td>100.00</td>
+                    <td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td class="text-green">+6.8%</td>
+                    <td>{fmt(val_tinh)}</td><td>{fmt(val_tinh)}</td><td>{fmt(val_tinh)}</td><td>{fmt(val_tinh)}</td><td>{fmt(val_tinh)}</td><td class="text-green">+6.8%</td>
+                    <td>{fmt(val_tinh)}</td><td>{fmt(val_tinh)}</td><td class="text-green">+6.8%</td>
+                    <td>{"10" if is_doanh_thu else "-"}</td><td class="text-green">{"Wait" if is_doanh_thu else "-"}</td>
+                </tr>
+                """
+
+                for bc_name, bc_data in tinh_data['bcs'].items():
+                    val_bc = bc_data['dt'] if is_doanh_thu else bc_data['sl']
+                    rows_html += f"""
+                    <tr class="sub-row-4 {tinh_sub_id}" style="display:none; background-color: #fafafa; font-style: italic; color: #555;">
+                        <td style="padding-left: 80px;">• Bưu cục phát: <b>{bc_name}</b></td>
+                        <td>10</td><td>100.00</td>
+                        <td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td class="text-green">+6.8%</td>
+                        <td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td class="text-green">+6.8%</td>
+                        <td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td class="text-green">+6.8%</td>
+                        <td>{"10" if is_doanh_thu else "-"}</td><td class="text-green">{"Wait" if is_doanh_thu else "-"}</td>
+                    </tr>
+                    """
+
+        # 2. Dòng TỈNH PHÁT ĐỘC LẬP (Ngang hàng với Đối tác)
+        tinh_root_id = f"{prefix}_tinh_independent_root"
+        tot_tinh_val = sum(t['dt'] if is_doanh_thu else t['sl'] for t in tinh_independent_struct.values())
+        rows_html += f"""
+        <tr class="sub-row-1 group_{prefix}_root" style="display:none; background-color: #e8f5e9; font-weight:bold; color: #2e7d32;" onclick="toggleRow('{tinh_root_id}', event, 'btn_{tinh_root_id}')">
+            <td style="padding-left: 20px;"><span class="toggle-btn" id="btn_{tinh_root_id}">[+]</span> <b>TỈNH PHÁT</b></td>
+            <td>-</td><td>-</td>
+            <td>{fmt(tot_tinh_val/7)}</td><td>{fmt(tot_tinh_val/7)}</td><td>{fmt(tot_tinh_val/7)}</td><td>{fmt(tot_tinh_val/7)}</td><td>{fmt(tot_tinh_val/7)}</td><td>{fmt(tot_tinh_val/7)}</td><td>{fmt(tot_tinh_val/7)}</td><td class="text-green">+6.8%</td>
+            <td>{fmt(tot_tinh_val)}</td><td>{fmt(tot_tinh_val)}</td><td>{fmt(tot_tinh_val)}</td><td>{fmt(tot_tinh_val)}</td><td>{fmt(tot_tinh_val)}</td><td class="text-green">+6.8%</td>
+            <td>{fmt(tot_tinh_val)}</td><td>{fmt(tot_tinh_val)}</td><td class="text-green">+6.8%</td>
             <td>-</td><td>-</td>
         </tr>
         """
 
-        for kh_name, kh_data in dt_data['khs'].items():
-            kh_sl_val = kh_data['sl']
-            rows_html_sl_section += f"""
-            <tr class="sub-row-2 {dt_clean_id}" style="display:none; background-color: #ffffff; color: #1565c0;">
-                <td style="padding-left: 40px;">• Mã KH: <b>{kh_name}</b></td>
+        for idx_tinh, (tinh_name, tinh_data) in enumerate(tinh_independent_struct.items()):
+            val_tinh = tinh_data['dt'] if is_doanh_thu else tinh_data['sl']
+            tinh_ind_clean_id = f"{tinh_root_id}_t_{idx_tinh}"
+
+            rows_html += f"""
+            <tr class="sub-row-2 {tinh_root_id}" style="display:none; background-color: #ffffff; color: #2e7d32;" onclick="toggleRow('{tinh_ind_clean_id}', event, 'btn_{tinh_ind_clean_id}')">
+                <td style="padding-left: 40px;"><span class="toggle-btn" id="btn_{tinh_ind_clean_id}">[+]</span> Tỉnh phát: <b>{tinh_name}</b></td>
                 <td>10</td><td>100.00</td>
-                <td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td class="text-green">+5.22%</td>
-                <td>{kh_sl_val:,.0f}</td><td>{kh_sl_val:,.0f}</td><td>{kh_sl_val:,.0f}</td><td>{kh_sl_val:,.0f}</td><td>{kh_sl_val:,.0f}</td><td class="text-green">+5.22%</td>
-                <td>{kh_sl_val:,.0f}</td><td>{kh_sl_val:,.0f}</td><td class="text-green">+5.22%</td>
-                <td>-</td><td>-</td>
+                <td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td>{fmt(val_tinh/7)}</td><td class="text-green">+6.8%</td>
+                <td>{fmt(val_tinh)}</td><td>{fmt(val_tinh)}</td><td>{fmt(val_tinh)}</td><td>{fmt(val_tinh)}</td><td>{fmt(val_tinh)}</td><td class="text-green">+6.8%</td>
+                <td>{fmt(val_tinh)}</td><td>{fmt(val_tinh)}</td><td class="text-green">+6.8%</td>
+                <td>{"10" if is_doanh_thu else "-"}</td><td class="text-green">{"Wait" if is_doanh_thu else "-"}</td>
             </tr>
             """
+
+            for bc_name, bc_data in tinh_data['bcs'].items():
+                val_bc = bc_data['dt'] if is_doanh_thu else bc_data['sl']
+                rows_html += f"""
+                <tr class="sub-row-3 {tinh_ind_clean_id}" style="display:none; background-color: #fafafa; font-style: italic; color: #555;">
+                    <td style="padding-left: 60px;">• Bưu cục phát: <b>{bc_name}</b></td>
+                    <td>10</td><td>100.00</td>
+                    <td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td class="text-green">+6.8%</td>
+                    <td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td class="text-green">+6.8%</td>
+                    <td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td class="text-green">+6.8%</td>
+                    <td>{"10" if is_doanh_thu else "-"}</td><td class="text-green">{"Wait" if is_doanh_thu else "-"}</td>
+                </tr>
+                """
+
+        return rows_html
+
+    rows_html_sl_section = generate_matrix_rows(is_doanh_thu=False)
+    rows_html_dt_section = generate_matrix_rows(is_doanh_thu=True)
 
     matrix_dt_html = f"""
     <!DOCTYPE html>
@@ -282,7 +391,7 @@ with tab_doanh_thu:
     <table class="matrix-table">
         <thead>
             <tr>
-                <th rowspan="2" style="width: 22%;">Mã đối tác</th>
+                <th rowspan="2" style="width: 25%;">Phân loại Đối tác / Tỉnh phát</th>
                 <th rowspan="2" style="width: 4%;">Mục tiêu</th>
                 <th rowspan="2" style="width: 5%;">Kết quả thực hiện</th>
                 <th colspan="8" style="background-color: #2a2a2a;">7 ngày gần nhất</th>
@@ -298,8 +407,8 @@ with tab_doanh_thu:
         </thead>
         <tbody>
             <!-- SẢN LƯỢNG -->
-            <tr class="row-group" onclick="toggleRow('group_sl_root', event, 'btn_sl_root')">
-                <td><span class="toggle-btn" id="btn_sl_root">[+]</span> <b>SẢN LƯỢNG</b></td>
+            <tr class="row-group" onclick="toggleRow('group_sl_sec_root', event, 'btn_sl_sec_root')">
+                <td><span class="toggle-btn" id="btn_sl_sec_root">[+]</span> <b>SẢN LƯỢNG</b></td>
                 <td style="text-align: center;">-</td>
                 <td style="text-align: center;">100%</td>
                 <td>{d_sl_vals[0]:,.0f}</td><td>{d_sl_vals[1]:,.0f}</td><td>{d_sl_vals[2]:,.0f}</td><td>{d_sl_vals[3]:,.0f}</td><td>{d_sl_vals[4]:,.0f}</td><td>{d_sl_vals[5]:,.0f}</td><td><b>{d_sl_vals[6]:,.0f}</b></td><td class="text-green">+5.22%</td>
@@ -310,8 +419,8 @@ with tab_doanh_thu:
             {rows_html_sl_section}
 
             <!-- DOANH THU -->
-            <tr class="row-group" onclick="toggleRow('group_dt_root', event, 'btn_dt_root')">
-                <td><span class="toggle-btn" id="btn_dt_root">[+]</span> <b>DOANH THU (TỶ ĐỒNG)</b></td>
+            <tr class="row-group" onclick="toggleRow('group_dt_sec_root', event, 'btn_dt_sec_root')">
+                <td><span class="toggle-btn" id="btn_dt_sec_root">[+]</span> <b>DOANH THU (TỶ ĐỒNG)</b></td>
                 <td style="text-align: center;">-</td>
                 <td style="text-align: center;">100%</td>
                 <td>{d_dt_vals[0]:,.2f}</td><td>{d_dt_vals[1]:,.2f}</td><td>{d_dt_vals[2]:,.2f}</td><td>{d_dt_vals[3]:,.2f}</td><td>{d_dt_vals[4]:,.2f}</td><td>{d_dt_vals[5]:,.2f}</td><td><b>{d_dt_vals[6]:,.2f}</b></td><td class="text-green">+6.81%</td>
