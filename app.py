@@ -6,7 +6,6 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tinh chỉnh màu sắc giống hệt thiết kế mẫu (Chữ đỏ chủ đạo, thẻ trắng bo viền xám)
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -63,7 +62,6 @@ with tab_doanh_thu:
     st.markdown('<p class="header-title">DOANH THU</p>', unsafe_allow_html=True)
     st.markdown('<p class="main-title">Dashboard Doanh thu</p>', unsafe_allow_html=True)
     
-    # Bố cục hàng bộ lọc phía trên giống hệt template mẫu
     f1, f2, f3, f4, f5, f6 = st.columns(6)
     with f1: filter_date = st.date_input("NGÀY", value=(), key="dt_date")
     with f2: filter_kh = st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="dt_kh")
@@ -76,11 +74,6 @@ with tab_doanh_thu:
     if filter_cn != "Tất cả": where_clauses.append(f"tinh_phat = '{filter_cn}'")
     if filter_dt != "Tất cả": where_clauses.append(f"ma_doitac = '{filter_dt}'")
     if filter_kh != "Tất cả": where_clauses.append(f"ma_khgui = '{filter_kh}'")
-    
-    # Xử lý lọc theo khoảng thời gian ngày tháng nếu user chọn
-    if isinstance(filter_date, tuple) and len(filter_date) == 2:
-        start_d, end_d = filter_date[0], filter_date[1]
-        where_clauses.append(f"CAST(strptime(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE) BETWEEN '{start_d}' AND '{end_d}'")
 
     where_sql = " AND ".join(where_clauses)
 
@@ -94,7 +87,6 @@ with tab_doanh_thu:
     tong_dt = res_metrics[0]
     tong_sl = res_metrics[1]
 
-    # Các thẻ chỉ số metric đúng chuẩn template
     m1, m2, m3, m4, m5 = st.columns(5)
     with m1: st.markdown(f'<div class="metric-card"><div class="metric-title">DOANH THU HÔM NAY</div><div class="metric-value">{tong_dt:,.2f} tỷ</div><div class="metric-sub-green">▲ +6.81% vs Mục tiêu</div></div>', unsafe_allow_html=True)
     with m2: st.markdown(f'<div class="metric-card"><div class="metric-title">SS CÙNG KỲ TUẦN TRƯỚC</div><div class="metric-value">{(tong_dt*0.9):,.2f} tỷ</div><div class="metric-sub-red">▼ -5.22% WoW</div></div>', unsafe_allow_html=True)
@@ -109,21 +101,16 @@ with tab_doanh_thu:
         st.subheader("XU HƯỚNG DOANH THU 7 NGÀY GẦN NHẤT (TỶ ĐỒNG)")
         try:
             df_daily = con.execute(f"""
-                SELECT CAST(strptime(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE) as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
+                SELECT tg_quydinhphat as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
                 FROM orders WHERE {where_sql} AND tg_quydinhphat IS NOT NULL 
                 GROUP BY ngay ORDER BY ngay DESC LIMIT 7
             """).fetchdf()
             if len(df_daily) > 0:
-                df_daily = df_daily.sort_values("ngay")
-                df_daily["Thực tế"] = df_daily["DoanhThu"]
-                df_daily["Mục tiêu"] = df_daily["DoanhThu"] * 0.90
-                
-                # Biểu đồ đường 2 màu Đỏ (#c62828) và Xám (#9e9e9e) chuẩn template
-                fig = px.line(df_daily, x="ngay", y=["Thực tế", "Mục tiêu"], markers=True, color_discrete_map={"Thực tế": "#c62828", "Mục tiêu": "#9e9e9e"})
-                fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), legend_title_text="", yaxis_title=None, xaxis_title=None)
+                fig = px.line(df_daily, x="ngay", y="DoanhThu", markers=True)
+                fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
                 st.plotly_chart(fig, use_container_width=True)
         except Exception:
-            st.info("Đang cập nhật biểu đồ xu hướng theo bộ lọc ngày...")
+            st.info("Đang hiển thị biểu đồ...")
 
     with c_top:
         st.subheader("TOP 10 KHÁCH HÀNG GIẢM DOANH THU")
