@@ -6,7 +6,6 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS màu sắc & giao diện chuẩn template
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -41,18 +40,12 @@ def get_db_connection():
     file_path = str(local_file if local_file.exists() else win_path)
     con = duckdb.connect(database=':memory:')
     
-    # Xử lý an toàn mọi định dạng ngày giờ (đủ giây, thiếu giây, dấu /, -, hoặc số Serial Excel)
+    # Cắt chuỗi an toàn lấy ngày tháng năm, bỏ qua hoàn toàn lỗi giờ phút giây
     con.execute(f"""
         CREATE VIEW orders AS 
         SELECT *, 
                COALESCE(
-                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%d-%m-%Y %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%d-%m-%Y %H:%M') AS DATE),
-                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%d-%m-%Y') AS DATE),
-                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%Y-%m-%d %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%Y-%m-%d %H:%M') AS DATE),
-                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%Y-%m-%d') AS DATE),
-                   TRY_CAST(CAST(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g') AS DATE) AS DATE),
+                   TRY_CAST(REGEXP_REPLACE(TRIM(SUBSTR(CAST(tg_quydinhphat AS VARCHAR), 1, 10)), '[/]', '-', 'g') AS DATE),
                    TRY_CAST(EPOCH_MS(CAST(TRY_CAST(tg_quydinhphat AS BIGINT) AS BIGINT) * 86400000 - 2209161600000) AS DATE)
                ) as clean_date
         FROM read_parquet('{file_path}')
