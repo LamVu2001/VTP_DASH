@@ -1032,8 +1032,8 @@ with tab_opr:
         for bc_code in bc_list:
             rows_ton_thu_html += f"""
             <tr class="ton-bc-row {cn_row_id}" style="display: none;">
-                <td style="text-align: left; padding-left: 28px; color: #555; font-style: italic;">
-                    • {bc_code}
+                <td style="text-align: left; padding-left: 28px; color: #333; font-style: italic;">
+                    • Bưu cục thu: <b>{bc_code}</b>
                 </td>
                 <td class="text-red">2</td>
                 <td class="text-orange">3</td>
