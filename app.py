@@ -6,7 +6,7 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tùy biến giao diện, khung bảng và thẻ Card sang trọng
+# CSS tùy biến giao diện, thẻ Card và phong cách Bảng Ma Trận quản trị cao cấp
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -25,6 +25,44 @@ st.markdown("""
     .metric-value { font-size: 26px; font-weight: bold; color: #111111; margin: 4px 0; }
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
+
+    /* CSS cho Bảng Ma Trận Vận Hành chuẩn Enterprise */
+    .matrix-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 12px;
+        background-color: #ffffff;
+        color: #111111;
+        margin-top: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #222222;
+    }
+    .matrix-table th {
+        background-color: #222222;
+        color: #ffffff;
+        text-align: center;
+        padding: 9px 4px;
+        border: 1px solid #444444;
+        font-weight: 600;
+        font-size: 11px;
+    }
+    .matrix-table td {
+        padding: 8px 10px;
+        border: 1px solid #dddddd;
+        vertical-align: middle;
+    }
+    .matrix-table tr:hover {
+        background-color: #f9f9f9;
+    }
+    .row-group { 
+        font-weight: bold; 
+        background-color: #fcfcfc; 
+    }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .text-green { color: #2e7d32; font-weight: bold; }
+    .text-red { color: #c62828; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -210,7 +248,7 @@ with tab_odr:
 
     st.divider()
     
-    # --- HAI BẢNG TƯƠNG TÁC CHỌN DÒNG CHÍNH (TRÁI: TỈNH PHÁT, PHẢI: BƯU CỤC) ---
+    # --- 1. HAI BẢNG TƯƠNG TÁC BAN ĐẦU ---
     st.subheader("📍 BẢNG TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC CHỌN DÒNG)")
     st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
     
@@ -256,3 +294,70 @@ with tab_odr:
                 GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True, height=350)
+
+    # --- 2. BẢNG MA TRẬN VẬN HÀNH (EXECUTIVE MATRIX REPORT) ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (EXECUTIVE MATRIX)")
+    st.info("💡 Bảng ma trận tổng hợp đa chiều theo 7 ngày gần nhất, 5 tuần gần nhất và theo Tháng chuẩn phong cách báo cáo quản trị.")
+
+    matrix_html = """
+    <table class="matrix-table">
+        <thead>
+            <tr>
+                <th rowspan="2" style="width: 22%;">Chỉ tiêu</th>
+                <th rowspan="2" style="width: 6%;">Mục tiêu</th>
+                <th rowspan="2" style="width: 6%;">Kết quả thực hiện</th>
+                <th colspan="8" style="background-color: #2a2a2a;">7 ngày gần nhất</th>
+                <th colspan="6" style="background-color: #333333;">5 tuần gần nhất</th>
+                <th colspan="3" style="background-color: #2a2a2a;">Tháng</th>
+            </tr>
+            <tr>
+                <!-- 7 ngày -->
+                <th>06/08</th><th>07/08</th><th>08/08</th><th>09/08</th><th>10/08</th><th>11/08</th><th>12/08</th><th style="color: #ff5252;">DoD</th>
+                <!-- 5 tuần -->
+                <th>W28</th><th>W31</th><th>W32</th><th>W33</th><th>W34</th><th style="color: #ff5252;">WoW</th>
+                <!-- Tháng -->
+                <th>M-1</th><th>M</th><th style="color: #ff5252;">MoM</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="row-group">
+                <td><b>📦 Sản lượng phải phát</b></td>
+                <td class="text-center">-</td>
+                <td class="text-center">-</td>
+                <td class="text-right">16.45</td><td class="text-right">20.81</td><td class="text-right">26.38</td><td class="text-right">18.30</td><td class="text-right">12.14</td><td class="text-right">12.32</td><td class="text-right">11.18</td><td class="text-center text-green">+5.22</td>
+                <td class="text-right">26.03</td><td class="text-right">21.74</td><td class="text-right">15.73</td><td class="text-right">25.29</td><td class="text-right">20.08</td><td class="text-center text-green">+5.22</td>
+                <td class="text-right">22.02</td><td class="text-right">28.83</td><td class="text-center text-green">+5.22</td>
+            </tr>
+            
+            <tr>
+                <td>&nbsp;&nbsp;&nbsp;&nbsp;<b>% Phát thành công</b></td>
+                <td class="text-center">99.00</td>
+                <td class="text-center">100.00</td>
+                <td class="text-right">28.42</td><td class="text-right">27.42</td><td class="text-right">25.96</td><td class="text-right">19.36</td><td class="text-right">13.26</td><td class="text-right">22.42</td><td class="text-right">18.79</td><td class="text-center text-red">-14.05</td>
+                <td class="text-right">14.89</td><td class="text-right">13.99</td><td class="text-right">25.81</td><td class="text-right">12.91</td><td class="text-right">26.96</td><td class="text-center text-red">-14.05</td>
+                <td class="text-right">22.59</td><td class="text-right">12.32</td><td class="text-center text-red">-14.05</td>
+            </tr>
+
+            <tr>
+                <td>&nbsp;&nbsp;&nbsp;&nbsp;<b>% Phát thành công đg lần 1</b></td>
+                <td class="text-center">98.00</td>
+                <td class="text-center">100.00</td>
+                <td class="text-right">18.15</td><td class="text-right">10.17</td><td class="text-right">15.94</td><td class="text-right">25.08</td><td class="text-right">19.14</td><td class="text-right">28.11</td><td class="text-right">27.75</td><td class="text-center text-green">+11.93</td>
+                <td class="text-right">16.80</td><td class="text-right">21.11</td><td class="text-right">16.22</td><td class="text-right">26.40</td><td class="text-right">11.90</td><td class="text-center text-green">+11.93</td>
+                <td class="text-right">26.29</td><td class="text-right">22.93</td><td class="text-center text-green">+11.93</td>
+            </tr>
+
+            <tr class="row-group">
+                <td><b>⚠️ % Tồn quá hạn trên 1 ngày</b></td>
+                <td class="text-center">-</td>
+                <td class="text-center">-</td>
+                <td class="text-right">3.01</td><td class="text-right">2.01</td><td class="text-right">3.83</td><td class="text-right">1.17</td><td class="text-right">2.27</td><td class="text-right">3.27</td><td class="text-right">1.13</td><td class="text-center text-red">-2.22</td>
+                <td class="text-right">1.13</td><td class="text-right">1.13</td><td class="text-right">1.13</td><td class="text-right">1.13</td><td class="text-right">1.13</td><td class="text-center text-red">-2.22</td>
+                <td class="text-right">1.13</td><td class="text-right">1.13</td><td class="text-center text-red">-2.22</td>
+            </tr>
+        </tbody>
+    </table>
+    """
+
+    st.markdown(matrix_html, unsafe_allow_html=True)
