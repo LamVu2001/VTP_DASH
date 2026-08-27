@@ -44,12 +44,16 @@ def get_db_connection():
         CREATE VIEW orders AS 
         SELECT *, 
                COALESCE(
+                   TRY_CAST(EPOCH_MS(CAST(TRY_CAST(tg_quydinhphat AS BIGINT) AS BIGINT) * 86400000 - 2209161600000) AS DATE),
                    TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%d-%m-%Y %H:%M:%S') AS DATE),
                    TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%d-%m-%Y %H:%M') AS DATE),
                    TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%d-%m-%Y') AS DATE),
-                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%Y-%m-%d %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%Y-%m-%d %H:%M') AS DATE),
-                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%Y-%m-%d') AS DATE)
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE),
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y %H:%M') AS DATE),
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y') AS DATE),
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%Y-%m-%d %H:%M:%S') AS DATE),
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%Y-%m-%d %H:%M') AS DATE),
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%Y-%m-%d') AS DATE)
                ) as clean_date
         FROM read_parquet('{file_path}')
     """)
