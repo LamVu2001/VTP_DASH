@@ -946,6 +946,20 @@ with tab_opr:
                 <td>2.0</td><td>2.0</td><td>1.0</td><td>1.0</td><td>2.0</td><td class="text-green">-0.15</td>
                 <td>1.0</td><td>2.0</td><td class="text-green">-0.15</td>
             </tr>
+            <tr class="sub-row-1 group_ton_opr" style="display:none; background-color: #fafafa;">
+                <td style="padding-left: 30px;"><span class="toggle-btn" style="background:#f0f0f0;">-</span> % Tồn thu quá hạn trên 3 ngày</td>
+                <td>-</td><td>-</td>
+                <td>1.0</td><td>2.0</td><td>1.0</td><td>1.0</td><td>2.0</td><td>1.0</td><td>1.0</td><td class="text-green">-0.15</td>
+                <td>2.0</td><td>2.0</td><td>1.0</td><td>1.0</td><td>2.0</td><td class="text-green">-0.15</td>
+                <td>1.0</td><td>2.0</td><td class="text-green">-0.15</td>
+            </tr>
+            <tr class="sub-row-1 group_ton_opr" style="display:none; background-color: #fafafa;">
+                <td style="padding-left: 30px;"><span class="toggle-btn" style="background:#f0f0f0;">-</span> % Tồn thu quá hạn trên 4 ngày</td>
+                <td>-</td><td>-</td>
+                <td>1.0</td><td>2.0</td><td>1.0</td><td>1.0</td><td>2.0</td><td>1.0</td><td>1.0</td><td class="text-green">-0.15</td>
+                <td>2.0</td><td>2.0</td><td>1.0</td><td>1.0</td><td>2.0</td><td class="text-green">-0.15</td>
+                <td>1.0</td><td>2.0</td><td class="text-green">-0.15</td>
+            </tr>
         </tbody>
     </table>
 
