@@ -275,7 +275,7 @@ with tab_odr:
 
     # 2. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
-    st.info("💡 Bấm `[+]` tại Sản lượng phải phát để xem chi tiết theo Đối tác -> Tỉnh -> Bưu cục, hoặc bấm `[+]` tại % Tồn quá hạn 1 ngày để xổ rộng 4 chỉ tiêu tồn quá hạn.")
+    st.info("💡 Bấm `[+]` tại Sản lượng phải phát để xem chi tiết toàn bộ Đối tác -> Tỉnh -> Bưu cục, hoặc bấm `[+]` tại % Tồn quá hạn 1 ngày để xổ rộng 4 chỉ tiêu tồn quá hạn.")
 
     days_data = con.execute(f"""
         SELECT clean_date, COUNT(*) as sl 
@@ -293,7 +293,7 @@ with tab_odr:
 
     dt_rows_db = con.execute(f"""
         SELECT COALESCE(ma_doitac, 'Khác') as dt, COUNT(*) as sl 
-        FROM orders WHERE {where_sql_odr} GROUP BY ma_doitac ORDER BY sl DESC LIMIT 5
+        FROM orders WHERE {where_sql_odr} GROUP BY ma_doitac ORDER BY sl DESC
     """).fetchall()
 
     matrix_rows_html = ""
@@ -315,7 +315,7 @@ with tab_odr:
         tinh_rows_db = con.execute(f"""
             SELECT COALESCE(tinh_phat, 'Khác') as tinh, COUNT(*) as sl 
             FROM orders WHERE {where_sql_odr} AND ma_doitac = '{dt_name}' 
-            GROUP BY tinh_phat ORDER BY sl DESC LIMIT 5
+            GROUP BY tinh_phat ORDER BY sl DESC
         """).fetchall()
 
         for idx_tinh, tinh_row in enumerate(tinh_rows_db):
@@ -333,7 +333,6 @@ with tab_odr:
             </tr>
             """
 
-            # ĐÃ BỎ LIMIT BƯU CỤC ĐỂ BUNG HẾT
             bc_rows_db = con.execute(f"""
                 SELECT COALESCE(ma_buucuc_phat, 'Khác') as bc, COUNT(*) as sl 
                 FROM orders WHERE {where_sql_odr} AND ma_doitac = '{dt_name}' AND tinh_phat = '{tinh_name}'
@@ -551,13 +550,13 @@ with tab_odr:
     </html>
     """
 
-    components.html(matrix_full_html, height=520, scrolling=True)
+    components.html(matrix_full_html, height=750, scrolling=True)
 
     st.write("")
     st.divider()
 
     # =========================================================================
-    # 3. BA BẢNG TỒN KHÂU (TRẢI DÀI TRANG WEB, BUNG TOÀN BỘ BƯU CỤC)
+    # 3. BA BẢNG TỒN KHÂU (CÓ THÀNH CUỘN CHO TỪNG BẢNG, NÚT TÍCH HỢP DRILL-DOWN)
     # =========================================================================
 
     tinh_rows = con.execute(f"""
@@ -565,8 +564,7 @@ with tab_odr:
         FROM orders 
         WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
         GROUP BY tinh_phat 
-        ORDER BY sl DESC 
-        LIMIT 10
+        ORDER BY sl DESC
     """).fetchall()
 
     fm_rows_html = ""
@@ -584,7 +582,6 @@ with tab_odr:
             <td class="ton-highlight-orange">0.65%</td>
         </tr>
         """
-        # ĐÃ BỎ LIMIT BƯU CỤC ĐỂ BUNG HẾT TOÀN BỘ BƯU CỤC
         bc_sub_rows = con.execute(f"""
             SELECT ma_buucuc_phat, COUNT(*) as sl 
             FROM orders 
@@ -621,7 +618,6 @@ with tab_odr:
             <td class="ton-highlight-orange">0.30%</td>
         </tr>
         """
-        # ĐÃ BỎ LIMIT BƯU CỤC ĐỂ BUNG HẾT TOÀN BỘ BƯU CỤC
         bc_sub_rows = con.execute(f"""
             SELECT ma_buucuc_phat, COUNT(*) as sl 
             FROM orders 
@@ -648,8 +644,18 @@ with tab_odr:
     <html>
     <head>
     <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }}
-        .ton-container {{ margin-bottom: 25px; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background-color: transparent; }}
+        
+        /* Container cho phép cuộn nội dung từng bảng */
+        .ton-table-wrapper {{
+            max-height: 480px;
+            overflow-y: auto;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        }}
+        
         .ton-section-title {{
             font-size: 13px;
             font-weight: bold;
@@ -660,34 +666,51 @@ with tab_odr:
             margin-bottom: 8px;
             text-transform: uppercase;
         }}
+        
         .ton-table {{
             width: 100%;
-            border-collapse: collapse;
+            border-collapse: separate;
+            border-spacing: 0;
             font-size: 11.5px;
             background-color: #ffffff;
-            border: 1px solid #d3d3d3;
         }}
+        
+        /* Cố định Header tiêu đề đỏ khi cuộn */
         .ton-table th {{
+            position: sticky;
+            top: 0;
+            z-index: 10;
             background-color: #c62828;
             color: #ffffff;
             text-align: center;
-            padding: 6px 4px;
-            border: 1px solid #b71c1c;
+            padding: 7px 4px;
+            border-bottom: 2px solid #b71c1c;
+            border-right: 1px solid #b71c1c;
             font-weight: bold;
         }}
+        
+        /* Cố định dòng TOTAL ở ngay dưới Header */
+        .ton-table tr.total-row td {{
+            position: sticky;
+            top: 31px;
+            z-index: 9;
+            background-color: #f5f5f5;
+            font-weight: bold;
+            border-bottom: 2px solid #ccc;
+        }}
+        
         .ton-table td {{
-            padding: 5px 6px;
-            border: 1px solid #e0e0e0;
+            padding: 6px 6px;
+            border-bottom: 1px solid #e0e0e0;
+            border-right: 1px solid #e0e0e0;
             text-align: center;
         }}
+        
         .ton-table td.col-branch {{
             text-align: left;
             padding-left: 10px;
         }}
-        .ton-table tr.total-row {{
-            background-color: #f5f5f5;
-            font-weight: bold;
-        }}
+        
         .ton-btn {{
             display: inline-block;
             width: 14px;
@@ -703,6 +726,7 @@ with tab_odr:
             margin-right: 5px;
             border-radius: 2px;
         }}
+        
         .ton-highlight-red {{ color: #c62828; font-weight: bold; }}
         .ton-highlight-orange {{ color: #e65100; font-weight: bold; }}
     </style>
@@ -710,8 +734,8 @@ with tab_odr:
     <body>
 
     <!-- BẢNG 1: FM -->
-    <div class="ton-container">
-        <div class="ton-section-title">TỒN KHÂU FM CÁC BƯU GỬI CHƯA XUẤT SẠCH – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
+    <div class="ton-section-title">TỒN KHÂU FM CÁC BƯU GỬI CHƯA XUẤT SẠCH – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
+    <div class="ton-table-wrapper">
         <table class="ton-table">
             <thead>
                 <tr>
@@ -742,8 +766,8 @@ with tab_odr:
     </div>
 
     <!-- BẢNG 2: MM -->
-    <div class="ton-container">
-        <div class="ton-section-title">TỒN KHÂU MM CÁC BƯU GỬI CHƯA KẾT NỐI – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
+    <div class="ton-section-title">TỒN KHÂU MM CÁC BƯU GỬI CHƯA KẾT NỐI – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
+    <div class="ton-table-wrapper" style="max-height: 300px;">
         <table class="ton-table">
             <thead>
                 <tr>
@@ -777,8 +801,8 @@ with tab_odr:
     </div>
 
     <!-- BẢNG 3: LM -->
-    <div class="ton-container">
-        <div class="ton-section-title">TỒN KHÂU LM CÁC BƯU GỬI CHƯA PHÁT – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
+    <div class="ton-section-title">TỒN KHÂU LM CÁC BƯU GỬI CHƯA PHÁT – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
+    <div class="ton-table-wrapper">
         <table class="ton-table">
             <thead>
                 <tr>
@@ -825,5 +849,4 @@ with tab_odr:
     </html>
     """
 
-    # TĂNG HEIGHT LÊN 1200 ĐỂ HIỂN THỊ DÀI TỰ NHIÊN, KHÔNG BỊ KHUNG CUỘN NHỎ
-    components.html(html_3_tables, height=1200, scrolling=False)
+    components.html(html_3_tables, height=1450, scrolling=True)
