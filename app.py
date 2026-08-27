@@ -218,7 +218,7 @@ with tab_odr:
     st.divider()
 
     # ==========================================
-    # ĐÃ ĐỔI 2 BẢNG TOP 5 LÊN TRƯỚC BẢNG MA TRẬN
+    # 2 BẢNG TOP 5 (BƯU CỤC TỰ ĐỘNG LỌC THEO TỈNH ĐÃ CHỌN)
     # ==========================================
     top_col1, top_col2 = st.columns(2)
 
@@ -239,7 +239,10 @@ with tab_odr:
         st.dataframe(df_top_tinh, use_container_width=True, hide_index=True)
 
     with top_col2:
-        st.markdown("🔴 **TOP 5 BƯU CỤC THỰC HIỆN KÉM NHẤT**")
+        # Xây dựng câu lệnh lọc bưu cục theo tỉnh nếu người dùng chọn cụ thể một tỉnh ở filter trên
+        bc_filter_sql = f"AND tinh_phat = '{filter_cn_odr}'" if filter_cn_odr != "Tất cả" else ""
+        st.markdown(f"🔴 **TOP 5 BƯU CỤC THỰC HIỆN KÉM NHẤT** {f'({filter_cn_odr})' if filter_cn_odr != 'Tất cả' else ''}")
+        
         df_top_bc = con.execute(f"""
             SELECT 
                 COALESCE(ma_buucuc_phat, 'Chưa rõ') AS "Bưu cục",
@@ -249,7 +252,7 @@ with tab_odr:
                 CONCAT(ROUND(RANDOM() * 10 + 85, 1), '%') AS "Tồn quá hạn 2 ngày",
                 CONCAT(ROUND((RANDOM() - 0.5) * 4, 1), '%') AS "SS cùng kỳ (2)"
             FROM orders 
-            WHERE {where_sql_odr} AND ma_buucuc_phat IS NOT NULL
+            WHERE {where_sql_odr} AND ma_buucuc_phat IS NOT NULL {bc_filter_sql}
             GROUP BY ma_buucuc_phat, tinh_phat
             LIMIT 5
         """).fetchdf()
