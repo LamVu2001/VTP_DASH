@@ -6,7 +6,7 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tùy biến giao diện, khung bảng và thẻ Card sang trọng
+# CSS tùy biến giao diện, thẻ Card và phong cách báo cáo quản trị sang trọng
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -26,12 +26,42 @@ st.markdown("""
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
 
-    .table-container {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 15px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    /* Phong cách báo cáo quản trị cấp cao cho Expander */
+    .report-header-row {
+        background-color: #222222;
+        color: #ffffff;
+        padding: 10px 15px;
+        font-weight: bold;
+        font-size: 12px;
+        text-transform: uppercase;
+        display: flex;
+        justify-content: space-between;
+        border-top-left-radius: 6px;
+        border-top-right-radius: 6px;
+        margin-bottom: 0px;
+    }
+    
+    .streamlit-expanderHeader {
+        background-color: #ffffff !important;
+        border: 1px solid #dcdcdc !important;
+        border-radius: 4px !important;
+        font-weight: 600 !important;
+        color: #111111 !important;
+        padding: 10px 15px !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .streamlit-expanderHeader:hover {
+        border-color: #c62828 !important;
+        background-color: #fcfcfc !important;
+        color: #c62828 !important;
+    }
+    .streamlit-expanderContent {
+        background-color: #fafafa !important;
+        border: 1px solid #dcdcdc !important;
+        border-top: none !important;
+        border-bottom-left-radius: 4px !important;
+        border-bottom-right-radius: 4px !important;
+        padding: 15px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -218,11 +248,10 @@ with tab_odr:
 
     st.divider()
     
-    # --- 1. HAI BẢNG TƯƠNG TÁC BAN ĐẦU (HIỂN THỊ ĐẦY ĐỦ TẤT CẢ CÁC TỈNH & BƯU CỤC) ---
+    # --- 1. HAI BẢNG TƯƠNG TÁC BAN ĐẦU (ĐẦY ĐỦ DỮ LIỆU) ---
     st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC CHỌN DÒNG)")
     st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
     
-    # Đã bỏ LIMIT để show đầy đủ toàn bộ các tỉnh phát
     df_cn_grouped = con.execute(f"""
         SELECT tinh_phat AS "Tỉnh phát", COUNT(*) AS "Tổng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
         FROM orders WHERE {where_sql_odr} AND tinh_phat IS NOT NULL
@@ -250,7 +279,7 @@ with tab_odr:
 
     with tbl_col2:
         if selected_tinh:
-            st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span> (Đầy đủ)**", unsafe_allow_html=True)
+            st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span>**", unsafe_allow_html=True)
             df_bc_filtered = con.execute(f"""
                 SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
                 FROM orders WHERE {where_sql_odr} AND tinh_phat = '{selected_tinh}' AND ma_buucuc_phat IS NOT NULL
@@ -258,7 +287,7 @@ with tab_odr:
             """).fetchdf()
             st.dataframe(df_bc_filtered, use_container_width=True, hide_index=True, height=350)
         else:
-            st.markdown("**Bảng Bưu Cục (Đầy đủ - Hoặc bấm chọn Tỉnh bên trái)**")
+            st.markdown("**Bảng Bưu Cục (Hoặc bấm chọn Tỉnh bên trái)**")
             df_bc_all = con.execute(f"""
                 SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
                 FROM orders WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
@@ -266,59 +295,40 @@ with tab_odr:
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True, height=350)
 
-    # --- 2. BẢNG PHÂN CẤP ĐƯỢC XẾP GỌN GÀNG NHƯ MỘT BẢNG HỆ THỐNG LỚN DUY NHẤT ---
+    # --- 2. BẢNG PHÂN CẤP QUẢN TRỊ CẤP CAO (EXECUTIVE REPORT) ---
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("📑 BẢNG PHÂN CẤP TỈNH PHÁT & BƯU CỤC LIỀN MẠCH ([+] / [-])")
-    st.info("💡 Bấm vào nút `[+] / [-]` để mở rộng hoặc thu gọn các dòng bưu cục ngay trong cùng một bảng thống kê.")
+    st.subheader("📊 BÁO CÁO PHÂN CẤP CHẤT LƯỢNG KHÂU PHÁT (EXECUTIVE REPORT)")
+    st.info("💡 Bấm vào các dòng quản trị bên dưới để mở rộng xem chi tiết danh sách bưu cục trực thuộc.")
 
-    df_tins = con.execute(f"""
+    # Header giả lập bảng quản trị cấp cao
+    st.markdown("""
+        <div class="report-header-row">
+            <span style="width: 40%;">CHỈ TIÊU / KHU VỰC PHÁT</span>
+            <span style="width: 15%; text-align: center;">MỤC TIÊU</span>
+            <span style="width: 15%; text-align: center;">THỰC HIỆN</span>
+            <span style="width: 15%; text-align: right;">TỔNG SẢN LƯỢNG</span>
+            <span style="width: 15%; text-align: right;">DOANH THU (TR)</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+    df_tins_rpt = con.execute(f"""
         SELECT tinh_phat, COUNT(*) AS tong_don, ROUND(SUM(tong_cuoc)/1e6, 1) AS doanh_thu
         FROM orders 
         WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
         GROUP BY tinh_phat 
-        ORDER BY tong_don DESC
+        ORDER BY tong_don DESC 
+        LIMIT 10
     """).fetchall()
 
-    if "expanded_tinhs" not in st.session_state:
-        st.session_state.expanded_tinhs = {}
-
-    with st.container():
-        st.markdown('<div class="table-container">', unsafe_allow_html=True)
-        
-        for tinh, tong_don, doanh_thu in df_tins:
-            is_expanded = st.session_state.expanded_tinhs.get(tinh, False)
+    for tinh, tong_don, doanh_thu in df_tins_rpt:
+        with st.expander(f"[+] Khu vực Tỉnh phát: {tinh}                |       -       |       100%       |       {tong_don:,} đơn       |       {doanh_thu:,.1f} Tr"):
+            df_bc_sub = con.execute(f"""
+                SELECT ma_buucuc_phat AS "Mã bưu cục", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+                FROM orders 
+                WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND ma_buucuc_phat IS NOT NULL
+                GROUP BY ma_buucuc_phat 
+                ORDER BY "Sản lượng đơn" DESC
+            """).fetchdf()
             
-            col_b, col_t, col_d, col_s = st.columns([1, 2.5, 1.5, 1.5])
-            
-            with col_b:
-                btn_label = "[-] Thu gọn" if is_expanded else "[+] Mở rộng"
-                if st.button(btn_label, key=f"tbl_row_{tinh}", use_container_width=True):
-                    st.session_state.expanded_tinhs[tinh] = not is_expanded
-                    st.rerun()
-            with col_t:
-                st.markdown(f"**🏢 Tỉnh: {tinh}**")
-            with col_d:
-                st.markdown(f"📦 Tổng đơn: **{tong_don:,}**")
-            with col_s:
-                st.markdown(f"💰 Doanh thu: **{doanh_thu:,.1f} Tr**")
-
-            if is_expanded:
-                st.markdown(f"""
-                    <div style="margin-left: 20px; border-left: 3px solid #c62828; padding-left: 15px; margin-top: 8px; margin-bottom: 12px; background-color: #fdfdfd; padding-top: 5px; padding-bottom: 5px; border-radius: 4px;">
-                """, unsafe_allow_html=True)
-                st.markdown(f"↳ **Toàn bộ Bưu cục trực thuộc {tinh}:**")
-                
-                df_bc_sub = con.execute(f"""
-                    SELECT ma_buucuc_phat AS "Mã bưu cục", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-                    FROM orders 
-                    WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND ma_buucuc_phat IS NOT NULL
-                    GROUP BY ma_buucuc_phat 
-                    ORDER BY "Sản lượng đơn" DESC
-                """).fetchdf()
-                
-                st.dataframe(df_bc_sub, use_container_width=True, hide_index=True)
-                st.markdown("</div>", unsafe_allow_html=True)
-            
-            st.markdown("<hr style='margin: 8px 0px 8px 0px; border-top: 1px solid #f0f0f0;'>", unsafe_allow_html=True)
-            
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown(f"**Danh sách bưu cục chi tiết thuộc {tinh}:**")
+            st.dataframe(df_bc_sub, use_container_width=True, hide_index=True)
