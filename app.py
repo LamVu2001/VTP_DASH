@@ -41,13 +41,13 @@ def get_db_connection():
     file_path = str(local_file if local_file.exists() else win_path)
     con = duckdb.connect(database=':memory:')
     
-    # Tự động làm sạch và định dạng chuẩn ngày tháng, loại bỏ hoàn toàn lỗi giờ phút giây thô
+    # Chuẩn hóa toàn bộ ngày tháng về dạng DATE thuần túy, loại bỏ hoàn toàn giờ phút
     con.execute(f"""
         CREATE VIEW orders AS 
         SELECT *, 
                COALESCE(
-                   TRY_CAST(STRPTIME(REGEXP_REPLACE(SPLIT_PART(TRIM(tg_quydinhphat), ' ', 1), '[/]', '-', 'g'), '%d-%m-%Y') AS DATE),
-                   TRY_CAST(STRPTIME(REGEXP_REPLACE(SPLIT_PART(TRIM(tg_quydinhphat), ' ', 1), '[/]', '-', 'g'), '%Y-%m-%d') AS DATE),
+                   TRY_CAST(STRPTIME(REGEXP_REPLACE(SPLIT_PART(TRIM(CAST(tg_quydinhphat AS VARCHAR)), ' ', 1), '[/]', '-', 'g'), '%d-%m-%Y') AS DATE),
+                   TRY_CAST(STRPTIME(REGEXP_REPLACE(SPLIT_PART(TRIM(CAST(tg_quydinhphat AS VARCHAR)), ' ', 1), '[/]', '-', 'g'), '%Y-%m-%d') AS DATE),
                    TRY_CAST(EPOCH_MS(CAST(TRY_CAST(tg_quydinhphat AS BIGINT) AS BIGINT) * 86400000 - 2209161600000) AS DATE)
                ) as clean_date
         FROM read_parquet('{file_path}')
@@ -123,7 +123,9 @@ with tab_doanh_thu:
             """).fetchdf()
             if len(df_daily) > 0:
                 df_daily = df_daily.sort_values("ngay")
+                # Đổi màu biểu đồ sang tông đỏ đô giống template (#c62828) và chỉ hiện thị theo ngày
                 fig = px.line(df_daily, x="ngay", y="DoanhThu", markers=True)
+                fig.update_traces(line=dict(color="#c62828", width=2.5), marker=dict(size=6, color="#c62828"))
                 fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
                 st.plotly_chart(fig, use_container_width=True)
         except Exception:
