@@ -209,9 +209,7 @@ with tab_odr:
 
     st.divider()
 
-    # =========================================================================
     # 1. DANH SÁCH TỈNH PHÁT & BƯU CỤC
-    # =========================================================================
     st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC TỰ ĐỘNG LỌC)")
     st.info("💡 Mẹo: Bấm chọn vào một dòng Tỉnh ở bảng bên trái để xem đầy đủ các bưu cục thuộc tỉnh đó ở bảng bên phải!")
 
@@ -276,10 +274,10 @@ with tab_odr:
     st.divider()
 
     # =========================================================================
-    # 2. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (ĐÃ SỬA CHUẨN CLASS NÚT [+])
+    # 2. BÁO CÁO MA TRẬN PHÂN CẤP (ĐỐI TÁC -> TỈNH PHÁT -> BƯU CỤC PHÁT)
     # =========================================================================
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
-    st.info("💡 Bảng ma trận tích hợp sẵn nút bấm `[+] / [-]` tương tác đóng/mở trực tiếp mượt mà.")
+    st.info("💡 Bấm `[+]` tại Sản lượng phải phát để mở danh sách **Mã đối tác** -> Bấm `[+]` tại Đối tác để xem **Tỉnh phát** -> Bấm `[+]` tại Tỉnh để xem **Bưu cục phát**.")
 
     days_data = con.execute(f"""
         SELECT clean_date, COUNT(*) as sl 
@@ -295,24 +293,73 @@ with tab_odr:
 
     m_current = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
 
-    kh_rows_db = con.execute(f"""
-        SELECT COALESCE(ma_khgui, 'Khác') as kh, COUNT(*) as sl 
-        FROM orders WHERE {where_sql_odr} GROUP BY ma_khgui ORDER BY sl DESC LIMIT 5
+    # Truy vấn cấp 1: Mã đối tác
+    dt_rows_db = con.execute(f"""
+        SELECT COALESCE(ma_doitac, 'Khác') as dt, COUNT(*) as sl 
+        FROM orders WHERE {where_sql_odr} GROUP BY ma_doitac ORDER BY sl DESC LIMIT 5
     """).fetchall()
 
-    kh_html_blocks = ""
-    for row in kh_rows_db:
-        kh_name = row[0]
-        kh_sl = row[1]
-        kh_html_blocks += f"""
-        <tr class="sub-row-1 kh_section" style="display:none; background-color: #fafafa;">
-            <td style="padding-left: 30px;"><span class="toggle-btn">[+]</span> Khách hàng: <b>{kh_name}</b></td>
+    matrix_rows_html = ""
+    for idx_dt, dt_row in enumerate(dt_rows_db):
+        dt_name = dt_row[0]
+        dt_sl = dt_row[1]
+        dt_clean_id = f"dt_{idx_dt}"
+
+        # Cấp 1: Thẻ Mã đối tác
+        matrix_rows_html += f"""
+        <tr class="sub-row-1 group_root" style="display:none; background-color: #f4f6f8; font-weight:600;" onclick="toggleRow('{dt_clean_id}', event, 'btn_{dt_clean_id}')">
+            <td style="padding-left: 20px;"><span class="toggle-btn" id="btn_{dt_clean_id}">[+]</span> Đối tác: <b>{dt_name}</b></td>
             <td>-</td><td>-</td>
-            <td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td class="text-green">+5.22%</td>
-            <td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td class="text-green">+5.22%</td>
-            <td>{kh_sl}</td><td>{kh_sl}</td><td class="text-green">+5.22%</td>
+            <td>{dt_sl//7}</td><td>{dt_sl//7}</td><td>{dt_sl//7}</td><td>{dt_sl//7}</td><td>{dt_sl//7}</td><td>{dt_sl//7}</td><td>{dt_sl//7}</td><td class="text-green">+5.22%</td>
+            <td>{dt_sl}</td><td>{dt_sl}</td><td>{dt_sl}</td><td>{dt_sl}</td><td>{dt_sl}</td><td class="text-green">+5.22%</td>
+            <td>{dt_sl}</td><td>{dt_sl}</td><td class="text-green">+5.22%</td>
         </tr>
         """
+
+        # Truy vấn cấp 2: Tỉnh phát của đối tác này
+        tinh_rows_db = con.execute(f"""
+            SELECT COALESCE(tinh_phat, 'Khác') as tinh, COUNT(*) as sl 
+            FROM orders WHERE {where_sql_odr} AND ma_doitac = '{dt_name}' 
+            GROUP BY tinh_phat ORDER BY sl DESC LIMIT 3
+        """).fetchall()
+
+        for idx_tinh, tinh_row in enumerate(tinh_rows_db):
+            tinh_name = tinh_row[0]
+            tinh_sl = tinh_row[1]
+            tinh_clean_id = f"{dt_clean_id}_tinh_{idx_tinh}"
+
+            # Cấp 2: Thẻ Tỉnh phát
+            matrix_rows_html += f"""
+            <tr class="sub-row-2 {dt_clean_id}" style="display:none; background-color: #ffffff; color: #1565c0;" onclick="toggleRow('{tinh_clean_id}', event, 'btn_{tinh_clean_id}')">
+                <td style="padding-left: 40px;"><span class="toggle-btn" id="btn_{tinh_clean_id}">[+]</span> Tỉnh: <b>{tinh_name}</b></td>
+                <td>-</td><td>-</td>
+                <td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td class="text-green">+5.22%</td>
+                <td>{tinh_sl}</td><td>{tinh_sl}</td><td>{tinh_sl}</td><td>{tinh_sl}</td><td>{tinh_sl}</td><td class="text-green">+5.22%</td>
+                <td>{tinh_sl}</td><td>{tinh_sl}</td><td class="text-green">+5.22%</td>
+            </tr>
+            """
+
+            # Truy vấn cấp 3: Bưu cục phát của Tỉnh này
+            bc_rows_db = con.execute(f"""
+                SELECT COALESCE(ma_buucuc_phat, 'Khác') as bc, COUNT(*) as sl 
+                FROM orders WHERE {where_sql_odr} AND ma_doitac = '{dt_name}' AND tinh_phat = '{tinh_name}'
+                GROUP BY ma_buucuc_phat ORDER BY sl DESC LIMIT 3
+            """).fetchall()
+
+            for bc_row in bc_rows_db:
+                bc_name = bc_row[0]
+                bc_sl = bc_row[1]
+
+                # Cấp 3: Thẻ Bưu cục phát
+                matrix_rows_html += f"""
+                <tr class="sub-row-3 {tinh_clean_id}" style="display:none; background-color: #fafafa; font-style: italic; color: #555;">
+                    <td style="padding-left: 60px;">• Bưu cục: <b>{bc_name}</b></td>
+                    <td>-</td><td>-</td>
+                    <td>{bc_sl//7}</td><td>{bc_sl//7}</td><td>{bc_sl//7}</td><td>{bc_sl//7}</td><td>{bc_sl//7}</td><td>{bc_sl//7}</td><td>{bc_sl//7}</td><td class="text-green">+5.22%</td>
+                    <td>{bc_sl}</td><td>{bc_sl}</td><td>{bc_sl}</td><td>{bc_sl}</td><td>{bc_sl}</td><td class="text-green">+5.22%</td>
+                    <td>{bc_sl}</td><td>{bc_sl}</td><td class="text-green">+5.22%</td>
+                </tr>
+                """
 
     matrix_full_html = f"""
     <!DOCTYPE html>
@@ -347,7 +394,7 @@ with tab_odr:
             text-align: left;
         }}
         .row-group {{ font-weight: bold; background-color: #f8f9fa; cursor: pointer; }}
-        .row-group:hover, .sub-row-1:hover {{ background-color: #f1f3f5; }}
+        .row-group:hover, .sub-row-1:hover, .sub-row-2:hover {{ background-color: #eef2f5; }}
         .toggle-btn {{
             display: inline-block;
             width: 16px;
@@ -372,7 +419,7 @@ with tab_odr:
     <table class="matrix-table">
         <thead>
             <tr>
-                <th rowspan="2" style="width: 24%;">Chỉ tiêu</th>
+                <th rowspan="2" style="width: 26%;">Chỉ tiêu</th>
                 <th rowspan="2" style="width: 5%;">Mục tiêu</th>
                 <th rowspan="2" style="width: 5%;">Kết quả thực hiện</th>
                 <th colspan="8" style="background-color: #2a2a2a;">7 ngày gần nhất</th>
@@ -386,8 +433,8 @@ with tab_odr:
             </tr>
         </thead>
         <tbody>
-            <tr class="row-group" onclick="toggleMaster('kh_section')">
-                <td><span class="toggle-btn" id="btn_kh">[+]</span> <b>Sản lượng phải phát</b></td>
+            <tr class="row-group" onclick="toggleRow('group_root', event, 'btn_root')">
+                <td><span class="toggle-btn" id="btn_root">[+]</span> <b>Sản lượng phải phát</b></td>
                 <td style="text-align: center;">-</td>
                 <td style="text-align: center;">100%</td>
                 <td>{d_vals[0]:,.0f}</td><td>{d_vals[1]:,.0f}</td><td>{d_vals[2]:,.0f}</td><td>{d_vals[3]:,.0f}</td><td>{d_vals[4]:,.0f}</td><td>{d_vals[5]:,.0f}</td><td><b>{d_vals[6]:,.0f}</b></td><td class="text-green">+5.22%</td>
@@ -395,7 +442,7 @@ with tab_odr:
                 <td>{m_current:,.0f}</td><td><b>{m_current:,.0f}</b></td><td class="text-green">+5.22%</td>
             </tr>
 
-            {kh_html_blocks}
+            {matrix_rows_html}
 
             <tr class="row-group">
                 <td><b>Sản lượng phát thành công</b></td>
@@ -409,19 +456,30 @@ with tab_odr:
     </table>
 
     <script>
-        function toggleMaster(className) {{
+        function toggleRow(className, event, btnId) {{
+            if (event) event.stopPropagation();
             var rows = document.getElementsByClassName(className);
-            var btn = document.getElementById('btn_kh');
+            var btn = document.getElementById(btnId);
             if (!rows || rows.length === 0) return;
             var isHidden = rows[0].style.display === 'none';
             for (var i = 0; i < rows.length; i++) {{
                 rows[i].style.display = isHidden ? 'table-row' : 'none';
+                if (!isHidden) {{
+                    // Đóng ẩn tất cả cấp con bên dưới nếu thu gọn dòng cha
+                    var childClasses = rows[i].className.split(' ');
+                    for (var j = 0; j < childClasses.length; j++) {{
+                        if (childClasses[j].startsWith('dt_')) {{
+                            var subRows = document.getElementsByClassName(childClasses[j]);
+                            for (var k = 0; k < subRows.length; k++) subRows[k].style.display = 'none';
+                        }}
+                    }}
+                }}
             }}
-            btn.innerText = isHidden ? '[-]' : '[+]';
+            if (btn) btn.innerText = isHidden ? '[-]' : '[+]';
         }}
     </script>
     </body>
     </html>
     """
 
-    components.html(matrix_full_html, height=400, scrolling=True)
+    components.html(matrix_full_html, height=450, scrolling=True)
