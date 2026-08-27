@@ -3,10 +3,11 @@ import duckdb
 import plotly.express as px
 from pathlib import Path
 import gdown
+from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tùy biến giao diện, thẻ Card và phong cách Bảng Ma Trận gộp chuẩn Enterprise
+# CSS tùy biến giao diện, thẻ Card và khung Dashboard sang trọng
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -25,40 +26,6 @@ st.markdown("""
     .metric-value { font-size: 26px; font-weight: bold; color: #111111; margin: 4px 0; }
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
-
-    /* CSS Bảng Ma Trận Gộp Phân Cấp */
-    .matrix-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        font-size: 12px;
-        background-color: #ffffff;
-        color: #111111;
-        margin-top: 5px;
-        margin-bottom: 20px;
-        border: 1px solid #222222;
-    }
-    .matrix-table th {
-        background-color: #222222;
-        color: #ffffff;
-        text-align: center;
-        padding: 9px 4px;
-        border: 1px solid #444444;
-        font-weight: 600;
-        font-size: 11px;
-    }
-    .matrix-table td {
-        padding: 8px 10px;
-        border: 1px solid #dddddd;
-        vertical-align: middle;
-    }
-    .matrix-table tr:hover {
-        background-color: #f1f3f5;
-    }
-    .text-center { text-align: center; }
-    .text-right { text-align: right; }
-    .text-green { color: #2e7d32; font-weight: bold; }
-    .text-red { color: #c62828; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -242,134 +209,68 @@ with tab_odr:
     st.divider()
 
     # =========================================================================
-    # BẢNG MA TRẬN PHÂN CẤP TỔNG HỢP GỘP LÀM 1 (KHÔNG BAO GIỜ LỖI HIỂN THỊ HTML)
+    # BẢNG MA TRẬN PHÂN CẤP VẬN HÀNH (SỬ DỤNG AGGRID TREE TABLE CHUYÊN NGHIỆP)
     # =========================================================================
-    st.subheader("📊 BÁO CÁO MA TRẬN TỔNG HỢP PHÂN CẤP VẬN HÀNH")
-    st.info("💡 Bảng ma trận tích hợp chung 1 khối: Từ Tổng sản lượng -> Tỉnh phát -> Bưu cục trực thuộc.")
+    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (CÂY PHÂN CẤP)")
+    st.info("💡 Bảng mô phỏng cấu trúc cây quản trị: Bấm vào nút `[+]` bên cạnh tên Khách hàng hoặc Tỉnh/Bưu cục để mở rộng xem chi tiết số liệu.")
 
-    # 1. Lấy dữ liệu 7 ngày gần nhất cho hàng Tổng
-    days_data = con.execute(f"""
-        SELECT clean_date, COUNT(*) as sl 
+    # Truy vấn dữ liệu phân cấp từ Khách hàng -> Tỉnh phát -> Bưu cục phát
+    df_tree_data = con.execute(f"""
+        SELECT 
+            COALESCE(ma_khgui, 'Khách vãng lai') AS "path_1",
+            COALESCE(tinh_phat, 'Chưa rõ tỉnh') AS "path_2",
+            COALESCE(ma_buucuc_phat, 'Chưa rõ bưu cục') AS "path_3",
+            COUNT(*) AS "Sản lượng phát",
+            ROUND(SUM(CASE WHEN trang_thai_phat = 'Thành công' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS "% Thành công",
+            ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
         FROM orders 
-        WHERE {where_sql_odr} AND clean_date IS NOT NULL 
-        GROUP BY clean_date 
-        ORDER BY clean_date DESC 
-        LIMIT 7
-    """).fetchall()
+        WHERE {where_sql_odr}
+        GROUP BY ma_khgui, tinh_phat, ma_buucuc_phat
+        ORDER BY "Sản lượng phát" DESC
+        LIMIT 300
+    """).fetchdf()
 
-    days_dict = {str(row[0]): row[1] for row in days_data}
-    sorted_dates = sorted(list(days_dict.keys()))
-    
-    d_vals = [0] * 7
-    for i, d_str in enumerate(sorted_dates[-7:]):
-        d_vals[i] = days_dict[d_str]
+    # Cấu hình lưới AgGrid theo dạng cây phân cấp (Tree Data)
+    gb = GridOptionsBuilder.from_dataframe(df_tree_data)
+    gb.configure_default_column(editable=False, sortable=True, filter=True, resizable=True)
 
-    total_m = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
+    gb.configure_grid_options(
+        treeData=True,
+        animateRows=True,
+        groupDefaultExpanded=0,  # Thu gọn toàn bộ ban đầu, bấm [+] để mở
+        getDataPath=JsCode("""
+            function(data) {
+                return [data.path_1, data.path_2, data.path_3];
+            }
+        """),
+        autoGroupColumnDef={
+            "headerName": "Chỉ tiêu / Khối vận hành",
+            "cellRendererParams": {
+                "suppressCount": False
+            },
+            "width": 350,
+            "pinned": "left"
+        }
+    )
 
-    # Header của Bảng
-    html_header = """
-    <table class="matrix-table">
-        <thead>
-            <tr>
-                <th rowspan="2" style="width: 22%;">Chỉ tiêu / Phân cấp</th>
-                <th rowspan="2" style="width: 6%;">Mục tiêu</th>
-                <th rowspan="2" style="width: 6%;">Kết quả thực hiện</th>
-                <th colspan="8" style="background-color: #2a2a2a;">7 ngày gần nhất</th>
-                <th colspan="6" style="background-color: #333333;">5 tuần gần nhất</th>
-                <th colspan="3" style="background-color: #2a2a2a;">Tháng</th>
-            </tr>
-            <tr>
-                <th>D-6</th><th>D-5</th><th>D-4</th><th>D-3</th><th>D-2</th><th>D-1</th><th>Hôm nay</th><th style="color: #ff5252;">DoD</th>
-                <th>W1</th><th>W2</th><th>W3</th><th>W4</th><th>W5</th><th style="color: #ff5252;">WoW</th>
-                <th>M-1</th><th>M</th><th style="color: #ff5252;">MoM</th>
-            </tr>
-        </thead>
-        <tbody>
-    """
+    # Ẩn các cột đường dẫn thô
+    gb.configure_column("path_1", hide=True)
+    gb.configure_column("path_2", hide=True)
+    gb.configure_column("path_3", hide=True)
 
-    # Hàng Tổng Sản Lượng Đơn
-    html_total_row = f"""
-            <tr style="background-color: #e9ecef; font-weight: bold;">
-                <td>📦 <b>Tổng Sản Lượng Đơn</b></td>
-                <td class="text-center">-</td>
-                <td class="text-center">100%</td>
-                <td class="text-right">{d_vals[0]:,.0f}</td>
-                <td class="text-right">{d_vals[1]:,.0f}</td>
-                <td class="text-right">{d_vals[2]:,.0f}</td>
-                <td class="text-right">{d_vals[3]:,.0f}</td>
-                <td class="text-right">{d_vals[4]:,.0f}</td>
-                <td class="text-right">{d_vals[5]:,.0f}</td>
-                <td class="text-right"><b>{d_vals[6]:,.0f}</b></td>
-                <td class="text-center text-green">+5.22%</td>
-                <td class="text-right">{d_vals[0]:,.0f}</td>
-                <td class="text-right">{d_vals[1]:,.0f}</td>
-                <td class="text-right">{d_vals[2]:,.0f}</td>
-                <td class="text-right">{d_vals[3]:,.0f}</td>
-                <td class="text-right">{d_vals[4]:,.0f}</td>
-                <td class="text-center text-green">+5.22%</td>
-                <td class="text-right">{total_m:,.0f}</td>
-                <td class="text-right"><b>{total_m:,.0f}</b></td>
-                <td class="text-center text-green">+5.22%</td>
-            </tr>
-    """
+    # Định dạng các cột số liệu
+    gb.configure_column("Sản lượng phát", type=["numericColumn", "numberColumnFilter"], precision=0)
+    gb.configure_column("% Thành công", type=["numericColumn", "numberColumnFilter"], precision=2)
+    gb.configure_column("Doanh thu (Tr)", type=["numericColumn", "numberColumnFilter"], precision=1)
 
-    # 2. Truy vấn danh sách 5 Tỉnh có sản lượng lớn nhất
-    df_tins = con.execute(f"""
-        SELECT tinh_phat, COUNT(*) as sl 
-        FROM orders 
-        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
-        GROUP BY tinh_phat 
-        ORDER BY sl DESC 
-        LIMIT 5
-    """).fetchall()
+    gridOptions = gb.build()
 
-    html_sub_rows = ""
-    for tinh_item, sl_tinh in df_tins:
-        # Hàng Tỉnh phát
-        html_sub_rows += f"""
-            <tr style="background-color: #f8f9fa; font-weight: bold;">
-                <td style="padding-left: 20px;">📂 <b>Khu vực Tỉnh phát: {tinh_item}</b></td>
-                <td class="text-center">-</td>
-                <td class="text-center">-</td>
-                <td colspan="7" class="text-right"><b>{sl_tinh:,.0f} đơn</b></td>
-                <td class="text-center text-green">+3.5%</td>
-                <td colspan="5" class="text-right"><b>{sl_tinh:,.0f} đơn</b></td>
-                <td class="text-center text-green">+2.8%</td>
-                <td class="text-right">-</td>
-                <td class="text-right"><b>{sl_tinh:,.0f}</b></td>
-                <td class="text-center text-green">+4.1%</td>
-            </tr>
-        """
-        # Lấy Top 3 Bưu cục con thuộc Tỉnh này
-        df_bcs = con.execute(f"""
-            SELECT ma_buucuc_phat, COUNT(*) as sl_bc 
-            FROM orders 
-            WHERE {where_sql_odr} AND tinh_phat = '{tinh_item}' AND ma_buucuc_phat IS NOT NULL 
-            GROUP BY ma_buucuc_phat 
-            ORDER BY sl_bc DESC 
-            LIMIT 3
-        """).fetchall()
-
-        for bc_code, bc_sl in df_bcs:
-            html_sub_rows += f"""
-                <tr style="color: #495057; font-size: 11.5px;">
-                    <td style="padding-left: 45px;">↳ Bưu cục: <b>{bc_code}</b></td>
-                    <td class="text-center">-</td>
-                    <td class="text-center">-</td>
-                    <td colspan="7" class="text-right">{bc_sl:,.0f} đơn</td>
-                    <td class="text-center text-green">+1.2%</td>
-                    <td colspan="5" class="text-right">{bc_sl:,.0f} đơn</td>
-                    <td class="text-center text-green">+1.1%</td>
-                    <td class="text-right">-</td>
-                    <td class="text-right">{bc_sl:,.0f}</td>
-                    <td class="text-center text-green">+2.0%</td>
-                </tr>
-            """
-
-    html_footer = """
-        </tbody>
-    </table>
-    """
-
-    # RENDER BẢNG GỘP BẰNG CÁCH NỐI CHUỖI AN TOÀN TRÁNH VĂNG CODE
-    st.markdown(html_header + html_total_row + html_sub_rows + html_footer, unsafe_allow_html=True)
+    # Hiển thị bảng AgGrid ra màn hình Streamlit
+    AgGrid(
+        df_tree_data,
+        gridOptions=gridOptions,
+        height=500,
+        use_container_width=True,
+        allow_unsafe_jscode=True,
+        fit_columns_on_grid_load=True
+    )
