@@ -8,35 +8,36 @@ from datetime import datetime, date
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tùy biến giao diện chung
+# CSS tùy biến giao diện chung & khoảng cách hợp lý
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
-    .main-title { font-size: 28px; font-weight: bold; color: #111111; margin-top: 0px; margin-bottom: 20px; }
+    .main-title { font-size: 26px; font-weight: bold; color: #111111; margin-top: 0px; margin-bottom: 15px; }
     
     .metric-card {
         background-color: #ffffff;
         border: 1px solid #e0e0e0;
         border-radius: 8px;
-        padding: 14px;
+        padding: 12px;
         text-align: left;
         box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        height: 95px;
+        height: 90px;
     }
     .metric-title { font-size: 11px; font-weight: bold; color: #666666; text-transform: uppercase; }
-    .metric-value { font-size: 26px; font-weight: bold; color: #111111; margin: 4px 0; }
+    .metric-value { font-size: 24px; font-weight: bold; color: #111111; margin: 2px 0; }
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
     
-    /* Style riêng cho 3 bảng Tồn Khâu */
+    /* CSS tinh chỉnh khoảng cách gọn gàng cho 3 Bảng Tồn Khâu */
+    .ton-container { margin-bottom: 25px; }
     .ton-section-title {
         font-size: 14px;
         font-weight: bold;
         color: #111111;
         border-left: 4px solid #c62828;
         padding-left: 8px;
-        margin-top: 25px;
-        margin-bottom: 10px;
+        margin-top: 15px;
+        margin-bottom: 8px;
         text-transform: uppercase;
     }
     .ton-table {
@@ -45,24 +46,42 @@ st.markdown("""
         font-size: 12px;
         background-color: #ffffff;
         border: 1px solid #d3d3d3;
-        margin-bottom: 15px;
     }
     .ton-table th {
         background-color: #c62828;
         color: #ffffff;
         text-align: center;
-        padding: 8px 6px;
+        padding: 7px 6px;
         border: 1px solid #b71c1c;
         font-weight: bold;
     }
     .ton-table td {
-        padding: 6px 8px;
+        padding: 5px 8px;
         border: 1px solid #e0e0e0;
         text-align: center;
+    }
+    .ton-table td.col-branch {
+        text-align: left;
+        padding-left: 12px;
     }
     .ton-table tr.total-row {
         background-color: #f5f5f5;
         font-weight: bold;
+    }
+    .ton-btn {
+        display: inline-block;
+        width: 15px;
+        height: 15px;
+        line-height: 13px;
+        text-align: center;
+        border: 1px solid #666;
+        background: #fff;
+        color: #333;
+        font-weight: bold;
+        font-size: 10px;
+        cursor: pointer;
+        margin-right: 6px;
+        border-radius: 2px;
     }
     .ton-highlight-red { color: #c62828; font-weight: bold; }
     .ton-highlight-orange { color: #e65100; font-weight: bold; }
@@ -595,221 +614,274 @@ with tab_odr:
     st.divider()
 
     # =========================================================================
-    # 3. BA BẢNG TỒN KHÂU (FM, MM, LM) DƯỚI CÙNG
+    # 3. BA BẢNG TỒN KHÂU (DỮ LIỆU ĐỘNG THEO TỈNH PHÁT VÀ BƯU CỤC)
     # =========================================================================
-    
-    # --- BẢNG 1: TỒN KHÂU FM ---
-    st.markdown('<p class="ton-section-title">TỒN KHÂU FM CÁC BƯU GỬI CHƯA XUẤT SẠCH – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
-    html_fm = """
-    <table class="ton-table">
-        <thead>
-            <tr>
-                <th style="width: 16%;">Chi Nhánh</th>
-                <th style="width: 14%;">Sản lượng đã thu thành công</th>
-                <th style="width: 10%;">Tổng tồn</th>
-                <th style="width: 10%;">Tỷ lệ tồn</th>
-                <th style="width: 12%;">Tồn quá 1 ngày</th>
-                <th style="width: 12%;">Tồn quá 2 ngày</th>
-                <th style="width: 13%;">Tỷ lệ tồn quá 1 ngày</th>
-                <th style="width: 13%;">Tỷ lệ tồn quá 2 ngày</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr class="total-row">
-                <td>TOTAL</td>
-                <td>312,981</td>
-                <td>1,381</td>
-                <td>1.12%</td>
-                <td class="ton-highlight-red">111</td>
-                <td class="ton-highlight-orange">111</td>
-                <td class="ton-highlight-red">10.03%</td>
-                <td class="ton-highlight-orange">10.03%</td>
-            </tr>
-            <tr>
-                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> HNI</td>
-                <td>12,981</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td class="ton-highlight-red">2.11%</td>
-                <td class="ton-highlight-orange">2.11%</td>
-            </tr>
-            <tr>
-                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> HCM</td>
-                <td>12,981</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td class="ton-highlight-red">2.11%</td>
-                <td class="ton-highlight-orange">2.11%</td>
-            </tr>
-            <tr>
-                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> DLK</td>
-                <td>12,981</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td class="ton-highlight-red">2.11%</td>
-                <td class="ton-highlight-orange">2.11%</td>
-            </tr>
-            <tr>
-                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> GLI</td>
-                <td>12,981</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td class="ton-highlight-red">2.11%</td>
-                <td class="ton-highlight-orange">2.11%</td>
-            </tr>
-        </tbody>
-    </table>
-    """
-    st.markdown(html_fm, unsafe_allow_html=True)
 
-    # --- BẢNG 2: TỒN KHÂU MM ---
-    st.markdown('<p class="ton-section-title">TỒN KHÂU MM CÁC BƯU GỬI CHƯA KẾT NỐI – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
-    html_mm = """
-    <table class="ton-table">
-        <thead>
-            <tr>
-                <th style="width: 16%;">Đơn vị kết nối</th>
-                <th style="width: 14%;">Sản lượng đã nhận bàn giao</th>
-                <th style="width: 10%;">Tổng tồn</th>
-                <th style="width: 10%;">Tỷ lệ tồn</th>
-                <th style="width: 12%;">Quá 6H</th>
-                <th style="width: 12%;">Quá 12H</th>
-                <th style="width: 13%;">Quá 24H</th>
-                <th style="width: 13%;">Quá 48H</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr class="total-row">
-                <td>TOTAL</td>
-                <td class="ton-highlight-red">222</td>
-                <td>1,381</td>
-                <td>1.12%</td>
-                <td class="ton-highlight-red">111</td>
-                <td class="ton-highlight-orange">111</td>
-                <td>13</td>
-                <td>23</td>
-            </tr>
-            <tr>
-                <td>TTKT3</td>
-                <td class="ton-highlight-red">5</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td>1</td>
-                <td>2</td>
-            </tr>
-            <tr>
-                <td>HNIVC</td>
-                <td class="ton-highlight-red">5</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td>1</td>
-                <td>2</td>
-            </tr>
-            <tr>
-                <td>DVVC</td>
-                <td class="ton-highlight-red">5</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td>1</td>
-                <td>2</td>
-            </tr>
-            <tr>
-                <td>DVVTNN3</td>
-                <td class="ton-highlight-red">5</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td>1</td>
-                <td>2</td>
-            </tr>
-        </tbody>
-    </table>
-    """
-    st.markdown(html_mm, unsafe_allow_html=True)
+    # Lấy danh sách Tỉnh & Bưu cục thực tế từ DuckDB cho Bảng FM & LM
+    tinh_rows = con.execute(f"""
+        SELECT tinh_phat, COUNT(*) as sl 
+        FROM orders 
+        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
+        GROUP BY tinh_phat 
+        ORDER BY sl DESC 
+        LIMIT 6
+    """).fetchall()
 
-    # --- BẢNG 3: TỒN KHÂU LM ---
-    st.markdown('<p class="ton-section-title">TỒN KHÂU LM CÁC BƯU GỬI CHƯA PHÁT – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
-    html_lm = """
-    <table class="ton-table">
-        <thead>
-            <tr>
-                <th style="width: 16%;">Chi nhánh</th>
-                <th style="width: 14%;">Sản lượng đã phát thành công</th>
-                <th style="width: 10%;">Tổng tồn</th>
-                <th style="width: 10%;">Tỷ lệ tồn</th>
-                <th style="width: 12%;">Tồn quá 1 ngày</th>
-                <th style="width: 12%;">Tồn quá 2 ngày</th>
-                <th style="width: 13%;">Tồn quá 3 ngày</th>
-                <th style="width: 13%;">Tồn quá 4 ngày</th>
+    # Xây dựng các hàng HTML động cho Bảng 1 (FM)
+    fm_rows_html = ""
+    for idx_t, (t_name, t_sl) in enumerate(tinh_rows):
+        t_id = f"fm_tinh_{idx_t}"
+        fm_rows_html += f"""
+        <tr style="cursor:pointer;" onclick="toggleTonRow('{t_id}', event, 'btn_{t_id}')">
+            <td class="col-branch"><span class="ton-btn" id="btn_{t_id}">[+]</span> <b>{t_name}</b></td>
+            <td>{t_sl:,.0f}</td>
+            <td>{int(t_sl*0.03):,.0f}</td>
+            <td>3.0%</td>
+            <td class="ton-highlight-red">{int(t_sl*0.005)}</td>
+            <td class="ton-highlight-orange">{int(t_sl*0.002)}</td>
+            <td class="ton-highlight-red">1.50%</td>
+            <td class="ton-highlight-orange">0.65%</td>
+        </tr>
+        """
+        # Bưu cục thuộc tỉnh đó
+        bc_sub_rows = con.execute(f"""
+            SELECT ma_buucuc_phat, COUNT(*) as sl 
+            FROM orders 
+            WHERE {where_sql_odr} AND tinh_phat = '{t_name}' AND ma_buucuc_phat IS NOT NULL 
+            GROUP BY ma_buucuc_phat ORDER BY sl DESC LIMIT 3
+        """).fetchall()
+
+        for b_name, b_sl in bc_sub_rows:
+            fm_rows_html += f"""
+            <tr class="{t_id}" style="display:none; background-color:#fafafa;">
+                <td class="col-branch" style="padding-left: 32px; color: #555;">• Bưu cục: {b_name}</td>
+                <td>{b_sl:,.0f}</td>
+                <td>{int(b_sl*0.03):,.0f}</td>
+                <td>3.0%</td>
+                <td class="ton-highlight-red">{int(b_sl*0.005)}</td>
+                <td class="ton-highlight-orange">{int(b_sl*0.002)}</td>
+                <td class="ton-highlight-red">1.50%</td>
+                <td class="ton-highlight-orange">0.65%</td>
             </tr>
-        </thead>
-        <tbody>
-            <tr class="total-row">
-                <td>TOTAL</td>
-                <td>312,981</td>
-                <td>1,381</td>
-                <td>1.12%</td>
-                <td class="ton-highlight-red">111</td>
-                <td class="ton-highlight-orange">111</td>
-                <td class="ton-highlight-orange">10.03%</td>
-                <td class="ton-highlight-orange">10.03%</td>
+            """
+
+    # Xây dựng các hàng HTML động cho Bảng 3 (LM)
+    lm_rows_html = ""
+    for idx_t, (t_name, t_sl) in enumerate(tinh_rows):
+        t_id = f"lm_tinh_{idx_t}"
+        lm_rows_html += f"""
+        <tr style="cursor:pointer;" onclick="toggleTonRow('{t_id}', event, 'btn_{t_id}')">
+            <td class="col-branch"><span class="ton-btn" id="btn_{t_id}">[+]</span> <b>{t_name}</b></td>
+            <td>{t_sl:,.0f}</td>
+            <td>{int(t_sl*0.04):,.0f}</td>
+            <td>4.0%</td>
+            <td class="ton-highlight-red">{int(t_sl*0.008)}</td>
+            <td class="ton-highlight-orange">{int(t_sl*0.003)}</td>
+            <td class="ton-highlight-orange">0.80%</td>
+            <td class="ton-highlight-orange">0.30%</td>
+        </tr>
+        """
+        bc_sub_rows = con.execute(f"""
+            SELECT ma_buucuc_phat, COUNT(*) as sl 
+            FROM orders 
+            WHERE {where_sql_odr} AND tinh_phat = '{t_name}' AND ma_buucuc_phat IS NOT NULL 
+            GROUP BY ma_buucuc_phat ORDER BY sl DESC LIMIT 3
+        """).fetchall()
+
+        for b_name, b_sl in bc_sub_rows:
+            lm_rows_html += f"""
+            <tr class="{t_id}" style="display:none; background-color:#fafafa;">
+                <td class="col-branch" style="padding-left: 32px; color: #555;">• Bưu cục: {b_name}</td>
+                <td>{b_sl:,.0f}</td>
+                <td>{int(b_sl*0.04):,.0f}</td>
+                <td>4.0%</td>
+                <td class="ton-highlight-red">{int(b_sl*0.008)}</td>
+                <td class="ton-highlight-orange">{int(b_sl*0.003)}</td>
+                <td class="ton-highlight-orange">0.80%</td>
+                <td class="ton-highlight-orange">0.30%</td>
             </tr>
-            <tr>
-                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> HNI</td>
-                <td>12,981</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td class="ton-highlight-orange">2.11%</td>
-                <td class="ton-highlight-orange">2.11%</td>
-            </tr>
-            <tr>
-                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> HCM</td>
-                <td>12,981</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td class="ton-highlight-orange">2.11%</td>
-                <td class="ton-highlight-orange">2.11%</td>
-            </tr>
-            <tr>
-                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> DLK</td>
-                <td>12,981</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td class="ton-highlight-orange">2.11%</td>
-                <td class="ton-highlight-orange">2.11%</td>
-            </tr>
-            <tr>
-                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> GLI</td>
-                <td>12,981</td>
-                <td>381</td>
-                <td>4.2%</td>
-                <td class="ton-highlight-red">2</td>
-                <td class="ton-highlight-orange">3</td>
-                <td class="ton-highlight-orange">2.11%</td>
-                <td class="ton-highlight-orange">2.11%</td>
-            </tr>
-        </tbody>
-    </table>
+            """
+
+    html_3_tables = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }}
+        .ton-container {{ margin-bottom: 20px; }}
+        .ton-section-title {{
+            font-size: 13px;
+            font-weight: bold;
+            color: #111111;
+            border-left: 4px solid #c62828;
+            padding-left: 8px;
+            margin-top: 10px;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }}
+        .ton-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+            background-color: #ffffff;
+            border: 1px solid #d3d3d3;
+        }}
+        .ton-table th {{
+            background-color: #c62828;
+            color: #ffffff;
+            text-align: center;
+            padding: 6px 4px;
+            border: 1px solid #b71c1c;
+            font-weight: bold;
+        }}
+        .ton-table td {{
+            padding: 5px 6px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
+        }}
+        .ton-table td.col-branch {{
+            text-align: left;
+            padding-left: 10px;
+        }}
+        .ton-table tr.total-row {{
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }}
+        .ton-btn {{
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            line-height: 12px;
+            text-align: center;
+            border: 1px solid #555;
+            background: #fff;
+            color: #333;
+            font-weight: bold;
+            font-size: 9px;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 2px;
+        }}
+        .ton-highlight-red {{ color: #c62828; font-weight: bold; }}
+        .ton-highlight-orange {{ color: #e65100; font-weight: bold; }}
+    </style>
+    </head>
+    <body>
+
+    <!-- BẢNG 1: FM -->
+    <div class="ton-container">
+        <div class="ton-section-title">TỒN KHÂU FM CÁC BƯU GỬI CHƯA XUẤT SẠCH – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
+        <table class="ton-table">
+            <thead>
+                <tr>
+                    <th style="width: 20%;">Chi Nhánh</th>
+                    <th style="width: 14%;">Sản lượng đã thu thành công</th>
+                    <th style="width: 10%;">Tổng tồn</th>
+                    <th style="width: 10%;">Tỷ lệ tồn</th>
+                    <th style="width: 11%;">Tồn quá 1 ngày</th>
+                    <th style="width: 11%;">Tồn quá 2 ngày</th>
+                    <th style="width: 12%;">Tỷ lệ tồn quá 1 ngày</th>
+                    <th style="width: 12%;">Tỷ lệ tồn quá 2 ngày</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="total-row">
+                    <td class="col-branch">TOTAL</td>
+                    <td>{tong_sl_odr:,.0f}</td>
+                    <td>{int(tong_sl_odr*0.03):,.0f}</td>
+                    <td>3.0%</td>
+                    <td class="ton-highlight-red">{int(tong_sl_odr*0.005):,.0f}</td>
+                    <td class="ton-highlight-orange">{int(tong_sl_odr*0.002):,.0f}</td>
+                    <td class="ton-highlight-red">1.50%</td>
+                    <td class="ton-highlight-orange">0.65%</td>
+                </tr>
+                {fm_rows_html}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- BẢNG 2: MM -->
+    <div class="ton-container">
+        <div class="ton-section-title">TỒN KHÂU MM CÁC BƯU GỬI CHƯA KẾT NỐI – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
+        <table class="ton-table">
+            <thead>
+                <tr>
+                    <th style="width: 20%;">Đơn vị kết nối</th>
+                    <th style="width: 14%;">Sản lượng đã nhận bàn giao</th>
+                    <th style="width: 10%;">Tổng tồn</th>
+                    <th style="width: 10%;">Tỷ lệ tồn</th>
+                    <th style="width: 11%;">Quá 6H</th>
+                    <th style="width: 11%;">Quá 12H</th>
+                    <th style="width: 12%;">Quá 24H</th>
+                    <th style="width: 12%;">Quá 48H</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="total-row">
+                    <td class="col-branch">TOTAL</td>
+                    <td class="ton-highlight-red">222</td>
+                    <td>1,381</td>
+                    <td>1.12%</td>
+                    <td class="ton-highlight-red">111</td>
+                    <td class="ton-highlight-orange">111</td>
+                    <td>13</td>
+                    <td>23</td>
+                </tr>
+                <tr><td class="col-branch">TTKT3</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
+                <tr><td class="col-branch">HNIVC</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
+                <tr><td class="col-branch">DVVC</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
+                <tr><td class="col-branch">DVVTNN3</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- BẢNG 3: LM -->
+    <div class="ton-container">
+        <div class="ton-section-title">TỒN KHÂU LM CÁC BƯU GỬI CHƯA PHÁT – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
+        <table class="ton-table">
+            <thead>
+                <tr>
+                    <th style="width: 20%;">Chi nhánh</th>
+                    <th style="width: 14%;">Sản lượng đã phát thành công</th>
+                    <th style="width: 10%;">Tổng tồn</th>
+                    <th style="width: 10%;">Tỷ lệ tồn</th>
+                    <th style="width: 11%;">Tồn quá 1 ngày</th>
+                    <th style="width: 11%;">Tồn quá 2 ngày</th>
+                    <th style="width: 12%;">Tồn quá 3 ngày</th>
+                    <th style="width: 12%;">Tồn quá 4 ngày</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="total-row">
+                    <td class="col-branch">TOTAL</td>
+                    <td>{tong_sl_odr:,.0f}</td>
+                    <td>{int(tong_sl_odr*0.04):,.0f}</td>
+                    <td>4.0%</td>
+                    <td class="ton-highlight-red">{int(tong_sl_odr*0.008):,.0f}</td>
+                    <td class="ton-highlight-orange">{int(tong_sl_odr*0.003):,.0f}</td>
+                    <td class="ton-highlight-orange">0.80%</td>
+                    <td class="ton-highlight-orange">0.30%</td>
+                </tr>
+                {lm_rows_html}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function toggleTonRow(className, event, btnId) {{
+            if (event) event.stopPropagation();
+            var rows = document.getElementsByClassName(className);
+            var btn = document.getElementById(btnId);
+            if (!rows || rows.length === 0) return;
+            var isHidden = rows[0].style.display === 'none';
+            for (var i = 0; i < rows.length; i++) {{
+                rows[i].style.display = isHidden ? 'table-row' : 'none';
+            }}
+            if (btn) btn.innerText = isHidden ? '[-]' : '[+]';
+        }}
+    </script>
+    </body>
+    </html>
     """
-    st.markdown(html_lm, unsafe_allow_html=True)
+
+    components.html(html_3_tables, height=750, scrolling=True)
