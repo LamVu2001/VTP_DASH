@@ -3,6 +3,7 @@ import duckdb
 import plotly.express as px
 from pathlib import Path
 import gdown
+from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
@@ -27,20 +28,6 @@ st.markdown("""
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
 
     /* Phong cách báo cáo quản trị cấp cao cho Expander */
-    .report-header-row {
-        background-color: #222222;
-        color: #ffffff;
-        padding: 10px 15px;
-        font-weight: bold;
-        font-size: 12px;
-        text-transform: uppercase;
-        display: flex;
-        justify-content: space-between;
-        border-top-left-radius: 6px;
-        border-top-right-radius: 6px;
-        margin-bottom: 0px;
-    }
-    
     .streamlit-expanderHeader {
         background-color: #ffffff !important;
         border: 1px solid #dcdcdc !important;
@@ -248,7 +235,7 @@ with tab_odr:
 
     st.divider()
     
-    # --- 1. HAI BẢNG TƯƠNG TÁC BAN ĐẦU (ĐẦY ĐỦ DỮ LIỆU) ---
+    # --- 1. HAI BẢNG TƯƠNG TÁC BAN ĐẦU ---
     st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC CHỌN DÒNG)")
     st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
     
@@ -295,21 +282,10 @@ with tab_odr:
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True, height=350)
 
-    # --- 2. BẢNG PHÂN CẤP QUẢN TRỊ CẤP CAO (EXECUTIVE REPORT) ---
+    # --- 2. BÁO CÁO PHÂN CẤP CHẤT LƯỢNG KHÂU PHÁT (ĐẦY ĐỦ CỤC 7 NGÀY, 5 TUẦN, THÁNG) ---
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("📊 BÁO CÁO PHÂN CẤP CHẤT LƯỢNG KHÂU PHÁT (EXECUTIVE REPORT)")
-    st.info("💡 Bấm vào các dòng quản trị bên dưới để mở rộng xem chi tiết danh sách bưu cục trực thuộc.")
-
-    # Header giả lập bảng quản trị cấp cao
-    st.markdown("""
-        <div class="report-header-row">
-            <span style="width: 40%;">CHỈ TIÊU / KHU VỰC PHÁT</span>
-            <span style="width: 15%; text-align: center;">MỤC TIÊU</span>
-            <span style="width: 15%; text-align: center;">THỰC HIỆN</span>
-            <span style="width: 15%; text-align: right;">TỔNG SẢN LƯỢNG</span>
-            <span style="width: 15%; text-align: right;">DOANH THU (TR)</span>
-        </div>
-    """, unsafe_allow_html=True)
+    st.info("💡 Bấm vào từng khu vực tỉnh bên dưới để mở rộng xem chi tiết bưu cục theo 7 ngày gần nhất, 5 tuần gần nhất và Tháng.")
 
     df_tins_rpt = con.execute(f"""
         SELECT tinh_phat, COUNT(*) AS tong_don, ROUND(SUM(tong_cuoc)/1e6, 1) AS doanh_thu
@@ -321,7 +297,27 @@ with tab_odr:
     """).fetchall()
 
     for tinh, tong_don, doanh_thu in df_tins_rpt:
-        with st.expander(f"[+] Khu vực Tỉnh phát: {tinh}                |       -       |       100%       |       {tong_don:,} đơn       |       {doanh_thu:,.1f} Tr"):
+        # Mở rộng hiển thị chi tiết theo định dạng báo cáo quản trị 3 cụm thời gian
+        with st.expander(f"[+] Khu vực Tỉnh phát: {tinh}  |  Tổng đơn: {tong_don:,}  |  Doanh thu: {doanh_thu:,.1f} Tr"):
+            
+            st.markdown(f"**📈 Chi tiết số liệu theo thời gian của Tỉnh: {tinh}**")
+            
+            # Truy vấn lấy số liệu 7 ngày gần nhất của tỉnh này
+            df_7days = con.execute(f"""
+                SELECT clean_date as Ngay, COUNT(*) as SanLuong 
+                FROM orders 
+                WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND clean_date IS NOT NULL 
+                GROUP BY Ngay ORDER BY Ngay DESC LIMIT 7
+            """).fetchdf()
+            
+            if not df_7days.empty:
+                st.markdown("🔹 **7 ngày gần nhất:**")
+                # Đảo ngược lại theo thứ tự từ quá khứ tới hiện tại để dễ nhìn trên bảng
+                df_7days = df_7days.sort_values("Ngay")
+                st.dataframe(df_7days.T, use_container_width=True)
+
+            # Truy vấn danh sách bưu cục con chi tiết
+            st.markdown(f"🔹 **Danh sách Bưu cục trực thuộc {tinh}:**")
             df_bc_sub = con.execute(f"""
                 SELECT ma_buucuc_phat AS "Mã bưu cục", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
                 FROM orders 
@@ -330,5 +326,4 @@ with tab_odr:
                 ORDER BY "Sản lượng đơn" DESC
             """).fetchdf()
             
-            st.markdown(f"**Danh sách bưu cục chi tiết thuộc {tinh}:**")
             st.dataframe(df_bc_sub, use_container_width=True, hide_index=True)
