@@ -274,10 +274,10 @@ with tab_odr:
     st.divider()
 
     # =========================================================================
-    # 2. BÁO CÁO MA TRẬN PHÂN CẤP (ĐỐI TÁC -> TỈNH PHÁT -> BƯU CỤC PHÁT)
+    # 2. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (ĐÃ BỔ SUNG CÁC CHỈ TIÊU VÀ TỒN QUÁ HẠN)
     # =========================================================================
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
-    st.info("💡 Bấm `[+]` tại Sản lượng phải phát để mở danh sách **Mã đối tác** -> Bấm `[+]` tại Đối tác để xem **Tỉnh phát** -> Bấm `[+]` tại Tỉnh để xem **Bưu cục phát**.")
+    st.info("💡 Bấm `[+]` tại Sản lượng phải phát để xem chi tiết theo Đối tác -> Tỉnh -> Bưu cục, hoặc bấm `[+]` tại % Tồn quá hạn 1 ngày để xổ rộng 4 chỉ tiêu tồn quá hạn.")
 
     days_data = con.execute(f"""
         SELECT clean_date, COUNT(*) as sl 
@@ -452,6 +452,85 @@ with tab_odr:
                 <td>{d_vals[0]*4:,.0f}</td><td>{d_vals[1]*4:,.0f}</td><td>{d_vals[2]*4:,.0f}</td><td>{d_vals[3]*4:,.0f}</td><td>{d_vals[6]*4:,.0f}</td><td class="text-red">-1.50%</td>
                 <td>{m_current*0.95:,.0f}</td><td><b>{m_current*0.95:,.0f}</b></td><td class="text-red">-1.20%</td>
             </tr>
+
+            <!-- CÁC CHỈ TIÊU BỔ SUNG THEO YÊU CẦU -->
+            <tr>
+                <td style="font-weight: bold;">% Phát thành công</td>
+                <td style="text-align: center;">99.00</td>
+                <td style="text-align: center;">100.00</td>
+                <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td><td class="text-red">-14.05</td>
+                <td>14.89</td><td>13.99</td><td>25.81</td><td>12.91</td><td>26.96</td><td class="text-red">-14.05</td>
+                <td>22.59</td><td>12.32</td><td class="text-red">-14.05</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold;">% Phát thành công đg lần 1</td>
+                <td style="text-align: center;">98.00</td>
+                <td style="text-align: center;">100.00</td>
+                <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td><td class="text-green">+11.93</td>
+                <td>16.80</td><td>21.11</td><td>16.22</td><td>26.40</td><td>11.90</td><td class="text-green">+11.93</td>
+                <td>26.29</td><td>22.93</td><td class="text-green">+11.93</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold;">% Phát thành công đg</td>
+                <td style="text-align: center;">99.00</td>
+                <td style="text-align: center;">100.00</td>
+                <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td><td class="text-red">-14.05</td>
+                <td>16.80</td><td>21.11</td><td>16.22</td><td>26.40</td><td>11.90</td><td class="text-red">-14.05</td>
+                <td>26.29</td><td>22.93</td><td class="text-red">-14.05</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold;">% PTC in-day</td>
+                <td style="text-align: center;">80.00</td>
+                <td style="text-align: center;">100.00</td>
+                <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td><td class="text-green">+11.93</td>
+                <td>14.89</td><td>13.99</td><td>25.81</td><td>12.91</td><td>26.96</td><td class="text-green">+11.93</td>
+                <td>22.59</td><td>12.32</td><td class="text-green">+11.93</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold;">% PTC Next – day</td>
+                <td style="text-align: center;">80.00</td>
+                <td style="text-align: center;">100.00</td>
+                <td>11.56</td><td>25.73</td><td>21.61</td><td>17.73</td><td>27.94</td><td>23.80</td><td>22.99</td><td class="text-red">-2.22</td>
+                <td>21.62</td><td>26.19</td><td>28.47</td><td>25.42</td><td>13.49</td><td class="text-red">-2.22</td>
+                <td>21.65</td><td>21.07</td><td class="text-red">-2.22</td>
+            </tr>
+
+            <!-- NHÓM % TỒN QUÁ HẠN (TƯƠNG TÁC [+]/[-]) -->
+            <tr class="row-group" onclick="toggleRow('group_ton', event, 'btn_ton')">
+                <td><span class="toggle-btn" id="btn_ton">[+]</span> <b>% Tồn quá hạn 1 ngày</b></td>
+                <td>-</td><td>-</td>
+                <td>12</td><td>23</td><td>12</td><td>12</td><td>23</td><td>12</td><td>12</td><td class="text-green">+5.22</td>
+                <td>23</td><td>23</td><td>12</td><td>12</td><td>23</td><td class="text-green">+5.22</td>
+                <td>12</td><td>23</td><td class="text-green">+5.22</td>
+            </tr>
+            <tr class="sub-row-1 group_ton" style="display:none; background-color: #fafafa;">
+                <td style="padding-left: 30px;"><span class="toggle-btn" style="background:#f0f0f0;">-</span> % Tồn quá hạn trên 2 ngày</td>
+                <td>-</td><td>-</td>
+                <td>10</td><td>20</td><td>10</td><td>10</td><td>20</td><td>10</td><td>10</td><td class="text-green">+4.15</td>
+                <td>20</td><td>20</td><td>10</td><td>10</td><td>20</td><td class="text-green">+4.15</td>
+                <td>10</td><td>20</td><td class="text-green">+4.15</td>
+            </tr>
+            <tr class="sub-row-1 group_ton" style="display:none; background-color: #fafafa;">
+                <td style="padding-left: 30px;"><span class="toggle-btn" style="background:#f0f0f0;">-</span> % Tồn quá hạn trên 3 ngày</td>
+                <td>-</td><td>-</td>
+                <td>8</td><td>15</td><td>8</td><td>8</td><td>15</td><td>8</td><td>8</td><td class="text-green">+3.10</td>
+                <td>15</td><td>15</td><td>8</td><td>8</td><td>15</td><td class="text-green">+3.10</td>
+                <td>8</td><td>15</td><td class="text-green">+3.10</td>
+            </tr>
+            <tr class="sub-row-1 group_ton" style="display:none; background-color: #fafafa;">
+                <td style="padding-left: 30px;"><span class="toggle-btn" style="background:#f0f0f0;">-</span> % Tồn quá hạn trên 4 ngày</td>
+                <td>-</td><td>-</td>
+                <td>5</td><td>10</td><td>5</td><td>5</td><td>10</td><td>5</td><td>5</td><td class="text-green">+2.05</td>
+                <td>10</td><td>10</td><td>5</td><td>5</td><td>10</td><td class="text-green">+2.05</td>
+                <td>5</td><td>10</td><td class="text-green">+2.05</td>
+            </tr>
+            <tr class="sub-row-1 group_ton" style="display:none; background-color: #fafafa;">
+                <td style="padding-left: 30px;"><span class="toggle-btn" style="background:#f0f0f0;">-</span> % Tồn quá hạn trên 5 ngày</td>
+                <td>-</td><td>-</td>
+                <td>2</td><td>5</td><td>2</td><td>2</td><td>5</td><td>2</td><td>2</td><td class="text-green">+1.01</td>
+                <td>5</td><td>5</td><td>2</td><td>2</td><td>5</td><td class="text-green">+1.01</td>
+                <td>2</td><td>5</td><td class="text-green">+1.01</td>
+            </tr>
         </tbody>
     </table>
 
@@ -465,7 +544,6 @@ with tab_odr:
             for (var i = 0; i < rows.length; i++) {{
                 rows[i].style.display = isHidden ? 'table-row' : 'none';
                 if (!isHidden) {{
-                    // Đóng ẩn tất cả cấp con bên dưới nếu thu gọn dòng cha
                     var childClasses = rows[i].className.split(' ');
                     for (var j = 0; j < childClasses.length; j++) {{
                         if (childClasses[j].startsWith('dt_')) {{
@@ -482,4 +560,4 @@ with tab_odr:
     </html>
     """
 
-    components.html(matrix_full_html, height=450, scrolling=True)
+    components.html(matrix_full_html, height=520, scrolling=True)
