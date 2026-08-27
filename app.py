@@ -6,6 +6,7 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
+# CSS màu sắc và giao diện chuẩn template
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -40,13 +41,17 @@ def get_db_connection():
     file_path = str(local_file if local_file.exists() else win_path)
     con = duckdb.connect(database=':memory:')
     
-    # Chuẩn hóa cột ngày tháng dd-mm-yyyy thành kiểu DATE tiêu chuẩn để lọc
+    # Tự động quét và gom mọi định dạng ngày tháng lẫn lộn (dấu gạch, dấu xẹt, có/không giờ) về clean_date chuẩn
     con.execute(f"""
         CREATE VIEW orders AS 
         SELECT *, 
                COALESCE(
                    TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y') AS DATE)
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y') AS DATE),
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d/%m/%Y %H:%M:%S') AS DATE),
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d/%m/%Y') AS DATE),
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%Y-%m-%d %H:%M:%S') AS DATE),
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%Y-%m-%d') AS DATE)
                ) as clean_date
         FROM read_parquet('{file_path}')
     """)
@@ -85,7 +90,6 @@ with tab_doanh_thu:
     if filter_dt_dt != "Tất cả": where_clauses_dt.append(f"ma_doitac = '{filter_dt_dt}'")
     if filter_kh_dt != "Tất cả": where_clauses_dt.append(f"ma_khgui = '{filter_kh_dt}'")
     
-    # Kích hoạt điều kiện lọc khoảng thời gian chuẩn dd-mm-yyyy
     if isinstance(filter_date_dt, tuple) and len(filter_date_dt) == 2:
         start_d, end_d = filter_date_dt[0], filter_date_dt[1]
         where_clauses_dt.append(f"clean_date BETWEEN '{start_d}' AND '{end_d}'")
