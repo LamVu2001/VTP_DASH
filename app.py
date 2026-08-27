@@ -217,50 +217,6 @@ with tab_odr:
 
     st.divider()
 
-    # ==========================================
-    # 2 BẢNG TOP 5 (BƯU CỤC TỰ ĐỘNG LỌC THEO TỈNH ĐÃ CHỌN)
-    # ==========================================
-    top_col1, top_col2 = st.columns(2)
-
-    with top_col1:
-        st.markdown("🔴 **TOP 5 CHI NHÁNH THỰC HIỆN KÉM NHẤT**")
-        df_top_tinh = con.execute(f"""
-            SELECT 
-                COALESCE(tinh_phat, 'Chưa rõ') AS "Chi nhánh",
-                CONCAT(ROUND(RANDOM() * 10 + 70, 1), '%') AS "Tỷ lệ phát đúng giờ",
-                CONCAT(ROUND((RANDOM() - 0.5) * 10, 1), '%') AS "SS cùng kỳ",
-                CONCAT(CAST(CAST(RANDOM() * 300 + 100 AS INTEGER) AS VARCHAR), ' đơn') AS "Tồn quá hạn 2 ngày",
-                CONCAT('+', CAST(CAST(RANDOM() * 150 + 50 AS INTEGER) AS VARCHAR)) AS "SS cùng kỳ (2)"
-            FROM orders 
-            WHERE {where_sql_odr} AND tinh_phat IS NOT NULL
-            GROUP BY tinh_phat
-            LIMIT 5
-        """).fetchdf()
-        st.dataframe(df_top_tinh, use_container_width=True, hide_index=True)
-
-    with top_col2:
-        # Xây dựng câu lệnh lọc bưu cục theo tỉnh nếu người dùng chọn cụ thể một tỉnh ở filter trên
-        bc_filter_sql = f"AND tinh_phat = '{filter_cn_odr}'" if filter_cn_odr != "Tất cả" else ""
-        st.markdown(f"🔴 **TOP 5 BƯU CỤC THỰC HIỆN KÉM NHẤT** {f'({filter_cn_odr})' if filter_cn_odr != 'Tất cả' else ''}")
-        
-        df_top_bc = con.execute(f"""
-            SELECT 
-                COALESCE(ma_buucuc_phat, 'Chưa rõ') AS "Bưu cục",
-                COALESCE(tinh_phat, 'Chưa rõ') AS "Chi nhánh",
-                CONCAT(ROUND(RANDOM() * 10 + 75, 1), '%') AS "Tỷ lệ phát đúng giờ",
-                CONCAT(ROUND((RANDOM() - 0.5) * 8, 1), '%') AS "SS cùng kỳ",
-                CONCAT(ROUND(RANDOM() * 10 + 85, 1), '%') AS "Tồn quá hạn 2 ngày",
-                CONCAT(ROUND((RANDOM() - 0.5) * 4, 1), '%') AS "SS cùng kỳ (2)"
-            FROM orders 
-            WHERE {where_sql_odr} AND ma_buucuc_phat IS NOT NULL {bc_filter_sql}
-            GROUP BY ma_buucuc_phat, tinh_phat
-            LIMIT 5
-        """).fetchdf()
-        st.dataframe(df_top_bc, use_container_width=True, hide_index=True)
-
-    st.write("")
-    st.divider()
-
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
     st.info("💡 Bảng ma trận tích hợp sẵn nút bấm `[+] / [-]` tương tác đóng/mở trực tiếp mượt mà.")
 
@@ -279,16 +235,16 @@ with tab_odr:
 
     m_current = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
 
-    # 2. Khách hàng động
+    # 2. Lấy danh sách toàn bộ Khách hàng từ Database để bung ra đầy đủ khi bấm nút [+]
     kh_rows_db = con.execute(f"""
         SELECT COALESCE(ma_khgui, 'Khác') as kh, COUNT(*) as sl 
-        FROM orders WHERE {where_sql_odr} GROUP BY ma_khgui ORDER BY sl DESC LIMIT 3
+        FROM orders WHERE {where_sql_odr} GROUP BY ma_khgui ORDER BY sl DESC
     """).fetchall()
 
     kh_html_blocks = ""
     for kh_name, kh_sl in kh_rows_db:
         kh_html_blocks += f"""
-        <tr class="sub-row-1 kh_{kh_name}" style="display:none; background-color: #fafafa;">
+        <tr class="sub-row-1 kh_section" style="display:none; background-color: #fafafa;">
             <td style="padding-left: 30px;"><span class="toggle-btn">[+]</span> Khách hàng: <b>{kh_name}</b></td>
             <td>-</td><td>-</td>
             <td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td class="text-green">+5.22%</td>
@@ -406,4 +362,4 @@ with tab_odr:
     </html>
     """
 
-    components.html(matrix_full_html, height=350, scrolling=True)
+    components.html(matrix_full_html, height=400, scrolling=True)
