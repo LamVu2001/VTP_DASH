@@ -215,13 +215,14 @@ with tab_odr:
     st.info("💡 Bảng mô phỏng cấu trúc cây quản trị: Bấm vào nút `[+]` bên cạnh tên Khách hàng hoặc Tỉnh/Bưu cục để mở rộng xem chi tiết số liệu.")
 
     # Truy vấn dữ liệu phân cấp từ Khách hàng -> Tỉnh phát -> Bưu cục phát
+    # Sử dụng ma_trangthai = 501 cho Phát thành công (thay vì trang_thai_phat cũ)
     df_tree_data = con.execute(f"""
         SELECT 
             COALESCE(ma_khgui, 'Khách vãng lai') AS "path_1",
             COALESCE(tinh_phat, 'Chưa rõ tỉnh') AS "path_2",
             COALESCE(ma_buucuc_phat, 'Chưa rõ bưu cục') AS "path_3",
             COUNT(*) AS "Sản lượng phát",
-            ROUND(SUM(CASE WHEN trang_thai_phat = 'Thành công' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS "% Thành công",
+            ROUND(SUM(CASE WHEN CAST(ma_trangthai AS INTEGER) = 501 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS "% Thành công",
             ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
         FROM orders 
         WHERE {where_sql_odr}
