@@ -140,7 +140,7 @@ with tab_doanh_thu:
         st.dataframe(df_top, use_container_width=True, hide_index=True, height=380)
 
     st.divider()
-    st.subheader("📋 Bảng Tổng Hợp Chi Tiết Dữ Liệu Lọc")
+    st.subheader("Bảng Tổng Hợp Chi Tiết Dữ Liệu Lọc")
     df_preview = con.execute(f"SELECT * FROM orders WHERE {where_sql_dt} LIMIT 500").fetchdf()
     st.dataframe(df_preview, use_container_width=True)
 
@@ -277,7 +277,7 @@ with tab_odr:
     # =========================================================================
     # 2. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (ĐÃ CHUYỂN XUỐNG DƯỚI)
     # =========================================================================
-    st.subheader("📊 BÁO CÁO CHẤT LƯỢNG VẬN HÀNH")
+    st.subheader("BÁO CÁO CHẤT LƯỢNG VẬN HÀNH")
 
     days_data = con.execute(f"""
         SELECT clean_date, COUNT(*) as sl 
