@@ -39,7 +39,18 @@ def get_db_connection():
 
     file_path = str(local_file if local_file.exists() else win_path)
     con = duckdb.connect(database=':memory:')
-    con.execute(f"CREATE VIEW orders AS SELECT * FROM read_parquet('{file_path}')")
+    
+    # Tạo view chuẩn hóa cột ngày tháng an toàn, hỗ trợ cả định dạng có dấu / hoặc -
+    con.execute(f"""
+        CREATE VIEW orders AS 
+        SELECT *, 
+               COALESCE(
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE),
+                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d/%m/%Y %H:%M:%S') AS DATE),
+                   TRY_CAST(SUBSTR(tg_quydinhphat, 1, 10) AS DATE)
+               ) as clean_date
+        FROM read_parquet('{file_path}')
+    """)
     return con
 
 con = get_db_connection()
@@ -77,7 +88,7 @@ with tab_doanh_thu:
     
     if isinstance(filter_date_dt, tuple) and len(filter_date_dt) == 2:
         start_d, end_d = filter_date_dt[0], filter_date_dt[1]
-        where_clauses_dt.append(f"TRY_CAST(REPLACE(REPLACE(SUBSTR(tg_quydinhphat, 1, 10), '/', '-'), '.', '-') AS DATE) BETWEEN '{start_d}' AND '{end_d}'")
+        where_clauses_dt.append(f"clean_date BETWEEN '{start_d}' AND '{end_d}'")
 
     where_sql_dt = " AND ".join(where_clauses_dt)
 
@@ -105,8 +116,8 @@ with tab_doanh_thu:
         st.subheader("XU HƯỚNG DOANH THU 7 NGÀY GẦN NHẤT (TỶ ĐỒNG)")
         try:
             df_daily = con.execute(f"""
-                SELECT tg_quydinhphat as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
-                FROM orders WHERE {where_sql_dt} AND tg_quydinhphat IS NOT NULL 
+                SELECT clean_date as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
+                FROM orders WHERE {where_sql_dt} AND clean_date IS NOT NULL 
                 GROUP BY ngay ORDER BY ngay DESC LIMIT 7
             """).fetchdf()
             if len(df_daily) > 0:
@@ -153,7 +164,7 @@ with tab_odr:
     
     if isinstance(filter_date_odr, tuple) and len(filter_date_odr) == 2:
         start_d, end_d = filter_date_odr[0], filter_date_odr[1]
-        where_clauses_odr.append(f"TRY_CAST(REPLACE(REPLACE(SUBSTR(tg_quydinhphat, 1, 10), '/', '-'), '.', '-') AS DATE) BETWEEN '{start_d}' AND '{end_d}'")
+        where_clauses_odr.append(f"clean_date BETWEEN '{start_d}' AND '{end_d}'")
 
     where_sql_odr = " AND ".join(where_clauses_odr)
 
