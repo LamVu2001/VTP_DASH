@@ -206,27 +206,26 @@ with tab_odr:
         st.info("Biểu đồ bên trái thể hiện sản lượng đơn hàng thực tế cần phát trong 7 ngày gần nhất dựa trên bộ lọc hiện tại của bạn.")
 
     st.divider()
-    st.subheader("📍 DANH SÁCH BƯU CỤC THEO TỪNG TỈNH PHÁT (MỞ RỘNG)")
-    st.info("💡 Bấm vào từng hộp Tỉnh phát bên dưới để mở rộng xem danh sách bưu cục và số liệu chi tiết bên trong!")
+    st.subheader("📍 CHI TIẾT TỈNH PHÁT & BƯU CỤC")
+    
+    # Tạo thêm một bộ lọc chọn nhanh Tỉnh ngay trên bảng bưu cục để thay thế cho dạng bấm mở rộng
+    selected_tinh_filter = st.selectbox("🔍 Lọc nhanh theo Tỉnh phát để xem bưu cục:", tinh_list, key="tinh_filter_dropdown")
 
-    # Lấy danh sách các tỉnh phát theo thứ tự sản lượng giảm dần
-    df_tinhs = con.execute(f"""
-        SELECT tinh_phat, COUNT(*) AS tong_don, ROUND(SUM(tong_cuoc)/1e6, 1) AS doanh_thu
+    # Xây dựng câu lệnh SQL lọc theo tỉnh được chọn từ dropdown
+    tinh_filter_sql = ""
+    if selected_tinh_filter != "Tất cả":
+        tinh_filter_sql = f"AND tinh_phat = '{selected_tinh_filter}'"
+
+    df_combined = con.execute(f"""
+        SELECT 
+            tinh_phat AS "Tỉnh phát", 
+            ma_buucuc_phat AS "Mã bưu cục phát", 
+            COUNT(*) AS "Tổng đơn", 
+            ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
         FROM orders 
-        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
-        GROUP BY tinh_phat 
-        ORDER BY tong_don DESC 
-        LIMIT 15
-    """).fetchall()
+        WHERE {where_sql_odr} {tinh_filter_sql} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
+        GROUP BY tinh_phat, ma_buucuc_phat 
+        ORDER BY "Tổng đơn" DESC
+    """).fetchdf()
 
-    # Tạo các expander (hộp mở rộng) cho từng tỉnh
-    for tinh, tong_don, doanh_thu in df_tinhs:
-        with st.expander(f"📌 Tỉnh: {tinh}  |  Tổng đơn: {tong_don:,}  |  Doanh thu: {doanh_thu:,.1f} Tr"):
-            df_bc = con.execute(f"""
-                SELECT ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-                FROM orders 
-                WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY ma_buucuc_phat 
-                ORDER BY "Sản lượng đơn" DESC
-            """).fetchdf()
-            st.dataframe(df_bc, use_container_width=True, hide_index=True)
+    st.dataframe(df_combined, use_container_width=True, hide_index=True, height=450)
