@@ -95,7 +95,7 @@ with tab_doanh_thu:
     where_sql_dt = " AND ".join(where_clauses_dt)
 
     res_metrics = con.execute(f"""
-        SELECT COALESCE(SUM(tong_cuoc), 0) / 1e9, COUNT(ma_phieu_gui)
+        SELECT COALESCE(SUM(tong_cuoc), 0) / 1e9, COUNT(ma_phieugui)
         FROM orders WHERE {where_sql_dt}
     """).fetchone()
     
@@ -144,7 +144,7 @@ with tab_doanh_thu:
     st.subheader("📊 BÁO CÁO MA TRẬN DOANH THU & SẢN LƯỢNG")
 
     days_data_dt = con.execute(f"""
-        SELECT clean_date, SUM(tong_cuoc)/1e9 as dt, COUNT(ma_phieu_gui) as sl 
+        SELECT clean_date, SUM(tong_cuoc)/1e9 as dt, COUNT(ma_phieugui) as sl 
         FROM orders WHERE {where_sql_dt} AND clean_date IS NOT NULL 
         GROUP BY clean_date ORDER BY clean_date DESC LIMIT 7
     """).fetchall()
@@ -162,7 +162,7 @@ with tab_doanh_thu:
             COALESCE(ma_doitac, 'Khác') as dt,
             COALESCE(ma_khgui, 'Khác') as kh,
             SUM(tong_cuoc)/1e9 as tong_dt,
-            COUNT(ma_phieu_gui) as tong_sl
+            COUNT(ma_phieugui) as tong_sl
         FROM orders 
         WHERE {where_sql_dt}
         GROUP BY ma_doitac, ma_khgui
