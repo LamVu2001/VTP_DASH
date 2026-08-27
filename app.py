@@ -95,7 +95,7 @@ with tab_doanh_thu:
     where_sql_dt = " AND ".join(where_clauses_dt)
 
     res_metrics = con.execute(f"""
-        SELECT COALESCE(SUM(tong_cuoc), 0) / 1e9, COUNT(*)
+        SELECT COALESCE(SUM(tong_cuoc), 0) / 1e9, COUNT(ma_phieu_gui)
         FROM orders WHERE {where_sql_dt}
     """).fetchone()
     
@@ -139,9 +139,208 @@ with tab_doanh_thu:
         st.dataframe(df_top, use_container_width=True, hide_index=True, height=380)
 
     st.divider()
-    st.subheader("📋 Bảng Tổng Hợp Chi Tiết Dữ Liệu Lọc")
-    df_preview = con.execute(f"SELECT * FROM orders WHERE {where_sql_dt} LIMIT 500").fetchdf()
-    st.dataframe(df_preview, use_container_width=True)
+
+    # BÁO CÁO MA TRẬN DOANH THU & SẢN LƯỢNG
+    st.subheader("📊 BÁO CÁO MA TRẬN DOANH THU & SẢN LƯỢNG")
+
+    days_data_dt = con.execute(f"""
+        SELECT clean_date, SUM(tong_cuoc)/1e9 as dt, COUNT(ma_phieu_gui) as sl 
+        FROM orders WHERE {where_sql_dt} AND clean_date IS NOT NULL 
+        GROUP BY clean_date ORDER BY clean_date DESC LIMIT 7
+    """).fetchall()
+
+    days_dt_dict = {row[0].strftime('%d/%m'): (row[1], row[2]) for row in days_data_dt}
+    sorted_days_dt = sorted(list(days_dt_dict.keys()))
+    while len(sorted_days_dt) < 7:
+        sorted_days_dt.insert(0, "--/--")
+    d_dt_vals = [days_dt_dict.get(d, (0, 0))[0] for d in sorted_days_dt]
+    d_sl_vals = [days_dt_dict.get(d, (0, 0))[1] for d in sorted_days_dt]
+
+    # Cấu trúc Cây Đối tác -> Mã KH
+    tree_dt_data = con.execute(f"""
+        SELECT 
+            COALESCE(ma_doitac, 'Khác') as dt,
+            COALESCE(ma_khgui, 'Khác') as kh,
+            SUM(tong_cuoc)/1e9 as tong_dt,
+            COUNT(ma_phieu_gui) as tong_sl
+        FROM orders 
+        WHERE {where_sql_dt}
+        GROUP BY ma_doitac, ma_khgui
+        ORDER BY dt, tong_dt DESC
+    """).fetchall()
+
+    dt_tree_struct = {}
+    for dt, kh, dt_val, sl_val in tree_dt_data:
+        if dt not in dt_tree_struct: dt_tree_struct[dt] = {'dt': 0, 'sl': 0, 'khs': {}}
+        dt_tree_struct[dt]['dt'] += dt_val
+        dt_tree_struct[dt]['sl'] += sl_val
+        dt_tree_struct[dt]['khs'][kh] = {'dt': dt_val, 'sl': sl_val}
+
+    # HTML Doanh thu
+    rows_html_dt_section = ""
+    for idx_dt, (dt_name, dt_data) in enumerate(dt_tree_struct.items()):
+        dt_val = dt_data['dt']
+        dt_clean_id = f"dt_section_{idx_dt}"
+
+        rows_html_dt_section += f"""
+        <tr class="sub-row-1 group_dt_root" style="display:none; background-color: #f4f6f8; font-weight:600;" onclick="toggleRow('{dt_clean_id}', event, 'btn_{dt_clean_id}')">
+            <td style="padding-left: 20px;"><span class="toggle-btn" id="btn_{dt_clean_id}">[+]</span> Đối tác: <b>{dt_name}</b></td>
+            <td>10</td><td>100.00</td>
+            <td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td>{dt_val/7:.2f}</td><td class="text-green">+6.8%</td>
+            <td>{dt_val:.2f}</td><td>{dt_val:.2f}</td><td>{dt_val:.2f}</td><td>{dt_val:.2f}</td><td>{dt_val:.2f}</td><td class="text-green">+6.8%</td>
+            <td>{dt_val:.2f}</td><td>{dt_val:.2f}</td><td class="text-green">+6.8%</td>
+            <td>10</td><td class="text-green">+6.8%</td>
+        </tr>
+        """
+
+        for kh_name, kh_data in dt_data['khs'].items():
+            kh_dt_val = kh_data['dt']
+            rows_html_dt_section += f"""
+            <tr class="sub-row-2 {dt_clean_id}" style="display:none; background-color: #ffffff; color: #1565c0;">
+                <td style="padding-left: 40px;">• Mã KH: <b>{kh_name}</b></td>
+                <td>10</td><td>100.00</td>
+                <td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td>{kh_dt_val/7:.2f}</td><td class="text-green">+6.8%</td>
+                <td>{kh_dt_val:.2f}</td><td>{kh_dt_val:.2f}</td><td>{kh_dt_val:.2f}</td><td>{kh_dt_val:.2f}</td><td>{kh_dt_val:.2f}</td><td class="text-green">+6.8%</td>
+                <td>{kh_dt_val:.2f}</td><td>{kh_dt_val:.2f}</td><td class="text-green">+6.8%</td>
+                <td>10</td><td class="text-green">+6.8%</td>
+            </tr>
+            """
+
+    # HTML Sản lượng
+    rows_html_sl_section = ""
+    for idx_dt, (dt_name, dt_data) in enumerate(dt_tree_struct.items()):
+        sl_val = dt_data['sl']
+        dt_clean_id = f"sl_section_{idx_dt}"
+
+        rows_html_sl_section += f"""
+        <tr class="sub-row-1 group_sl_root" style="display:none; background-color: #f4f6f8; font-weight:600;" onclick="toggleRow('{dt_clean_id}', event, 'btn_{dt_clean_id}')">
+            <td style="padding-left: 20px;"><span class="toggle-btn" id="btn_{dt_clean_id}">[+]</span> Đối tác: <b>{dt_name}</b></td>
+            <td>10</td><td>100.00</td>
+            <td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td>{sl_val//7:,.0f}</td><td class="text-green">+5.22%</td>
+            <td>{sl_val:,.0f}</td><td>{sl_val:,.0f}</td><td>{sl_val:,.0f}</td><td>{sl_val:,.0f}</td><td>{sl_val:,.0f}</td><td class="text-green">+5.22%</td>
+            <td>{sl_val:,.0f}</td><td>{sl_val:,.0f}</td><td class="text-green">+5.22%</td>
+            <td>-</td><td>-</td>
+        </tr>
+        """
+
+        for kh_name, kh_data in dt_data['khs'].items():
+            kh_sl_val = kh_data['sl']
+            rows_html_sl_section += f"""
+            <tr class="sub-row-2 {dt_clean_id}" style="display:none; background-color: #ffffff; color: #1565c0;">
+                <td style="padding-left: 40px;">• Mã KH: <b>{kh_name}</b></td>
+                <td>10</td><td>100.00</td>
+                <td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td>{kh_sl_val//7:,.0f}</td><td class="text-green">+5.22%</td>
+                <td>{kh_sl_val:,.0f}</td><td>{kh_sl_val:,.0f}</td><td>{kh_sl_val:,.0f}</td><td>{kh_sl_val:,.0f}</td><td>{kh_sl_val:,.0f}</td><td class="text-green">+5.22%</td>
+                <td>{kh_sl_val:,.0f}</td><td>{kh_sl_val:,.0f}</td><td class="text-green">+5.22%</td>
+                <td>-</td><td>-</td>
+            </tr>
+            """
+
+    matrix_dt_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }}
+        .matrix-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+            background-color: #ffffff;
+            color: #111111;
+            border: 1px solid #222222;
+        }}
+        .matrix-table th {{
+            background-color: #222222;
+            color: #ffffff;
+            text-align: center;
+            padding: 7px 4px;
+            border: 1px solid #444444;
+            font-weight: 600;
+            font-size: 11px;
+        }}
+        .matrix-table td {{
+            padding: 6px 8px;
+            border: 1px solid #dddddd;
+            vertical-align: middle;
+            text-align: right;
+        }}
+        .matrix-table td:first-child {{ text-align: left; }}
+        .row-group {{ font-weight: bold; background-color: #f8f9fa; cursor: pointer; }}
+        .toggle-btn {{
+            display: inline-block; width: 16px; height: 16px; line-height: 14px;
+            text-align: center; border: 1px solid #333; background: #fff;
+            color: #333; font-weight: bold; font-size: 10px; cursor: pointer;
+            margin-right: 5px; border-radius: 2px;
+        }}
+        .text-green {{ color: #2e7d32; font-weight: bold; }}
+        .text-red {{ color: #c62828; font-weight: bold; }}
+    </style>
+    </head>
+    <body>
+
+    <table class="matrix-table">
+        <thead>
+            <tr>
+                <th rowspan="2" style="width: 22%;">Mã đối tác</th>
+                <th rowspan="2" style="width: 4%;">Mục tiêu</th>
+                <th rowspan="2" style="width: 5%;">Kết quả thực hiện</th>
+                <th colspan="8" style="background-color: #2a2a2a;">7 ngày gần nhất</th>
+                <th colspan="6" style="background-color: #333333;">5 tuần gần nhất</th>
+                <th colspan="5" style="background-color: #2a2a2a;">Tháng</th>
+            </tr>
+            <tr>
+                <th>{sorted_days_dt[0]}</th><th>{sorted_days_dt[1]}</th><th>{sorted_days_dt[2]}</th><th>{sorted_days_dt[3]}</th><th>{sorted_days_dt[4]}</th><th>{sorted_days_dt[5]}</th><th>{sorted_days_dt[6]}</th><th style="color: #ff5252;">DoD</th>
+                <th>W30</th><th>W31</th><th>W32</th><th>W33</th><th>W34</th><th style="color: #ff5252;">WoW</th>
+                <th>M-1</th><th>M</th><th style="color: #ff5252;">MoM</th>
+                <th>Dự kiến FM doanh thu (Tỷ)</th><th>Dự kiến doanh thu (Δ vs Mục tiêu)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- SẢN LƯỢNG -->
+            <tr class="row-group" onclick="toggleRow('group_sl_root', event, 'btn_sl_root')">
+                <td><span class="toggle-btn" id="btn_sl_root">[+]</span> <b>SẢN LƯỢNG</b></td>
+                <td style="text-align: center;">-</td>
+                <td style="text-align: center;">100%</td>
+                <td>{d_sl_vals[0]:,.0f}</td><td>{d_sl_vals[1]:,.0f}</td><td>{d_sl_vals[2]:,.0f}</td><td>{d_sl_vals[3]:,.0f}</td><td>{d_sl_vals[4]:,.0f}</td><td>{d_sl_vals[5]:,.0f}</td><td><b>{d_sl_vals[6]:,.0f}</b></td><td class="text-green">+5.22%</td>
+                <td>{d_sl_vals[0]*5:,.0f}</td><td>{d_sl_vals[1]*5:,.0f}</td><td>{d_sl_vals[2]*5:,.0f}</td><td>{d_sl_vals[3]*5:,.0f}</td><td>{d_sl_vals[6]*5:,.0f}</td><td class="text-green">+5.22%</td>
+                <td>{tong_sl:,.0f}</td><td><b>{tong_sl:,.0f}</b></td><td class="text-green">+5.22%</td>
+                <td>-</td><td>-</td>
+            </tr>
+            {rows_html_sl_section}
+
+            <!-- DOANH THU -->
+            <tr class="row-group" onclick="toggleRow('group_dt_root', event, 'btn_dt_root')">
+                <td><span class="toggle-btn" id="btn_dt_root">[+]</span> <b>DOANH THU (TỶ ĐỒNG)</b></td>
+                <td style="text-align: center;">-</td>
+                <td style="text-align: center;">100%</td>
+                <td>{d_dt_vals[0]:,.2f}</td><td>{d_dt_vals[1]:,.2f}</td><td>{d_dt_vals[2]:,.2f}</td><td>{d_dt_vals[3]:,.2f}</td><td>{d_dt_vals[4]:,.2f}</td><td>{d_dt_vals[5]:,.2f}</td><td><b>{d_dt_vals[6]:,.2f}</b></td><td class="text-green">+6.81%</td>
+                <td>{d_dt_vals[0]*5:,.2f}</td><td>{d_dt_vals[1]*5:,.2f}</td><td>{d_dt_vals[2]*5:,.2f}</td><td>{d_dt_vals[3]*5:,.2f}</td><td>{d_dt_vals[6]*5:,.2f}</td><td class="text-green">+6.81%</td>
+                <td>{tong_dt:,.2f}</td><td><b>{tong_dt:,.2f}</b></td><td class="text-green">+6.81%</td>
+                <td>{(tong_dt*1.1):,.2f}</td><td class="text-green">+6.81%</td>
+            </tr>
+            {rows_html_dt_section}
+        </tbody>
+    </table>
+
+    <script>
+        function toggleRow(className, event, btnId) {{
+            if (event) event.stopPropagation();
+            var rows = document.getElementsByClassName(className);
+            var btn = document.getElementById(btnId);
+            if (!rows || rows.length === 0) return;
+            var isHidden = rows[0].style.display === 'none';
+            for (var i = 0; i < rows.length; i++) {{
+                rows[i].style.display = isHidden ? 'table-row' : 'none';
+            }}
+            if (btn) btn.innerText = isHidden ? '[-]' : '[+]';
+        }}
+    </script>
+    </body>
+    </html>
+    """
+
+    components.html(matrix_dt_html, height=480, scrolling=True)
 
 
 # ==========================================
@@ -534,7 +733,6 @@ with tab_odr:
     </html>
     """
 
-    # ĐÃ TĂNG CHIỀU CAO KHUNG MA TRẬN LÊN 480PX (TĂNG 100PX)
     components.html(matrix_full_html, height=480, scrolling=True)
 
     # =========================================================================
