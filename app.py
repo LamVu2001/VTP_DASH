@@ -74,9 +74,10 @@ with tab_doanh_thu:
     if filter_cn_dt != "Tất cả": where_clauses_dt.append(f"tinh_phat = '{filter_cn_dt}'")
     if filter_dt_dt != "Tất cả": where_clauses_dt.append(f"ma_doitac = '{filter_dt_dt}'")
     if filter_kh_dt != "Tất cả": where_clauses_dt.append(f"ma_khgui = '{filter_kh_dt}'")
+    
     if isinstance(filter_date_dt, tuple) and len(filter_date_dt) == 2:
         start_d, end_d = filter_date_dt[0], filter_date_dt[1]
-        where_clauses_dt.append(f"TRY_CAST(SUBSTR(tg_quydinhphat, 1, 10) AS DATE) BETWEEN '{start_d}' AND '{end_d}'")
+        where_clauses_dt.append(f"TRY_CAST(REPLACE(REPLACE(SUBSTR(tg_quydinhphat, 1, 10), '/', '-'), '.', '-') AS DATE) BETWEEN '{start_d}' AND '{end_d}'")
 
     where_sql_dt = " AND ".join(where_clauses_dt)
 
@@ -137,7 +138,6 @@ with tab_odr:
     st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU PHÁT</p>', unsafe_allow_html=True)
     st.markdown('<p class="main-title">Dashboard ODR</p>', unsafe_allow_html=True)
 
-    # Bộ lọc riêng cho ODR với key độc lập
     of1, of2, of3, of4, of5, of6 = st.columns(6)
     with of1: filter_date_odr = st.date_input("NGÀY", value=(), key="odr_date")
     with of2: filter_kh_odr = st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="odr_kh")
@@ -150,9 +150,10 @@ with tab_odr:
     if filter_kh_odr != "Tất cả": where_clauses_odr.append(f"ma_khgui = '{filter_kh_odr}'")
     if filter_dt_odr != "Tất cả": where_clauses_odr.append(f"ma_doitac = '{filter_dt_odr}'")
     if filter_kh2_odr != "Tất cả": where_clauses_odr.append(f"ma_khgui = '{filter_kh2_odr}'")
+    
     if isinstance(filter_date_odr, tuple) and len(filter_date_odr) == 2:
         start_d, end_d = filter_date_odr[0], filter_date_odr[1]
-        where_clauses_odr.append(f"TRY_CAST(SUBSTR(tg_quydinhphat, 1, 10) AS DATE) BETWEEN '{start_d}' AND '{end_d}'")
+        where_clauses_odr.append(f"TRY_CAST(REPLACE(REPLACE(SUBSTR(tg_quydinhphat, 1, 10), '/', '-'), '.', '-') AS DATE) BETWEEN '{start_d}' AND '{end_d}'")
 
     where_sql_odr = " AND ".join(where_clauses_odr)
 
