@@ -29,7 +29,7 @@ st.markdown("""
 def load_data():
     # --------------------------------------------------------------------------
     # ĐIỀN ID FILE GOOGLE DRIVE CỦA FILE data.parquet VÀO ĐÂY:
-    FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag" 
+    FILE_ID = "1-Wjf_" 
     # --------------------------------------------------------------------------
     
     local_file = Path("data.parquet")
@@ -47,7 +47,8 @@ def load_data():
                 "tien_cuoc": [1000000.0] * 10,
                 "ma_phieu_gui": [f"DON_{i}" for i in range(10)],
                 "ma_khachhang": ["KH01"] * 10,
-                "ma_chinhanh_ht": ["HNI"] * 10,
+                "tinh_phat": ["HNI"] * 10,
+                "ma_buucuc_phat": ["KMBI"] * 10,
                 "doi_tac": ["DoiTac_A"] * 10,
                 "loai_don": ["Nhanh"] * 10,
                 "lydo": ["Không liên hệ được KH"] * 10
@@ -55,11 +56,11 @@ def load_data():
 
     file_to_read = local_file if local_file.exists() else win_path
     
-    # Chỉ đọc các cột có chứa từ khóa liên quan để tiết kiệm RAM tối đa tránh tràn bộ nhớ
+    # Chỉ đọc các cột cần thiết để tiết kiệm RAM tối đa tránh tràn bộ nhớ
     try:
         schema = pl.read_parquet_schema(file_to_read)
         columns_to_load = [c for c in schema.keys() if any(k in c.lower() for k in [
-            'cuoc', 'tien', 'phieu', 'ma_don', 'khach', 'ma_kh', 'chinhanh', 'ma_cn', 
+            'cuoc', 'tien', 'phieu', 'ma_don', 'khach', 'ma_kh', 'tinh_phat', 'ma_buucuc_phat', 
             'doitac', 'doi_tac', 'loai', 'dichvu', 'lydo', 'nguyen_nhan', 'reason', 'tg_quydinhphat'
         ])]
         if not columns_to_load:
@@ -88,7 +89,6 @@ df_raw = load_data()
 col_cuoc = next((c for c in df_raw.columns if "cuoc" in c.lower() or "tien" in c.lower()), None)
 col_phieu = next((c for c in df_raw.columns if "phieu" in c.lower() or "ma_don" in c.lower()), None)
 col_kh = next((c for c in df_raw.columns if "khach" in c.lower() or "ma_kh" in c.lower()), None)
-col_cn = next((c for c in df_raw.columns if "chinhanh" in c.lower() or "ma_cn" in c.lower()), None)
 col_doitac = next((c for c in df_raw.columns if "doitac" in c.lower() or "doi_tac" in c.lower()), None)
 col_loaidon = next((c for c in df_raw.columns if "loai" in c.lower() or "dichvu" in c.lower()), None)
 col_lydo = next((c for c in df_raw.columns if "lydo" in c.lower() or "nguyen_nhan" in c.lower() or "reason" in c.lower()), None)
@@ -115,8 +115,8 @@ with tab_doanh_thu:
         dt_list = ["Tất cả"] + sorted(df_raw[col_doitac].drop_nulls().unique().to_list()) if col_doitac else ["Tất cả"]
         filter_dt = st.selectbox("MÃ ĐỐI TÁC", dt_list, key="dt_dt")
     with f4:
-        cn_list = ["Tất cả"] + sorted(df_raw[col_cn].drop_nulls().unique().to_list()) if col_cn else ["Tất cả"]
-        filter_cn = st.selectbox("MÃ CHI NHÁNH", cn_list, key="dt_cn")
+        cn_list = ["Tất cả"] + sorted(df_raw["tinh_phat"].drop_nulls().unique().to_list()) if "tinh_phat" in df_raw.columns else ["Tất cả"]
+        filter_cn = st.selectbox("TỈNH PHÁT", cn_list, key="dt_cn")
     with f5:
         ld_list = ["Tất cả"] + sorted(df_raw[col_loaidon].drop_nulls().unique().to_list()) if col_loaidon else ["Tất cả"]
         filter_ld = st.selectbox("LOẠI ĐƠN", ld_list, key="dt_ld")
@@ -127,12 +127,12 @@ with tab_doanh_thu:
     if "ngay_phat" in df_dt.columns and isinstance(filter_date, tuple) and len(filter_date) == 2:
         df_dt = df_dt.filter((pl.col("ngay_phat") >= filter_date[0]) & (pl.col("ngay_phat") <= filter_date[1]))
     if col_kh and filter_kh != "Tất cả": df_dt = df_dt.filter(pl.col(col_kh) == filter_kh)
-    if col_cn and filter_cn != "Tất cả": df_dt = df_dt.filter(pl.col(col_cn) == filter_cn)
+    if "tinh_phat" in df_dt.columns and filter_cn != "Tất cả": df_dt = df_dt.filter(pl.col("tinh_phat") == filter_cn)
     if col_doitac and filter_dt != "Tất cả": df_dt = df_dt.filter(pl.col(col_doitac) == filter_dt)
     if col_loaidon and filter_ld != "Tất cả": df_dt = df_dt.filter(pl.col(col_loaidon) == filter_ld)
 
-    tong_dt = (df_dt[col_cuoc].sum() / 1e9) if col_cuoc else 0.0
-    tong_sl = df_dt[col_phieu].n_unique() if col_phieu else len(df_dt)
+    tong_dt = (df_dt[col_cuoc].sum() / 1e9) if col_cuoc and col_cuoc in df_dt.columns else 0.0
+    tong_sl = df_dt[col_phieu].n_unique() if col_phieu and col_phieu in df_dt.columns else len(df_dt)
     
     m1, m2, m3, m4 = st.columns(4)
     with m1: st.markdown(f'<div class="metric-card"><div class="metric-title">DOANH THU HÔM NAY</div><div class="metric-value">{tong_dt:,.2f} tỷ</div><div class="metric-sub-green">▲ Dữ liệu thực tế</div></div>', unsafe_allow_html=True)
@@ -144,7 +144,7 @@ with tab_doanh_thu:
     c_chart, c_top = st.columns([2.2, 1])
     with c_chart:
         st.subheader("XU HƯỚNG DOANH THU 7 NGÀY GẦN NHẤT (TỶ ĐỒNG)")
-        if "ngay_phat" in df_dt.columns and col_cuoc:
+        if "ngay_phat" in df_dt.columns and col_cuoc and col_cuoc in df_dt.columns:
             df_daily = df_dt.filter(pl.col("ngay_phat").is_not_null()).group_by("ngay_phat").agg((pl.col(col_cuoc).sum()/1e9).alias("Thực tế")).sort("ngay_phat").tail(7)
             if len(df_daily) > 0:
                 df_p = df_daily.to_pandas()
@@ -154,14 +154,14 @@ with tab_doanh_thu:
                 st.plotly_chart(fig, use_container_width=True)
     with c_top:
         st.subheader("TOP KHÁCH HÀNG DOANH THU CAO")
-        if col_kh and col_cuoc:
+        if col_kh and col_cuoc and col_kh in df_dt.columns and col_cuoc in df_dt.columns:
             df_top = df_dt.group_by(col_kh).agg((pl.col(col_cuoc).sum()/1e6).round(1).alias("Doanh Thu (Tr)")).sort("Doanh Thu (Tr)", descending=True).head(5)
             st.dataframe(df_top.to_pandas(), use_container_width=True, hide_index=True)
 
     st.divider()
 
     st.subheader("📊 BÁO CÁO TỔNG HỢP DOANH THU THỜI GIAN")
-    if "ngay_phat" in df_dt.columns and col_cuoc:
+    if "ngay_phat" in df_dt.columns and col_cuoc and col_cuoc in df_dt.columns:
         df_summary = (
             df_dt.filter(pl.col("ngay_phat").is_not_null())
             .with_columns([
@@ -172,7 +172,7 @@ with tab_doanh_thu:
             .group_by(["Năm", "Tháng", "Tuần"])
             .agg([
                 (pl.col(col_cuoc).sum() / 1e9).round(2).alias("Doanh thu (Tỷ)"),
-                pl.col(col_phieu).n_unique().alias("Sản lượng (Đơn)") if col_phieu else pl.count().alias("Sản lượng (Đơn)")
+                pl.col(col_phieu).n_unique().alias("Sản lượng (Đơn)") if col_phieu and col_phieu in df_dt.columns else pl.count().alias("Sản lượng (Đơn)")
             ])
             .sort(["Năm", "Tháng", "Tuần"], descending=True)
         )
@@ -203,7 +203,7 @@ with tab_odr:
             st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="odr_tl")
 
     df_odr = df_raw
-    total_phat = df_odr[col_phieu].n_unique() if col_phieu else len(df_odr)
+    total_phat = df_odr[col_phieu].n_unique() if col_phieu and col_phieu in df_odr.columns else len(df_odr)
     
     m_odr1, m_odr2, m_odr3, m_odr4, m_odr5 = st.columns(5)
     with m_odr1:
@@ -250,28 +250,63 @@ with tab_odr:
         st.plotly_chart(fig_bar, use_container_width=True)
 
     st.write("")
-    st.subheader("TOP 5 CHI NHÁNH/BƯU CỤC THỰC HIỆN KÉM NHẤT (TỶ LỆ PHÁT THÀNH CÔNG ĐÚNG GIỜ)")
-    
-    tbl_col1, tbl_col2 = st.columns(2)
-    with tbl_col1:
-        st.markdown("**Bảng Chi Nhánh Kém Nhất**")
-        data_cn = {
-            "Chi nhánh": ["HNI", "HCM", "DNI", "GLI", "DLK"],
-            "Tỷ lệ phát thành công đúng giờ": ["70.1%", "71.8%", "73.0%", "74.4%", "75.6%"],
-            "SS cùng kỳ": ["-8.4%", "-7.1%", "-5.9%", "-4.2%", "-3.5%"],
-            "Tồn quá hạn 2 ngày": ["412 đơn", "388 đơn", "301 đơn", "266 đơn", "220 đơn"],
-            "SS cùng kỳ (Đơn)": ["+180", "+150", "+95", "+62", "+40"]
-        }
-        st.dataframe(pl.DataFrame(data_cn).to_pandas(), use_container_width=True, hide_index=True)
+    st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC THỰC TẾ)")
+    st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
 
-    with tbl_col2:
-        st.markdown("**Bảng Bưu Cục Kém Nhất**")
-        data_bc = {
-            "Bưu cục": ["AVC", "HUB10", "DPC", "TPU", "TSNI"],
-            "Chi nhánh": ["HNI", "HCM", "DNI", "GLI", "DLK"],
-            "Tỷ lệ phát thành công đúng giờ": ["76.2%", "78.5%", "79.1%", "80.3%", "81.0%"],
-            "SS cùng kỳ": ["-4.8%", "-3.2%", "-2.6%", "-1.9%", "-1.4%"],
-            "Tồn quá hạn 2 ngày": ["88.1%", "90.4%", "91.0%", "92.2%", "92.8%"],
-            "SS cùng kỳ (Đơn)": ["-2.1%", "-1.5%", "-0.9%", "-0.6%", "-0.4%"]
-        }
-        st.dataframe(pl.DataFrame(data_bc).to_pandas(), use_container_width=True, hide_index=True)
+    col_cn_real = "tinh_phat"
+    col_bc_real = "ma_buucuc_phat"
+
+    if col_cn_real in df_raw.columns and col_bc_real in df_raw.columns:
+        df_cn_grouped = (
+            df_raw.group_by(col_cn_real)
+            .agg([
+                pl.count().alias("Tổng đơn"),
+                (pl.col(col_cuoc).sum() / 1e6).round(1).alias("Doanh thu (Tr)") if col_cuoc and col_cuoc in df_raw.columns else pl.count().alias("Dummy")
+            ])
+            .sort("Tổng đơn", descending=True)
+            .head(15)
+        )
+
+        tbl_col1, tbl_col2 = st.columns(2)
+
+        with tbl_col1:
+            st.markdown("**Bảng Tỉnh Phạt (Bấm chọn dòng để lọc)**")
+            event_cn = st.dataframe(
+                df_cn_grouped.to_pandas(), 
+                use_container_width=True, 
+                hide_index=True,
+                selection_mode="single-row",
+                on_select="rerun",
+                key="table_tinh_phat_select"
+            )
+
+        selected_row_indices = event_cn.get("selection", {}).get("rows", [])
+        selected_tinh = None
+        if selected_row_indices:
+            selected_idx = selected_row_indices[0]
+            selected_tinh = df_cn_grouped[col_cn_real][selected_idx]
+
+        with tbl_col2:
+            if selected_tinh:
+                st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span>**", unsafe_allow_html=True)
+                df_bc_filtered = (
+                    df_raw.filter(pl.col(col_cn_real) == selected_tinh)
+                    .group_by(col_bc_real)
+                    .agg([
+                        pl.count().alias("Sản lượng đơn"),
+                        (pl.col(col_cuoc).sum() / 1e6).round(1).alias("Doanh thu (Tr)") if col_cuoc and col_cuoc in df_raw.columns else pl.count().alias("Dummy")
+                    ])
+                    .sort("Sản lượng đơn", descending=True)
+                )
+                st.dataframe(df_bc_filtered.to_pandas(), use_container_width=True, hide_index=True)
+            else:
+                st.markdown("**Bảng Bưu Cục Toàn Quốc (Hoặc bấm chọn Tỉnh bên trái)**")
+                df_bc_all = (
+                    df_raw.group_by([col_cn_real, col_bc_real])
+                    .agg(pl.count().alias("Sản lượng đơn"))
+                    .sort("Sản lượng đơn", descending=True)
+                    .head(10)
+                )
+                st.dataframe(df_bc_all.to_pandas(), use_container_width=True, hide_index=True)
+    else:
+        st.warning("Không tìm thấy cột tinh_phat hoặc ma_buucuc_phat trong dữ liệu.")
