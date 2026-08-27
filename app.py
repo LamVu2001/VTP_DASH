@@ -982,6 +982,183 @@ with tab_opr:
 
     components.html(matrix_opr_html, height=480, scrolling=True)
 
+# 6. TỒN THU TOÀN QUỐC (CÓ THỂ XUẤT CHI TIẾT)
+    st.divider()
+    st.markdown('<p class="section-red-title">TỒN THU TOÀN QUỐC (Có thể xuất chi tiết)</p>', unsafe_allow_html=True)
+
+    # Truy vấn lấy danh sách Chi nhánh & Bưu cục thực tế từ DuckDB
+    ton_raw_db = con.execute(f"""
+        SELECT 
+            COALESCE(tinh_phat, 'Khác') as cn,
+            COALESCE(ma_buucuc_phat, 'Khác') as bc
+        FROM orders 
+        WHERE {where_sql_opr} AND tinh_phat IS NOT NULL
+        GROUP BY tinh_phat, ma_buucuc_phat
+        ORDER BY tinh_phat ASC, ma_buucuc_phat ASC
+    """).fetchall()
+
+    # Gom nhóm theo Chi nhánh -> Danh sách Bưu cục
+    ton_structure = {}
+    for cn, bc in ton_raw_db:
+        if cn not in ton_structure:
+            ton_structure[cn] = []
+        ton_structure[cn].append(bc)
+
+    rows_ton_thu_html = ""
+    for idx_cn, (cn_code, bc_list) in enumerate(ton_structure.items()):
+        cn_row_id = f"ton_cn_{idx_cn}"
+
+        # Dòng Chi nhánh (Level 1)
+        rows_ton_thu_html += f"""
+        <tr class="ton-cn-row" onclick="toggleTonRow('{cn_row_id}', event, 'btn_{cn_row_id}')">
+            <td style="text-align: left; padding-left: 8px;">
+                <span class="toggle-btn-small" id="btn_{cn_row_id}">+</span>
+                <b>{cn_code}</b>
+            </td>
+            <td class="text-red">2</td>
+            <td class="text-orange">3</td>
+            <td>45</td>
+            <td>6</td>
+            <td>5</td>
+            <td class="text-red">7</td>
+            <td class="text-orange">8</td>
+            <td>9</td>
+            <td>11</td>
+            <td>10</td>
+        </tr>
+        """
+
+        # Các dòng Bưu cục thực tế thuộc Chi nhánh đó (Level 2 - Thu gọn mặc định)
+        for bc_code in bc_list:
+            rows_ton_thu_html += f"""
+            <tr class="ton-bc-row {cn_row_id}" style="display: none;">
+                <td style="text-align: left; padding-left: 28px; color: #555; font-style: italic;">
+                    • {bc_code}
+                </td>
+                <td class="text-red">2</td>
+                <td class="text-orange">3</td>
+                <td>45</td>
+                <td>6</td>
+                <td>5</td>
+                <td class="text-red">7</td>
+                <td class="text-orange">8</td>
+                <td>9</td>
+                <td>11</td>
+                <td>10</td>
+            </tr>
+            """
+
+    ton_thu_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 0; background: transparent;
+        }}
+        .table-scroll-ton {{
+            max-height: 380px;
+            overflow-y: auto;
+            border: 1px solid #111111;
+            background: #ffffff;
+        }}
+        .tbl-ton {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+            color: #111111;
+        }}
+        .tbl-ton th {{
+            position: sticky; top: 0; z-index: 10;
+            background-color: #262626; color: #ffffff;
+            text-align: center; padding: 7px 4px;
+            border-bottom: 1px solid #444; border-right: 1px solid #444;
+            font-weight: bold; font-size: 11px;
+        }}
+        .tbl-ton td {{
+            padding: 6px 4px; border-bottom: 1px solid #ddd; border-right: 1px solid #eee;
+            text-align: center;
+        }}
+        .tr-total-ton {{
+            background-color: #ffffff; font-weight: bold;
+        }}
+        .ton-cn-row {{
+            cursor: pointer; background-color: #ffffff;
+        }}
+        .ton-cn-row:hover {{
+            background-color: #f0f4f8;
+        }}
+        .ton-bc-row {{
+            background-color: #fafafa;
+        }}
+        .toggle-btn-small {{
+            display: inline-block; width: 12px; height: 12px; line-height: 10px;
+            text-align: center; border: 1px solid #333; background: #fff;
+            color: #333; font-weight: bold; font-size: 10px; margin-right: 4px;
+        }}
+        .text-red {{ color: #c62828; font-weight: bold; }}
+        .text-orange {{ color: #ef6c00; font-weight: bold; }}
+    </style>
+    </head>
+    <body>
+
+    <div class="table-scroll-ton">
+        <table class="tbl-ton">
+            <thead>
+                <tr>
+                    <th style="width: 16%;">Chi nhánh</th>
+                    <th style="width: 8.4%;">Còn 1 ngày</th>
+                    <th style="width: 8.4%;">Còn 2 ngày</th>
+                    <th style="width: 8.4%;">Còn 3 ngày</th>
+                    <th style="width: 8.4%;">Còn 4 ngày</th>
+                    <th style="width: 8.4%;">Còn 5 ngày</th>
+                    <th style="width: 9.4%;">Tỷ lệ >1 ngày</th>
+                    <th style="width: 9.4%;">Tỷ lệ >2 ngày</th>
+                    <th style="width: 9.4%;">Tỷ lệ >3 ngày</th>
+                    <th style="width: 9.4%;">Tỷ lệ >4 ngày</th>
+                    <th style="width: 9.4%;">Tỷ lệ >5 ngày</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="tr-total-ton">
+                    <td style="text-align: center;">TOTAL</td>
+                    <td class="text-red">111</td>
+                    <td class="text-orange">111</td>
+                    <td>111</td>
+                    <td>111</td>
+                    <td>111</td>
+                    <td class="text-red">111</td>
+                    <td class="text-orange">111</td>
+                    <td>200</td>
+                    <td>300</td>
+                    <td>305</td>
+                </tr>
+                {rows_ton_thu_html if rows_ton_thu_html else "<tr><td colspan='11'>Không có dữ liệu</td></tr>"}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        function toggleTonRow(className, event, btnId) {{
+            if (event) event.stopPropagation();
+            var rows = document.getElementsByClassName(className);
+            var btn = document.getElementById(btnId);
+            if (!rows || rows.length === 0) return;
+            var isHidden = rows[0].style.display === 'none';
+            for (var i = 0; i < rows.length; i++) {{
+                rows[i].style.display = isHidden ? 'table-row' : 'none';
+            }}
+            if (btn) btn.innerText = isHidden ? '-' : '+';
+        }}
+    </script>
+    </body>
+    </html>
+    """
+
+    components.html(ton_thu_html, height=380, scrolling=False)
+
+
 # ==========================================
 # TAB 3: DASHBOARD ODR
 # ==========================================
