@@ -29,14 +29,14 @@ st.markdown("""
 def load_data():
     # --------------------------------------------------------------------------
     # ĐIỀN ID FILE GOOGLE DRIVE CỦA FILE data.parquet VÀO ĐÂY:
-    FILE_ID = "1-Wjf_" 
+    FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag" 
     # --------------------------------------------------------------------------
     
     local_file = Path("data.parquet")
     win_path = Path(r"C:\Users\Win 10\Desktop\streamlit\data.parquet")
 
     if not local_file.exists() and not win_path.exists():
-        if FILE_ID != "thay_ma_file_id_cua_ban_vao_day":
+        if FILE_ID != "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag":
             url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
             with st.spinner("Đang tải dữ liệu từ Google Drive..."):
                 gdown.download(url, str(local_file), quiet=False, use_cookies=False)
