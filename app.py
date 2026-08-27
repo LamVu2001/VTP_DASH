@@ -212,8 +212,7 @@ with tab_odr:
     # =========================================================================
     # 1. DANH SÁCH TỈNH PHÁT & BƯU CỤC (ĐÃ CHUYỂN LÊN TRÊN)
     # =========================================================================
-    st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC TỰ ĐỘNG LỌC)")
-    st.info("💡 Mẹo: Bấm chọn vào một dòng Tỉnh ở bảng bên trái để xem đầy đủ các bưu cục thuộc tỉnh đó ở bảng bên phải!")
+    st.subheader("DANH SÁCH TỈNH PHÁT & BƯU CỤC")
 
     df_cn_grouped = con.execute(f"""
         SELECT 
@@ -278,8 +277,7 @@ with tab_odr:
     # =========================================================================
     # 2. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (ĐÃ CHUYỂN XUỐNG DƯỚI)
     # =========================================================================
-    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
-    st.info("💡 Bảng ma trận tích hợp sẵn nút bấm `[+] / [-]` tương tác đóng/mở trực tiếp mượt mà.")
+    st.subheader("📊 BÁO CÁO CHẤT LƯỢNG VẬN HÀNH")
 
     days_data = con.execute(f"""
         SELECT clean_date, COUNT(*) as sl 
