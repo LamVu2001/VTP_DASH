@@ -67,7 +67,7 @@ def get_filter_options():
 
 kh_list, tinh_list, dt_list = get_filter_options()
 
-tab_doanh_thu, tab_odr = st.tabs(["DASHBOARD DOANH THU", "DASHBOARD ODR"])
+tab_doanh_thu, tab_odr = st.tabs(["📊 DASHBOARD DOANH THU", "🚚 DASHBOARD ODR"])
 
 # ==========================================
 # TAB 1: DASHBOARD DOANH THU
@@ -140,7 +140,7 @@ with tab_doanh_thu:
         st.dataframe(df_top, use_container_width=True, hide_index=True, height=380)
 
     st.divider()
-    st.subheader("Bảng Tổng Hợp Chi Tiết Dữ Liệu Lọc")
+    st.subheader("📋 Bảng Tổng Hợp Chi Tiết Dữ Liệu Lọc")
     df_preview = con.execute(f"SELECT * FROM orders WHERE {where_sql_dt} LIMIT 500").fetchdf()
     st.dataframe(df_preview, use_container_width=True)
 
@@ -187,7 +187,7 @@ with tab_odr:
     
     c_odr_chart, c_odr_right = st.columns([2, 1.3])
     with c_odr_chart:
-        st.subheader("XU HƯỚNG SẢN LƯỢNG PHÁT 7 NGÀY GẦN NHẤT")
+        st.subheader("📈 XU HƯỚNG SẢN LƯỢNG PHÁT 7 NGÀY GẦN NHẤT")
         try:
             df_odr_daily = con.execute(f"""
                 SELECT clean_date as ngay, COUNT(*) as SanLuong 
@@ -204,15 +204,16 @@ with tab_odr:
             pass
 
     with c_odr_right:
-        st.subheader("THÔNG TIN TỔNG QUAN ODR")
+        st.subheader("💡 THÔNG TIN TỔNG QUAN ODR")
         st.info("Biểu đồ bên trái thể hiện sản lượng đơn hàng thực tế cần phát trong 7 ngày gần nhất dựa trên bộ lọc hiện tại của bạn.")
 
     st.divider()
 
     # =========================================================================
-    # 1. DANH SÁCH TỈNH PHÁT & BƯU CỤC (ĐÃ CHUYỂN LÊN TRÊN)
+    # 1. DANH SÁCH TỈNH PHÁT & BƯU CỤC
     # =========================================================================
-    st.subheader("DANH SÁCH TỈNH PHÁT & BƯU CỤC")
+    st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC TỰ ĐỘNG LỌC)")
+    st.info("💡 Mẹo: Bấm chọn vào một dòng Tỉnh ở bảng bên trái để xem đầy đủ các bưu cục thuộc tỉnh đó ở bảng bên phải!")
 
     df_cn_grouped = con.execute(f"""
         SELECT 
@@ -275,9 +276,10 @@ with tab_odr:
     st.divider()
 
     # =========================================================================
-    # 2. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (ĐÃ CHUYỂN XUỐNG DƯỚI)
+    # 2. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (ĐÃ SỬA CHUẨN CLASS NÚT [+])
     # =========================================================================
-    st.subheader("BÁO CÁO CHẤT LƯỢNG VẬN HÀNH")
+    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
+    st.info("💡 Bảng ma trận tích hợp sẵn nút bấm `[+] / [-]` tương tác đóng/mở trực tiếp mượt mà.")
 
     days_data = con.execute(f"""
         SELECT clean_date, COUNT(*) as sl 
@@ -295,7 +297,7 @@ with tab_odr:
 
     kh_rows_db = con.execute(f"""
         SELECT COALESCE(ma_khgui, 'Khác') as kh, COUNT(*) as sl 
-        FROM orders WHERE {where_sql_odr} GROUP BY ma_khgui ORDER BY sl DESC LIMIT 3
+        FROM orders WHERE {where_sql_odr} GROUP BY ma_khgui ORDER BY sl DESC LIMIT 5
     """).fetchall()
 
     kh_html_blocks = ""
@@ -303,7 +305,7 @@ with tab_odr:
         kh_name = row[0]
         kh_sl = row[1]
         kh_html_blocks += f"""
-        <tr class="sub-row-1 kh_{kh_name}" style="display:none; background-color: #fafafa;">
+        <tr class="sub-row-1 kh_section" style="display:none; background-color: #fafafa;">
             <td style="padding-left: 30px;"><span class="toggle-btn">[+]</span> Khách hàng: <b>{kh_name}</b></td>
             <td>-</td><td>-</td>
             <td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td class="text-green">+5.22%</td>
@@ -410,6 +412,7 @@ with tab_odr:
         function toggleMaster(className) {{
             var rows = document.getElementsByClassName(className);
             var btn = document.getElementById('btn_kh');
+            if (!rows || rows.length === 0) return;
             var isHidden = rows[0].style.display === 'none';
             for (var i = 0; i < rows.length; i++) {{
                 rows[i].style.display = isHidden ? 'table-row' : 'none';
@@ -421,4 +424,4 @@ with tab_odr:
     </html>
     """
 
-    components.html(matrix_full_html, height=350, scrolling=True)
+    components.html(matrix_full_html, height=400, scrolling=True)
