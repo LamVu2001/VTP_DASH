@@ -72,7 +72,6 @@ with tab_doanh_thu:
     if filter_dt != "Tất cả": where_clauses.append(f"doi_tac = '{filter_dt}'")
     where_sql = " AND ".join(where_clauses)
 
-    # Sử dụng đúng cột tong_cuoc
     res_metrics = con.execute(f"""
         SELECT 
             COALESCE(SUM(tong_cuoc), 0) / 1e9,
@@ -93,18 +92,30 @@ with tab_doanh_thu:
     c_chart, c_top = st.columns([2.2, 1])
     with c_chart:
         st.subheader("XU HƯỚNG DOANH THU")
-        df_daily = con.execute(f"""
-            SELECT CAST(tg_quydinhphat AS DATE) as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
-            FROM orders WHERE {where_sql} AND tg_quydinhphat IS NOT NULL 
-            GROUP BY ngay ORDER BY ngay DESC LIMIT 7
-        """).fetchdf()
-        if len(df_daily) > 0:
-            fig = px.line(df_daily, x="ngay", y="DoanhThu", markers=True)
-            st.plotly_chart(fig, use_container_width=True)
+        try:
+            df_daily = con.execute(f"""
+                SELECT CAST(strptime(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE) as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
+                FROM orders WHERE {where_sql} AND tg_quydinhphat IS NOT NULL 
+                GROUP BY ngay ORDER BY ngay DESC LIMIT 7
+            """).fetchdf()
+            if len(df_daily) > 0:
+                fig = px.line(df_daily, x="ngay", y="DoanhThu", markers=True)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("Không có dữ liệu ngày tháng phù hợp.")
+        except Exception:
+            df_daily = con.execute(f"""
+                SELECT tg_quydinhphat as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
+                FROM orders WHERE {where_sql} AND tg_quydinhphat IS NOT NULL 
+                GROUP BY ngay LIMIT 7
+            """).fetchdf()
+            if len(df_daily) > 0:
+                fig = px.line(df_daily, x="ngay", y="DoanhThu", markers=True)
+                st.plotly_chart(fig, use_container_width=True)
 
     with c_top:
         st.subheader("TOP KHÁCH HÀNG")
-        st.info("Đang hiển thị dữ liệu rút gọn qua DuckDB.")
+        st.info("Dữ liệu được truy vấn tối ưu qua DuckDB.")
 
     st.divider()
     st.subheader("📋 Bảng Tổng Hợp Chi Tiết")
@@ -128,6 +139,7 @@ with tab_odr:
 
     st.write("")
     st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC")
+    st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
     
     df_cn_grouped = con.execute("""
         SELECT tinh_phat AS "Tỉnh phát", COUNT(*) AS "Tổng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
