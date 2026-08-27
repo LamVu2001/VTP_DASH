@@ -550,13 +550,13 @@ with tab_odr:
     </html>
     """
 
-    components.html(matrix_full_html, height=750, scrolling=True)
+    components.html(matrix_full_html, height=600, scrolling=True)
 
     st.write("")
     st.divider()
 
     # =========================================================================
-    # 3. BA BẢNG TỒN KHÂU (CÓ THÀNH CUỘN CHO TỪNG BẢNG, NÚT TÍCH HỢP DRILL-DOWN)
+    # 3. BA BẢNG TỒN KHÂU (MỖI BẢNG CÓ THANH CUỘN ĐỘC LẬP - SIÊU MƯỢT)
     # =========================================================================
 
     tinh_rows = con.execute(f"""
@@ -567,6 +567,58 @@ with tab_odr:
         ORDER BY sl DESC
     """).fetchall()
 
+    # CSS DÙNG CHUNG CHO BẢNG TỒN
+    base_style = """
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background-color: transparent; }
+        .table-container {
+            max-height: 420px;
+            overflow-y: auto;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+        }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11.5px; background: #fff; }
+        th {
+            position: sticky; top: 0; z-index: 10;
+            background-color: #c62828; color: #ffffff;
+            text-align: center; padding: 7px 4px;
+            border-bottom: 2px solid #b71c1c; border-right: 1px solid #b71c1c;
+            font-weight: bold;
+        }
+        tr.total-row td {
+            position: sticky; top: 31px; z-index: 9;
+            background-color: #f5f5f5; font-weight: bold;
+            border-bottom: 2px solid #ccc;
+        }
+        td { padding: 6px 6px; border-bottom: 1px solid #e0e0e0; border-right: 1px solid #e0e0e0; text-align: center; }
+        td.col-branch { text-align: left; padding-left: 10px; }
+        .ton-btn {
+            display: inline-block; width: 14px; height: 14px; line-height: 12px;
+            text-align: center; border: 1px solid #555; background: #fff;
+            color: #333; font-weight: bold; font-size: 9px; cursor: pointer;
+            margin-right: 5px; border-radius: 2px;
+        }
+        .ton-highlight-red { color: #c62828; font-weight: bold; }
+        .ton-highlight-orange { color: #e65100; font-weight: bold; }
+    </style>
+    <script>
+        function toggleTonRow(className, event, btnId) {
+            if (event) event.stopPropagation();
+            var rows = document.getElementsByClassName(className);
+            var btn = document.getElementById(btnId);
+            if (!rows || rows.length === 0) return;
+            var isHidden = rows[0].style.display === 'none';
+            for (var i = 0; i < rows.length; i++) {
+                rows[i].style.display = isHidden ? 'table-row' : 'none';
+            }
+            if (btn) btn.innerText = isHidden ? '[-]' : '[+]';
+        }
+    </script>
+    """
+
+    # --- BẢNG 1: FM ---
+    st.markdown('<p style="font-size: 13px; font-weight: bold; color: #111; border-left: 4px solid #c62828; padding-left: 8px; margin-bottom: 8px;">TỒN KHÂU FM CÁC BƯU GỬI CHƯA XUẤT SẠCH – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
+    
     fm_rows_html = ""
     for idx_t, (t_name, t_sl) in enumerate(tinh_rows):
         t_id = f"fm_tinh_{idx_t}"
@@ -603,6 +655,88 @@ with tab_odr:
             </tr>
             """
 
+    html_fm = f"""
+    <!DOCTYPE html><html><head>{base_style}</head><body>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 20%;">Chi Nhánh</th>
+                    <th style="width: 14%;">Sản lượng đã thu thành công</th>
+                    <th style="width: 10%;">Tổng tồn</th>
+                    <th style="width: 10%;">Tỷ lệ tồn</th>
+                    <th style="width: 11%;">Tồn quá 1 ngày</th>
+                    <th style="width: 11%;">Tồn quá 2 ngày</th>
+                    <th style="width: 12%;">Tỷ lệ tồn quá 1 ngày</th>
+                    <th style="width: 12%;">Tỷ lệ tồn quá 2 ngày</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="total-row">
+                    <td class="col-branch">TOTAL</td>
+                    <td>{tong_sl_odr:,.0f}</td>
+                    <td>{int(tong_sl_odr*0.03):,.0f}</td>
+                    <td>3.0%</td>
+                    <td class="ton-highlight-red">{int(tong_sl_odr*0.005):,.0f}</td>
+                    <td class="ton-highlight-orange">{int(tong_sl_odr*0.002):,.0f}</td>
+                    <td class="ton-highlight-red">1.50%</td>
+                    <td class="ton-highlight-orange">0.65%</td>
+                </tr>
+                {fm_rows_html}
+            </tbody>
+        </table>
+    </div>
+    </body></html>
+    """
+    components.html(html_fm, height=440, scrolling=False)
+
+    st.write("")
+
+    # --- BẢNG 2: MM ---
+    st.markdown('<p style="font-size: 13px; font-weight: bold; color: #111; border-left: 4px solid #c62828; padding-left: 8px; margin-bottom: 8px;">TỒN KHÂU MM CÁC BƯU GỬI CHƯA KẾT NỐI – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
+    html_mm = f"""
+    <!DOCTYPE html><html><head>{base_style}</head><body>
+    <div class="table-container" style="max-height: 250px;">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 20%;">Đơn vị kết nối</th>
+                    <th style="width: 14%;">Sản lượng đã nhận bàn giao</th>
+                    <th style="width: 10%;">Tổng tồn</th>
+                    <th style="width: 10%;">Tỷ lệ tồn</th>
+                    <th style="width: 11%;">Quá 6H</th>
+                    <th style="width: 11%;">Quá 12H</th>
+                    <th style="width: 12%;">Quá 24H</th>
+                    <th style="width: 12%;">Quá 48H</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="total-row">
+                    <td class="col-branch">TOTAL</td>
+                    <td class="ton-highlight-red">222</td>
+                    <td>1,381</td>
+                    <td>1.12%</td>
+                    <td class="ton-highlight-red">111</td>
+                    <td class="ton-highlight-orange">111</td>
+                    <td>13</td>
+                    <td>23</td>
+                </tr>
+                <tr><td class="col-branch">TTKT3</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
+                <tr><td class="col-branch">HNIVC</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
+                <tr><td class="col-branch">DVVC</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
+                <tr><td class="col-branch">DVVTNN3</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
+            </tbody>
+        </table>
+    </div>
+    </body></html>
+    """
+    components.html(html_mm, height=270, scrolling=False)
+
+    st.write("")
+
+    # --- BẢNG 3: LM ---
+    st.markdown('<p style="font-size: 13px; font-weight: bold; color: #111; border-left: 4px solid #c62828; padding-left: 8px; margin-bottom: 8px;">TỒN KHÂU LM CÁC BƯU GỬI CHƯA PHÁT – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
+    
     lm_rows_html = ""
     for idx_t, (t_name, t_sl) in enumerate(tinh_rows):
         t_id = f"lm_tinh_{idx_t}"
@@ -639,171 +773,10 @@ with tab_odr:
             </tr>
             """
 
-    html_3_tables = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background-color: transparent; }}
-        
-        /* Container cho phép cuộn nội dung từng bảng */
-        .ton-table-wrapper {{
-            max-height: 480px;
-            overflow-y: auto;
-            border: 1px solid #d3d3d3;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            margin-bottom: 25px;
-        }}
-        
-        .ton-section-title {{
-            font-size: 13px;
-            font-weight: bold;
-            color: #111111;
-            border-left: 4px solid #c62828;
-            padding-left: 8px;
-            margin-top: 15px;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-        }}
-        
-        .ton-table {{
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            font-size: 11.5px;
-            background-color: #ffffff;
-        }}
-        
-        /* Cố định Header tiêu đề đỏ khi cuộn */
-        .ton-table th {{
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background-color: #c62828;
-            color: #ffffff;
-            text-align: center;
-            padding: 7px 4px;
-            border-bottom: 2px solid #b71c1c;
-            border-right: 1px solid #b71c1c;
-            font-weight: bold;
-        }}
-        
-        /* Cố định dòng TOTAL ở ngay dưới Header */
-        .ton-table tr.total-row td {{
-            position: sticky;
-            top: 31px;
-            z-index: 9;
-            background-color: #f5f5f5;
-            font-weight: bold;
-            border-bottom: 2px solid #ccc;
-        }}
-        
-        .ton-table td {{
-            padding: 6px 6px;
-            border-bottom: 1px solid #e0e0e0;
-            border-right: 1px solid #e0e0e0;
-            text-align: center;
-        }}
-        
-        .ton-table td.col-branch {{
-            text-align: left;
-            padding-left: 10px;
-        }}
-        
-        .ton-btn {{
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            line-height: 12px;
-            text-align: center;
-            border: 1px solid #555;
-            background: #fff;
-            color: #333;
-            font-weight: bold;
-            font-size: 9px;
-            cursor: pointer;
-            margin-right: 5px;
-            border-radius: 2px;
-        }}
-        
-        .ton-highlight-red {{ color: #c62828; font-weight: bold; }}
-        .ton-highlight-orange {{ color: #e65100; font-weight: bold; }}
-    </style>
-    </head>
-    <body>
-
-    <!-- BẢNG 1: FM -->
-    <div class="ton-section-title">TỒN KHÂU FM CÁC BƯU GỬI CHƯA XUẤT SẠCH – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
-    <div class="ton-table-wrapper">
-        <table class="ton-table">
-            <thead>
-                <tr>
-                    <th style="width: 20%;">Chi Nhánh</th>
-                    <th style="width: 14%;">Sản lượng đã thu thành công</th>
-                    <th style="width: 10%;">Tổng tồn</th>
-                    <th style="width: 10%;">Tỷ lệ tồn</th>
-                    <th style="width: 11%;">Tồn quá 1 ngày</th>
-                    <th style="width: 11%;">Tồn quá 2 ngày</th>
-                    <th style="width: 12%;">Tỷ lệ tồn quá 1 ngày</th>
-                    <th style="width: 12%;">Tỷ lệ tồn quá 2 ngày</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr class="total-row">
-                    <td class="col-branch">TOTAL</td>
-                    <td>{tong_sl_odr:,.0f}</td>
-                    <td>{int(tong_sl_odr*0.03):,.0f}</td>
-                    <td>3.0%</td>
-                    <td class="ton-highlight-red">{int(tong_sl_odr*0.005):,.0f}</td>
-                    <td class="ton-highlight-orange">{int(tong_sl_odr*0.002):,.0f}</td>
-                    <td class="ton-highlight-red">1.50%</td>
-                    <td class="ton-highlight-orange">0.65%</td>
-                </tr>
-                {fm_rows_html}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- BẢNG 2: MM -->
-    <div class="ton-section-title">TỒN KHÂU MM CÁC BƯU GỬI CHƯA KẾT NỐI – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
-    <div class="ton-table-wrapper" style="max-height: 300px;">
-        <table class="ton-table">
-            <thead>
-                <tr>
-                    <th style="width: 20%;">Đơn vị kết nối</th>
-                    <th style="width: 14%;">Sản lượng đã nhận bàn giao</th>
-                    <th style="width: 10%;">Tổng tồn</th>
-                    <th style="width: 10%;">Tỷ lệ tồn</th>
-                    <th style="width: 11%;">Quá 6H</th>
-                    <th style="width: 11%;">Quá 12H</th>
-                    <th style="width: 12%;">Quá 24H</th>
-                    <th style="width: 12%;">Quá 48H</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr class="total-row">
-                    <td class="col-branch">TOTAL</td>
-                    <td class="ton-highlight-red">222</td>
-                    <td>1,381</td>
-                    <td>1.12%</td>
-                    <td class="ton-highlight-red">111</td>
-                    <td class="ton-highlight-orange">111</td>
-                    <td>13</td>
-                    <td>23</td>
-                </tr>
-                <tr><td class="col-branch">TTKT3</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
-                <tr><td class="col-branch">HNIVC</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
-                <tr><td class="col-branch">DVVC</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
-                <tr><td class="col-branch">DVVTNN3</td><td class="ton-highlight-red">5</td><td>381</td><td>4.2%</td><td class="ton-highlight-red">2</td><td class="ton-highlight-orange">3</td><td>1</td><td>2</td></tr>
-            </tbody>
-        </table>
-    </div>
-
-    <!-- BẢNG 3: LM -->
-    <div class="ton-section-title">TỒN KHÂU LM CÁC BƯU GỬI CHƯA PHÁT – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
-    <div class="ton-table-wrapper">
-        <table class="ton-table">
+    html_lm = f"""
+    <!DOCTYPE html><html><head>{base_style}</head><body>
+    <div class="table-container">
+        <table>
             <thead>
                 <tr>
                     <th style="width: 20%;">Chi nhánh</th>
@@ -831,22 +804,6 @@ with tab_odr:
             </tbody>
         </table>
     </div>
-
-    <script>
-        function toggleTonRow(className, event, btnId) {{
-            if (event) event.stopPropagation();
-            var rows = document.getElementsByClassName(className);
-            var btn = document.getElementById(btnId);
-            if (!rows || rows.length === 0) return;
-            var isHidden = rows[0].style.display === 'none';
-            for (var i = 0; i < rows.length; i++) {{
-                rows[i].style.display = isHidden ? 'table-row' : 'none';
-            }}
-            if (btn) btn.innerText = isHidden ? '[-]' : '[+]';
-        }}
-    </script>
-    </body>
-    </html>
+    </body></html>
     """
-
-    components.html(html_3_tables, height=1450, scrolling=True)
+    components.html(html_lm, height=440, scrolling=False)
