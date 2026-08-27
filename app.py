@@ -24,11 +24,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 1. HÀM TẢI DỮ LIỆU TỐI ƯU RAM (CHỈ ĐỌC CỘT CẦN THIẾT)
+# 1. HÀM TẢI DỮ LIỆU TỪ GOOGLE DRIVE (TỐI ƯU TRÁNH TRÀN RAM)
 @st.cache_data(ttl=86400)
 def load_data():
     # --------------------------------------------------------------------------
-    # ĐIỀN ID FILE GOOGLE DRIVE CỦA FILE data.parquet VÀO ĐÂY:
+    # FILE ID CỦA BẠN ĐÃ ĐƯỢC TÍCH HỢP:
     FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag" 
     # --------------------------------------------------------------------------
     
@@ -36,27 +36,13 @@ def load_data():
     win_path = Path(r"C:\Users\Win 10\Desktop\streamlit\data.parquet")
 
     if not local_file.exists() and not win_path.exists():
-        if FILE_ID != "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag":
-            url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
-            with st.spinner("Đang tải dữ liệu từ Google Drive..."):
-                gdown.download(url, str(local_file), quiet=False, use_cookies=False)
-        else:
-            st.warning("Chưa điền Google Drive FILE_ID! Đang dùng dữ liệu mẫu tạm thời.")
-            return pl.DataFrame({
-                "tg_quydinhphat": ["01-08-2026 08:00:00"] * 10,
-                "tien_cuoc": [1000000.0] * 10,
-                "ma_phieu_gui": [f"DON_{i}" for i in range(10)],
-                "ma_khachhang": ["KH01"] * 10,
-                "tinh_phat": ["HNI"] * 10,
-                "ma_buucuc_phat": ["KMBI"] * 10,
-                "doi_tac": ["DoiTac_A"] * 10,
-                "loai_don": ["Nhanh"] * 10,
-                "lydo": ["Không liên hệ được KH"] * 10
-            })
+        url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
+        with st.spinner("Đang tải dữ liệu từ Google Drive (lần đầu có thể mất một chút thời gian)..."):
+            gdown.download(url, str(local_file), quiet=False, use_cookies=False)
 
     file_to_read = local_file if local_file.exists() else win_path
     
-    # Chỉ đọc các cột cần thiết để tiết kiệm RAM tối đa tránh tràn bộ nhớ
+    # Dùng scan_parquet (Lazy) và chỉ đọc các cột cần thiết để không bị tràn RAM
     try:
         schema = pl.read_parquet_schema(file_to_read)
         columns_to_load = [c for c in schema.keys() if any(k in c.lower() for k in [
