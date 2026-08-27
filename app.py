@@ -28,7 +28,6 @@ st.markdown("""
     .metric-sub-green { font-size: 10px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 10px; color: #c62828; font-weight: bold; }
     
-    /* Style cho section header màu đỏ */
     .section-red-title {
         font-size: 14px; font-weight: bold; color: #111; 
         border-left: 4px solid #c62828; padding-left: 8px; 
@@ -74,7 +73,6 @@ def get_filter_options():
 
 kh_list, tinh_list, dt_list = get_filter_options()
 
-# KHỞI TẠO 3 TAB CHÍNH (ĐÃ CHÈN TAB OPR VÀO GIỮA)
 tab_doanh_thu, tab_opr, tab_odr = st.tabs(["📊 DASHBOARD DOANH THU", "📦 DASHBOARD OPR", "🚚 DASHBOARD ODR"])
 
 # ==========================================
@@ -149,7 +147,6 @@ with tab_doanh_thu:
 
     st.divider()
 
-    # BÁO CÁO MA TRẬN DOANH THU & SẢN LƯỢNG
     st.subheader("📊 BÁO CÁO MA TRẬN DOANH THU & SẢN LƯỢNG")
 
     days_data_dt = con.execute(f"""
@@ -453,13 +450,12 @@ with tab_doanh_thu:
 
 
 # ==========================================
-# TAB 2: DASHBOARD OPR (THÊM MỚI THEO MẪU HÌNH ẢNH)
+# TAB 2: DASHBOARD OPR
 # ==========================================
 with tab_opr:
     st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU THU</p>', unsafe_allow_html=True)
     st.markdown('<p class="main-title">Dashboard OPR</p>', unsafe_allow_html=True)
 
-    # LAYOUT CHÍNH OPR: 6 CỘT CARD KPI TRÊN (LEFT) + 2 CỘT BỘ LỌC (RIGHT)
     col_kpi_area, col_filter_area = st.columns([4.2, 1.8])
 
     with col_filter_area:
@@ -474,7 +470,6 @@ with tab_opr:
             filter_kh2_opr = st.selectbox("MÃ KHÁCH HÀNG (2)", kh_list, key="opr_kh2")
             filter_tep_opr = st.selectbox("TỆP ĐƠN (YCT TTC PTC)", ["Tất cả"], key="opr_tep")
 
-    # Xử lý điều kiện truy vấn dữ liệu OPR
     where_clauses_opr = ["1=1"]
     if filter_dt_opr != "Tất cả": where_clauses_opr.append(f"ma_doitac = '{filter_dt_opr}'")
     if filter_kh_opr != "Tất cả": where_clauses_opr.append(f"ma_khgui = '{filter_kh_opr}'")
@@ -483,7 +478,6 @@ with tab_opr:
         where_clauses_opr.append(f"clean_date BETWEEN '{filter_date_opr[0]}' AND '{filter_date_opr[1]}'")
     where_sql_opr = " AND ".join(where_clauses_opr)
 
-    # Tính toán sản lượng thực tế từ DB DuckDB
     tong_sl_opr = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_opr}").fetchone()[0]
     sl_hien_thi = tong_sl_opr if tong_sl_opr > 0 else 11180
 
@@ -498,7 +492,6 @@ with tab_opr:
 
     st.write("")
 
-    # KHU VỰC GIỮA: BIỂU ĐỒ XU HƯỚNG + TOP 10 TỒN THU
     c_opr_left, c_opr_right = st.columns([1.1, 1])
 
     with c_opr_left:
@@ -522,7 +515,6 @@ with tab_opr:
     with c_opr_right:
         st.markdown('<p class="section-red-title">TOP 10 ĐỐI TÁC TỒN THU CUỐI NGÀY CAO NHẤT</p>', unsafe_allow_html=True)
         
-        # Bảng ghép đôi Đối tác & Mã KH như mockup hình mẫu
         html_top10_opr = """
         <style>
             .tbl-top10 { width: 100%; border-collapse: collapse; font-size: 11px; background: #fafafa; border: 1px solid #e0e0e0; }
@@ -552,69 +544,66 @@ with tab_opr:
 
     st.divider()
 
-    # KHU VỰC DƯỚI: TOP 5 CHI NHÁNH & BƯU CỤC THỰC HIỆN KÉM NHẤT
-    st.markdown('<p class="section-red-title">TOP 5 CHI NHÁNH/BƯU CỤC THỰC HIỆN KÉM NHẤT (TỶ LỆ THU THÀNH CÔNG ĐÚNG GIỜ)</p>', unsafe_allow_html=True)
+    # BẢNG TƯƠNG TÁC TỰ ĐỘNG LỌC: CHI NHÁNH THU & BƯU CỤC THU (GIỐNG TAB ODR)
+    st.subheader("📍 DANH SÁCH CHI NHÁNH THU & BƯU CỤC THU (TƯƠNG TÁC TỰ ĐỘNG LỌC)")
+    st.info("💡 Mẹo: Bấm chọn vào một dòng Chi nhánh ở bảng bên trái để xem đầy đủ các bưu cục thuộc chi nhánh đó ở bảng bên phải!")
 
-    col_cn, col_bc = st.columns(2)
+    df_cn_opr_grouped = con.execute(f"""
+        SELECT 
+            tinh_phat AS "Chi nhánh Thu", 
+            COUNT(*) AS "Tổng đơn thu", 
+            ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+        FROM orders 
+        WHERE {where_sql_opr} AND tinh_phat IS NOT NULL
+        GROUP BY tinh_phat 
+        ORDER BY "Tổng đơn thu" DESC
+    """).fetchdf()
 
-    with col_cn:
-        html_top5_cn = """
-        <style>
-            .tbl-top5 { width: 100%; border-collapse: collapse; font-size: 11px; background: #fff; border: 1px solid #333; }
-            .tbl-top5 th { background: #222; color: #fff; padding: 6px; text-align: center; font-weight: bold; border: 1px solid #444; }
-            .tbl-top5 td { padding: 6px; border: 1px solid #ddd; text-align: center; }
-            .text-red { color: #c62828; font-weight: bold; }
-        </style>
-        <table class="tbl-top5">
-            <thead>
-                <tr>
-                    <th>Chi nhánh</th>
-                    <th>Tỷ lệ thu thành công đúng giờ</th>
-                    <th>SS cùng kỳ</th>
-                    <th>Tỷ lệ xuất sạch</th>
-                    <th>SS cùng kỳ</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td><b>HNI</b></td><td>76.2%</td><td class="text-red">-4.8%</td><td>88.1%</td><td class="text-red">-2.1%</td></tr>
-                <tr><td><b>HCM</b></td><td>78.5%</td><td class="text-red">-3.2%</td><td>90.4%</td><td class="text-red">-1.5%</td></tr>
-                <tr><td><b>DNI</b></td><td>79.1%</td><td class="text-red">-2.6%</td><td>91.0%</td><td class="text-red">-0.9%</td></tr>
-                <tr><td><b>GLI</b></td><td>80.3%</td><td class="text-red">-1.9%</td><td>92.2%</td><td class="text-red">-0.6%</td></tr>
-                <tr><td><b>DLK</b></td><td>81.0%</td><td class="text-red">-1.4%</td><td>92.8%</td><td class="text-red">-0.4%</td></tr>
-            </tbody>
-        </table>
-        """
-        components.html(html_top5_cn, height=200, scrolling=False)
+    tbl_opr_col1, tbl_opr_col2 = st.columns(2)
+    with tbl_opr_col1:
+        st.markdown("**Bảng Chi Nhánh Thu (Bấm chọn dòng để lọc Bưu cục)**")
+        event_cn_opr = st.dataframe(
+            df_cn_opr_grouped, 
+            use_container_width=True, 
+            hide_index=True,
+            selection_mode="single-row",
+            on_select="rerun",
+            key="table_cn_thu_select"
+        )
 
-    with col_bc:
-        html_top5_bc = """
-        <style>
-            .tbl-top5 { width: 100%; border-collapse: collapse; font-size: 11px; background: #fff; border: 1px solid #333; }
-            .tbl-top5 th { background: #222; color: #fff; padding: 6px; text-align: center; font-weight: bold; border: 1px solid #444; }
-            .tbl-top5 td { padding: 6px; border: 1px solid #ddd; text-align: center; }
-            .text-red { color: #c62828; font-weight: bold; }
-        </style>
-        <table class="tbl-top5">
-            <thead>
-                <tr>
-                    <th>Bưu cục</th>
-                    <th>Chi nhánh</th>
-                    <th>Tỷ lệ thu thành công đúng giờ</th>
-                    <th>SS cùng kỳ</th>
-                    <th>Tỷ lệ xuất sạch</th>
-                    <th>SS cùng kỳ</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td><b>AVC</b></td><td><b>HNI</b></td><td>76.2%</td><td class="text-red">-4.8%</td><td>88.1%</td><td class="text-red">-2.1%</td></tr>
-                <tr><td><b>HUB10</b></td><td><b>HCM</b></td><td>78.5%</td><td class="text-red">-3.2%</td><td>90.4%</td><td class="text-red">-1.5%</td></tr>
-                <tr><td><b>DPC</b></td><td><b>DNI</b></td><td>79.1%</td><td class="text-red">-2.6%</td><td>91.0%</td><td class="text-red">-0.9%</td></tr>
-                <tr><td><b>TPU</b></td><td><b>GLI</b></td><td>80.3%</td><td class="text-red">-1.9%</td><td>92.2%</td><td class="text-red">-0.6%</td></tr>
-                <tr><td><b>TSNI</b></td><td><b>DLK</b></td><td>81.0%</td><td class="text-red">-1.4%</td><td>92.8%</td><td class="text-red">-0.4%</td></tr>
-            </tbody>
-        </table>
-        """
-        components.html(html_top5_bc, height=200, scrolling=False)
+    selected_row_indices_opr = event_cn_opr.get("selection", {}).get("rows", [])
+    selected_cn_opr = None
+    if selected_row_indices_opr:
+        selected_idx_opr = selected_row_indices_opr[0]
+        selected_cn_opr = df_cn_opr_grouped.iloc[selected_idx_opr]["Chi nhánh Thu"]
+
+    with tbl_opr_col2:
+        if selected_cn_opr:
+            st.markdown(f"**Toàn bộ Bưu cục thuộc Chi nhánh: <span style='color: #c62828;'>{selected_cn_opr}</span>**", unsafe_allow_html=True)
+            df_bc_opr_filtered = con.execute(f"""
+                SELECT 
+                    ma_buucuc_phat AS "Mã bưu cục thu", 
+                    COUNT(*) AS "Sản lượng đơn thu", 
+                    ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+                FROM orders 
+                WHERE {where_sql_opr} AND tinh_phat = '{selected_cn_opr}' AND ma_buucuc_phat IS NOT NULL
+                GROUP BY ma_buucuc_phat 
+                ORDER BY "Sản lượng đơn thu" DESC
+            """).fetchdf()
+            st.dataframe(df_bc_opr_filtered, use_container_width=True, hide_index=True)
+        else:
+            st.markdown("**Bưu Cục Thu Toàn Quốc (Bấm chọn Chi nhánh bên trái để xem chi tiết)**")
+            df_bc_opr_all = con.execute(f"""
+                SELECT 
+                    tinh_phat AS "Chi nhánh Thu", 
+                    ma_buucuc_phat AS "Mã bưu cục thu", 
+                    COUNT(*) AS "Sản lượng đơn thu"
+                FROM orders 
+                WHERE {where_sql_opr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
+                GROUP BY tinh_phat, ma_buucuc_phat 
+                ORDER BY "Sản lượng đơn thu" DESC
+            """).fetchdf()
+            st.dataframe(df_bc_opr_all, use_container_width=True, hide_index=True)
 
 
 # ==========================================
