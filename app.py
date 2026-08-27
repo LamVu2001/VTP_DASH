@@ -209,10 +209,10 @@ with tab_odr:
     st.divider()
 
     # =========================================================================
-    # BẢNG MA TRẬN PHÂN CẤP VẬN HÀNH (MỤC 1 & MỤC 2: SẢN LƯỢNG & PHÁT THÀNH CÔNG 501)
+    # BẢNG MA TRẬN PHÂN CẤP VẬN HÀNH (MỤC 1 & MỤC 2 CÓ HIỂN THỊ NÚT [+] / [-])
     # =========================================================================
-    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (MỤC 1 & 2)")
-    st.info("💡 Bảng mô phỏng cấu trúc cây quản trị: Bấm vào nút `[+]` bên cạnh Khách hàng hoặc Tỉnh/Bưu cục để mở rộng xem số liệu chi tiết.")
+    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (CÂY PHÂN CẤP)")
+    st.info("💡 Bảng mô phỏng cấu trúc cây quản trị: Bấm vào nút mũi tên/dấu cộng bên cạnh tên Khách hàng để mở rộng xem Chi nhánh và Bưu cục con.")
 
     # Truy vấn phân cấp: Khách hàng -> Tỉnh phát -> Bưu cục phát
     # Mục 1: Sản lượng phải phát (COUNT(*))
@@ -232,7 +232,7 @@ with tab_odr:
         LIMIT 300
     """).fetchdf()
 
-    # Cấu hình lưới AgGrid theo dạng cây phân cấp (Tree Data)
+    # Cấu hình lưới AgGrid theo dạng cây phân cấp (Tree Data) với đầy đủ renderer nút [+] / [-]
     gb = GridOptionsBuilder.from_dataframe(df_tree_data)
     gb.configure_default_column(editable=False, sortable=True, filter=True, resizable=True)
 
@@ -247,10 +247,16 @@ with tab_odr:
         """),
         autoGroupColumnDef={
             "headerName": "Chỉ tiêu / Khối vận hành",
+            "cellRenderer": "agGroupCellRenderer",
             "cellRendererParams": {
-                "suppressCount": False
+                "suppressCount": False,
+                "innerRenderer": JsCode("""
+                    function(params) {
+                        return params.value;
+                    }
+                """)
             },
-            "width": 350,
+            "width": 380,
             "pinned": "left"
         }
     )
