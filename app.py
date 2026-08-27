@@ -67,7 +67,7 @@ def get_filter_options():
 
 kh_list, tinh_list, dt_list = get_filter_options()
 
-tab_doanh_thu, tab_odr = st.tabs(["📊 DASHBOARD DOANH THU", "🚚 DASHBOARD ODR"])
+tab_doanh_thu, tab_odr = st.tabs(["DASHBOARD DOANH THU", "DASHBOARD ODR"])
 
 # ==========================================
 # TAB 1: DASHBOARD DOANH THU
@@ -187,7 +187,7 @@ with tab_odr:
     
     c_odr_chart, c_odr_right = st.columns([2, 1.3])
     with c_odr_chart:
-        st.subheader("📈 XU HƯỚNG SẢN LƯỢNG PHÁT 7 NGÀY GẦN NHẤT")
+        st.subheader("XU HƯỚNG SẢN LƯỢNG PHÁT 7 NGÀY GẦN NHẤT")
         try:
             df_odr_daily = con.execute(f"""
                 SELECT clean_date as ngay, COUNT(*) as SanLuong 
@@ -204,7 +204,7 @@ with tab_odr:
             pass
 
     with c_odr_right:
-        st.subheader("💡 THÔNG TIN TỔNG QUAN ODR")
+        st.subheader("THÔNG TIN TỔNG QUAN ODR")
         st.info("Biểu đồ bên trái thể hiện sản lượng đơn hàng thực tế cần phát trong 7 ngày gần nhất dựa trên bộ lọc hiện tại của bạn.")
 
     st.divider()
