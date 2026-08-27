@@ -6,6 +6,7 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
+# CSS màu sắc & giao diện chuẩn template
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -40,20 +41,17 @@ def get_db_connection():
     file_path = str(local_file if local_file.exists() else win_path)
     con = duckdb.connect(database=':memory:')
     
+    # Tự động chuẩn hóa toàn bộ ngày tháng (tự đổi / thành -, cắt khoảng trắng, nhận diện Excel serial và mọi định dạng)
     con.execute(f"""
         CREATE VIEW orders AS 
         SELECT *, 
                COALESCE(
                    TRY_CAST(EPOCH_MS(CAST(TRY_CAST(tg_quydinhphat AS BIGINT) AS BIGINT) * 86400000 - 2209161600000) AS DATE),
-                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%d-%m-%Y %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%d-%m-%Y %H:%M') AS DATE),
-                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%d-%m-%Y') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y %H:%M') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%Y-%m-%d %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%Y-%m-%d %H:%M') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%Y-%m-%d') AS DATE)
+                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%d-%m-%Y %H:%M:%S') AS DATE),
+                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%d-%m-%Y %H:%M') AS DATE),
+                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%d-%m-%Y') AS DATE),
+                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%Y-%m-%d %H:%M:%S') AS DATE),
+                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%Y-%m-%d') AS DATE)
                ) as clean_date
         FROM read_parquet('{file_path}')
     """)
