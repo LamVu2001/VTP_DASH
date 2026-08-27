@@ -295,7 +295,7 @@ with tab_odr:
     # --- 2. BẢNG MA TRẬN VẬN HÀNH AN TOÀN TUYỆT ĐỐI ---
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
-    st.info("💡 Bảng ma trận tổng hợp sản lượng thực tế an toàn, không lỗi hiển thị, kèm theo hệ thống mở rộng chi tiết bên dưới.")
+    st.info("💡 Bảng ma trận tổng hợp sản lượng thực tế an toàn, hiển thị trực quan không lỗi giao diện.")
 
     days_data = con.execute(f"""
         SELECT clean_date, COUNT(*) as sl 
@@ -360,25 +360,3 @@ with tab_odr:
     """
 
     st.markdown(matrix_html, unsafe_allow_html=True)
-
-    # Phần mở rộng chi tiết bưu cục theo Tỉnh sử dụng Expander gốc của Streamlit (Mượt mà và chuẩn xác 100%)
-    st.markdown("### 📁 Chi tiết phân cấp bưu cục theo Tỉnh phát")
-    df_tins_list = con.execute(f"""
-        SELECT tinh_phat, COUNT(*) as sl 
-        FROM orders 
-        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
-        GROUP BY tinh_phat 
-        ORDER BY sl DESC 
-        LIMIT 10
-    """).fetchall()
-
-    for tinh_item, sl_tinh in df_tins_list:
-        with st.expander(f"[+] Khu vực Tỉnh phát: {tinh_item} (Tổng sản lượng: {sl_tinh:,} đơn)"):
-            df_bc_sub = con.execute(f"""
-                SELECT ma_buucuc_phat AS "Mã bưu cục", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-                FROM orders 
-                WHERE {where_sql_odr} AND tinh_phat = '{tinh_item}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY ma_buucuc_phat 
-                ORDER BY "Sản lượng đơn" DESC
-            """).fetchdf()
-            st.dataframe(df_bc_sub, use_container_width=True, hide_index=True)
