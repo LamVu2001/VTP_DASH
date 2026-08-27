@@ -6,7 +6,6 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS màu sắc & thẻ chỉ số giao diện chuẩn
 st.markdown("""
 <style>
     .metric-card {
@@ -45,13 +44,12 @@ con = get_db_connection()
 
 @st.cache_data
 def get_filter_options():
-    kh_list = ["Tất cả"] + [row[0] for row in con.execute("SELECT DISTINCT ma_khachhang FROM orders WHERE ma_khachhang IS NOT NULL ORDER BY 1").fetchall()] if "ma_khachhang" in [col[0] for col in con.execute("DESCRIBE orders").fetchall()] else ["Tất cả"]
+    kh_list = ["Tất cả"] + [row[0] for row in con.execute("SELECT DISTINCT ma_khgui FROM orders WHERE ma_khgui IS NOT NULL ORDER BY 1").fetchall()]
     tinh_list = ["Tất cả"] + [row[0] for row in con.execute("SELECT DISTINCT tinh_phat FROM orders WHERE tinh_phat IS NOT NULL ORDER BY 1").fetchall()]
-    dt_list = ["Tất cả"] + [row[0] for row in con.execute("SELECT DISTINCT doi_tac FROM orders WHERE doi_tac IS NOT NULL ORDER BY 1").fetchall()] if "doi_tac" in [col[0] for col in con.execute("DESCRIBE orders").fetchall()] else ["Tất cả"]
-    ld_list = ["Tất cả"] + [row[0] for row in con.execute("SELECT DISTINCT loai_don FROM orders WHERE loai_don IS NOT NULL ORDER BY 1").fetchall()] if "loai_don" in [col[0] for col in con.execute("DESCRIBE orders").fetchall()] else ["Tất cả"]
-    return kh_list, tinh_list, dt_list, ld_list
+    dt_list = ["Tất cả"] + [row[0] for row in con.execute("SELECT DISTINCT ma_doitac FROM orders WHERE ma_doitac IS NOT NULL ORDER BY 1").fetchall()]
+    return kh_list, tinh_list, dt_list
 
-kh_list, tinh_list, dt_list, ld_list = get_filter_options()
+kh_list, tinh_list, dt_list = get_filter_options()
 
 tab_doanh_thu, tab_odr = st.tabs(["📊 DASHBOARD DOANH THU", "🚚 DASHBOARD ODR (CHẤT LƯỢNG KHÂU PHÁT)"])
 
@@ -67,13 +65,13 @@ with tab_doanh_thu:
     with f2: filter_kh = st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="dt_kh")
     with f3: filter_dt = st.selectbox("MÃ ĐỐI TÁC", dt_list, key="dt_dt")
     with f4: filter_cn = st.selectbox("TỈNH PHÁT", tinh_list, key="dt_cn")
-    with f5: filter_ld = st.selectbox("LOẠI ĐƠN", ld_list, key="dt_ld")
+    with f5: filter_ld = st.selectbox("LOẠI ĐƠN", ["Tất cả"], key="dt_ld")
     with f6: st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="dt_tl")
 
     where_clauses = ["1=1"]
     if filter_cn != "Tất cả": where_clauses.append(f"tinh_phat = '{filter_cn}'")
-    if filter_dt != "Tất cả": where_clauses.append(f"doi_tac = '{filter_dt}'")
-    if filter_kh != "Tất cả": where_clauses.append(f"ma_khachhang = '{filter_kh}'")
+    if filter_dt != "Tất cả": where_clauses.append(f"ma_doitac = '{filter_dt}'")
+    if filter_kh != "Tất cả": where_clauses.append(f"ma_khgui = '{filter_kh}'")
     where_sql = " AND ".join(where_clauses)
 
     res_metrics = con.execute(f"""
@@ -86,7 +84,6 @@ with tab_doanh_thu:
     tong_dt = res_metrics[0]
     tong_sl = res_metrics[1]
 
-    # ĐẦY ĐỦ 4 THẺ CHỈ SỐ MÀU SẮC
     m1, m2, m3, m4 = st.columns(4)
     with m1: st.markdown(f'<div class="metric-card"><div class="metric-title">DOANH THU HÔM NAY</div><div class="metric-value">{tong_dt:,.2f} tỷ</div><div class="metric-sub-green">▲ Dữ liệu thực tế</div></div>', unsafe_allow_html=True)
     with m2: st.markdown(f'<div class="metric-card"><div class="metric-title">SS CÙNG KỲ TUẦN TRƯỚC</div><div class="metric-value">{(tong_dt*0.9):,.2f} tỷ</div><div class="metric-sub-green">▲ 10.0% vs tuần trước</div></div>', unsafe_allow_html=True)
@@ -113,10 +110,11 @@ with tab_doanh_thu:
 
     with c_top:
         st.subheader("TOP KHÁCH HÀNG DOANH THU CAO")
+        # Đã sửa thành cột ma_khgui chuẩn xác
         df_top = con.execute(f"""
-            SELECT ma_khachhang AS "Mã KH", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh Thu (Tr)" 
-            FROM orders WHERE {where_sql} AND ma_khachhang IS NOT NULL 
-            GROUP BY ma_khachhang ORDER BY "Doanh Thu (Tr)" DESC LIMIT 5
+            SELECT ma_khgui AS "Mã KH", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh Thu (Tr)" 
+            FROM orders WHERE {where_sql} AND ma_khgui IS NOT NULL 
+            GROUP BY ma_khgui ORDER BY "Doanh Thu (Tr)" DESC LIMIT 5
         """).fetchdf()
         st.dataframe(df_top, use_container_width=True, hide_index=True)
 
@@ -138,10 +136,9 @@ with tab_odr:
     with of2: st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="odr_kh")
     with of3: st.selectbox("MÃ ĐỐI TÁC", dt_list, key="odr_dt")
     with of4: st.selectbox("MÃ KHÁCH HÀNG (2)", kh_list, key="odr_kh2")
-    with of5: st.selectbox("LOẠI ĐƠN", ld_list, key="odr_ld")
+    with of5: st.selectbox("LOẠI ĐƠN", ["Tất cả"], key="odr_ld")
     with of6: st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="odr_tl")
 
-    # ĐẦY ĐỦ 5 THẺ CHỈ SỐ MÀU SẮC ODR
     m_odr1, m_odr2, m_odr3, m_odr4, m_odr5 = st.columns(5)
     with m_odr1: st.markdown(f'<div class="metric-card"><div class="metric-title">SẢN LƯỢNG PHẢI PHÁT</div><div class="metric-value">{tong_sl:,.0f}</div><div class="metric-sub-green">▲ Thực tế</div></div>', unsafe_allow_html=True)
     with m_odr2: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
