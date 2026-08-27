@@ -209,24 +209,26 @@ with tab_odr:
     st.divider()
 
     # =========================================================================
-    # BẢNG MA TRẬN PHÂN CẤP VẬN HÀNH (SỬ DỤNG AGGRID TREE TABLE CHUYÊN NGHIỆP)
+    # BẢNG MA TRẬN PHÂN CẤP VẬN HÀNH (MỤC 1 & MỤC 2: SẢN LƯỢNG & PHÁT THÀNH CÔNG 501)
     # =========================================================================
-    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (CÂY PHÂN CẤP)")
-    st.info("💡 Bảng mô phỏng cấu trúc cây quản trị: Bấm vào nút `[+]` bên cạnh tên Khách hàng hoặc Tỉnh/Bưu cục để mở rộng xem chi tiết số liệu.")
+    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (MỤC 1 & 2)")
+    st.info("💡 Bảng mô phỏng cấu trúc cây quản trị: Bấm vào nút `[+]` bên cạnh Khách hàng hoặc Tỉnh/Bưu cục để mở rộng xem số liệu chi tiết.")
 
-    # Truy vấn dữ liệu phân cấp từ Khách hàng -> Tỉnh phát -> Bưu cục phát
+    # Truy vấn phân cấp: Khách hàng -> Tỉnh phát -> Bưu cục phát
+    # Mục 1: Sản lượng phải phát (COUNT(*))
+    # Mục 2: Sản lượng phát thành công (ma_trangthai = 501)
     df_tree_data = con.execute(f"""
         SELECT 
             COALESCE(ma_khgui, 'Khách vãng lai') AS "path_1",
             COALESCE(tinh_phat, 'Chưa rõ tỉnh') AS "path_2",
             COALESCE(ma_buucuc_phat, 'Chưa rõ bưu cục') AS "path_3",
-            COUNT(*) AS "Sản lượng phát",
-            ROUND(SUM(CASE WHEN trang_thai_phat = 'Thành công' THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 2) AS "% Thành công",
+            COUNT(*) AS "Sản lượng phải phát",
+            SUM(CASE WHEN CAST(ma_trangthai AS INTEGER) = 501 THEN 1 ELSE 0 END) AS "Sản lượng phát thành công",
             ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
         FROM orders 
         WHERE {where_sql_odr}
         GROUP BY ma_khgui, tinh_phat, ma_buucuc_phat
-        ORDER BY "Sản lượng phát" DESC
+        ORDER BY "Sản lượng phải phát" DESC
         LIMIT 300
     """).fetchdf()
 
@@ -258,10 +260,10 @@ with tab_odr:
     gb.configure_column("path_2", hide=True)
     gb.configure_column("path_3", hide=True)
 
-    # Định dạng các cột số liệu
-    gb.configure_column("Sản lượng phát", type=["numericColumn", "numberColumnFilter"], precision=0)
-    gb.configure_column("% Thành công", type=["numericColumn", "numberColumnFilter"], precision=2)
-    gb.configure_column("Doanh thu (Tr)", type=["numericColumn", "numberColumnFilter"], precision=1)
+    # Định dạng các cột số liệu cho Mục 1 và Mục 2
+    gb.configure_column("Sản lượng phải phát", type=["numericColumn", "numberColumnFilter"], precision=0, aggFunc="sum")
+    gb.configure_column("Sản lượng phát thành công", type=["numericColumn", "numberColumnFilter"], precision=0, aggFunc="sum")
+    gb.configure_column("Doanh thu (Tr)", type=["numericColumn", "numberColumnFilter"], precision=1, aggFunc="sum")
 
     gridOptions = gb.build()
 
