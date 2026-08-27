@@ -4,11 +4,10 @@ import plotly.express as px
 from pathlib import Path
 import gdown
 import streamlit.components.v1 as components
-from datetime import datetime, date
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tùy biến giao diện chung
+# CSS giao diện
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -275,7 +274,6 @@ with tab_odr:
 
     # 2. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
-    st.info("💡 Bấm `[+]` tại Sản lượng phải phát để xem chi tiết toàn bộ Đối tác -> Tỉnh -> Bưu cục, hoặc bấm `[+]` tại % Tồn quá hạn 1 ngày để xổ rộng 4 chỉ tiêu tồn quá hạn.")
 
     days_data = con.execute(f"""
         SELECT clean_date, COUNT(*) as sl 
@@ -291,15 +289,30 @@ with tab_odr:
 
     m_current = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
 
-    dt_rows_db = con.execute(f"""
-        SELECT COALESCE(ma_doitac, 'Khác') as dt, COUNT(*) as sl 
-        FROM orders WHERE {where_sql_odr} GROUP BY ma_doitac ORDER BY sl DESC
+    # TOÀN BỘ ĐỐI TÁC -> TỈNH -> BƯU CỤC
+    all_tree_data = con.execute(f"""
+        SELECT 
+            COALESCE(ma_doitac, 'Khác') as dt,
+            COALESCE(tinh_phat, 'Khác') as tinh,
+            COALESCE(ma_buucuc_phat, 'Khác') as bc,
+            COUNT(*) as sl
+        FROM orders 
+        WHERE {where_sql_odr} 
+        GROUP BY ma_doitac, tinh_phat, ma_buucuc_phat
+        ORDER BY dt, tinh, sl DESC
     """).fetchall()
 
+    tree_struct = {}
+    for dt, tinh, bc, sl in all_tree_data:
+        if dt not in tree_struct: tree_struct[dt] = {'sl': 0, 'tinhs': {}}
+        tree_struct[dt]['sl'] += sl
+        if tinh not in tree_struct[dt]['tinhs']: tree_struct[dt]['tinhs'][tinh] = {'sl': 0, 'bcs': {}}
+        tree_struct[dt]['tinhs'][tinh]['sl'] += sl
+        tree_struct[dt]['tinhs'][tinh]['bcs'][bc] = sl
+
     matrix_rows_html = ""
-    for idx_dt, dt_row in enumerate(dt_rows_db):
-        dt_name = dt_row[0]
-        dt_sl = dt_row[1]
+    for idx_dt, (dt_name, dt_data) in enumerate(tree_struct.items()):
+        dt_sl = dt_data['sl']
         dt_clean_id = f"dt_{idx_dt}"
 
         matrix_rows_html += f"""
@@ -312,15 +325,8 @@ with tab_odr:
         </tr>
         """
 
-        tinh_rows_db = con.execute(f"""
-            SELECT COALESCE(tinh_phat, 'Khác') as tinh, COUNT(*) as sl 
-            FROM orders WHERE {where_sql_odr} AND ma_doitac = '{dt_name}' 
-            GROUP BY tinh_phat ORDER BY sl DESC
-        """).fetchall()
-
-        for idx_tinh, tinh_row in enumerate(tinh_rows_db):
-            tinh_name = tinh_row[0]
-            tinh_sl = tinh_row[1]
+        for idx_tinh, (tinh_name, tinh_data) in enumerate(dt_data['tinhs'].items()):
+            tinh_sl = tinh_data['sl']
             tinh_clean_id = f"{dt_clean_id}_tinh_{idx_tinh}"
 
             matrix_rows_html += f"""
@@ -333,16 +339,7 @@ with tab_odr:
             </tr>
             """
 
-            bc_rows_db = con.execute(f"""
-                SELECT COALESCE(ma_buucuc_phat, 'Khác') as bc, COUNT(*) as sl 
-                FROM orders WHERE {where_sql_odr} AND ma_doitac = '{dt_name}' AND tinh_phat = '{tinh_name}'
-                GROUP BY ma_buucuc_phat ORDER BY sl DESC
-            """).fetchall()
-
-            for bc_row in bc_rows_db:
-                bc_name = bc_row[0]
-                bc_sl = bc_row[1]
-
+            for bc_name, bc_sl in tinh_data['bcs'].items():
                 matrix_rows_html += f"""
                 <tr class="sub-row-3 {tinh_clean_id}" style="display:none; background-color: #fafafa; font-style: italic; color: #555;">
                     <td style="padding-left: 60px;">• Bưu cục: <b>{bc_name}</b></td>
@@ -371,36 +368,24 @@ with tab_odr:
             background-color: #222222;
             color: #ffffff;
             text-align: center;
-            padding: 8px 4px;
+            padding: 7px 4px;
             border: 1px solid #444444;
             font-weight: 600;
             font-size: 11px;
         }}
         .matrix-table td {{
-            padding: 7px 8px;
+            padding: 6px 8px;
             border: 1px solid #dddddd;
             vertical-align: middle;
             text-align: right;
         }}
-        .matrix-table td:first-child {{
-            text-align: left;
-        }}
+        .matrix-table td:first-child {{ text-align: left; }}
         .row-group {{ font-weight: bold; background-color: #f8f9fa; cursor: pointer; }}
-        .row-group:hover, .sub-row-1:hover, .sub-row-2:hover {{ background-color: #eef2f5; }}
         .toggle-btn {{
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            line-height: 14px;
-            text-align: center;
-            border: 1px solid #333;
-            background: #fff;
-            color: #333;
-            font-weight: bold;
-            font-size: 10px;
-            cursor: pointer;
-            margin-right: 5px;
-            border-radius: 2px;
+            display: inline-block; width: 16px; height: 16px; line-height: 14px;
+            text-align: center; border: 1px solid #333; background: #fff;
+            color: #333; font-weight: bold; font-size: 10px; cursor: pointer;
+            margin-right: 5px; border-radius: 2px;
         }}
         .text-green {{ color: #2e7d32; font-weight: bold; }}
         .text-red {{ color: #c62828; font-weight: bold; }}
@@ -550,29 +535,35 @@ with tab_odr:
     </html>
     """
 
-    components.html(matrix_full_html, height=600, scrolling=True)
-
-    st.write("")
-    st.divider()
+    # THU GỌN CHIỀU CAO XUỐNG 380PX ĐỂ LOẠI BỎ KHOẢNG TRẮNG TO ĐÙNG
+    components.html(matrix_full_html, height=380, scrolling=True)
 
     # =========================================================================
-    # 3. BA BẢNG TỒN KHÂU (MỖI BẢNG CÓ THANH CUỘN ĐỘC LẬP - SIÊU MƯỢT)
+    # 3. BA BẢNG TỒN KHÂU (LẤY DỮ LIỆU SIÊU TỐC BẰNG 1 CÂU QUERY)
     # =========================================================================
 
-    tinh_rows = con.execute(f"""
-        SELECT tinh_phat, COUNT(*) as sl 
+    ton_tree_data = con.execute(f"""
+        SELECT 
+            COALESCE(tinh_phat, 'Khác') as tinh,
+            COALESCE(ma_buucuc_phat, 'Khác') as bc,
+            COUNT(*) as sl
         FROM orders 
-        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
-        GROUP BY tinh_phat 
-        ORDER BY sl DESC
+        WHERE {where_sql_odr}
+        GROUP BY tinh_phat, ma_buucuc_phat
+        ORDER BY tinh, sl DESC
     """).fetchall()
 
-    # CSS DÙNG CHUNG CHO BẢNG TỒN
+    tinh_tree = {}
+    for tinh, bc, sl in ton_tree_data:
+        if tinh not in tinh_tree: tinh_tree[tinh] = {'sl': 0, 'bcs': {}}
+        tinh_tree[tinh]['sl'] += sl
+        tinh_tree[tinh]['bcs'][bc] = sl
+
     base_style = """
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background-color: transparent; }
         .table-container {
-            max-height: 420px;
+            max-height: 380px;
             overflow-y: auto;
             border: 1px solid #d3d3d3;
             border-radius: 4px;
@@ -616,11 +607,12 @@ with tab_odr:
     </script>
     """
 
-    # --- BẢNG 1: FM ---
-    st.markdown('<p style="font-size: 13px; font-weight: bold; color: #111; border-left: 4px solid #c62828; padding-left: 8px; margin-bottom: 8px;">TỒN KHÂU FM CÁC BƯU GỬI CHƯA XUẤT SẠCH – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
+    # BẢNG 1: FM
+    st.markdown('<p style="font-size: 13px; font-weight: bold; color: #111; border-left: 4px solid #c62828; padding-left: 8px; margin-top: 10px; margin-bottom: 6px;">TỒN KHÂU FM CÁC BƯU GỬI CHƯA XUẤT SẠCH – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
     
     fm_rows_html = ""
-    for idx_t, (t_name, t_sl) in enumerate(tinh_rows):
+    for idx_t, (t_name, t_data) in enumerate(tinh_tree.items()):
+        t_sl = t_data['sl']
         t_id = f"fm_tinh_{idx_t}"
         fm_rows_html += f"""
         <tr style="cursor:pointer;" onclick="toggleTonRow('{t_id}', event, 'btn_{t_id}')">
@@ -634,14 +626,7 @@ with tab_odr:
             <td class="ton-highlight-orange">0.65%</td>
         </tr>
         """
-        bc_sub_rows = con.execute(f"""
-            SELECT ma_buucuc_phat, COUNT(*) as sl 
-            FROM orders 
-            WHERE {where_sql_odr} AND tinh_phat = '{t_name}' AND ma_buucuc_phat IS NOT NULL 
-            GROUP BY ma_buucuc_phat ORDER BY sl DESC
-        """).fetchall()
-
-        for b_name, b_sl in bc_sub_rows:
+        for b_name, b_sl in t_data['bcs'].items():
             fm_rows_html += f"""
             <tr class="{t_id}" style="display:none; background-color:#fafafa;">
                 <td class="col-branch" style="padding-left: 32px; color: #555;">• Bưu cục: {b_name}</td>
@@ -688,15 +673,13 @@ with tab_odr:
     </div>
     </body></html>
     """
-    components.html(html_fm, height=440, scrolling=False)
+    components.html(html_fm, height=390, scrolling=False)
 
-    st.write("")
-
-    # --- BẢNG 2: MM ---
-    st.markdown('<p style="font-size: 13px; font-weight: bold; color: #111; border-left: 4px solid #c62828; padding-left: 8px; margin-bottom: 8px;">TỒN KHÂU MM CÁC BƯU GỬI CHƯA KẾT NỐI – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
+    # BẢNG 2: MM
+    st.markdown('<p style="font-size: 13px; font-weight: bold; color: #111; border-left: 4px solid #c62828; padding-left: 8px; margin-top: 10px; margin-bottom: 6px;">TỒN KHÂU MM CÁC BƯU GỬI CHƯA KẾT NỐI – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
     html_mm = f"""
     <!DOCTYPE html><html><head>{base_style}</head><body>
-    <div class="table-container" style="max-height: 250px;">
+    <div class="table-container" style="max-height: 220px;">
         <table>
             <thead>
                 <tr>
@@ -730,15 +713,14 @@ with tab_odr:
     </div>
     </body></html>
     """
-    components.html(html_mm, height=270, scrolling=False)
+    components.html(html_mm, height=230, scrolling=False)
 
-    st.write("")
-
-    # --- BẢNG 3: LM ---
-    st.markdown('<p style="font-size: 13px; font-weight: bold; color: #111; border-left: 4px solid #c62828; padding-left: 8px; margin-bottom: 8px;">TỒN KHÂU LM CÁC BƯU GỬI CHƯA PHÁT – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
+    # BẢNG 3: LM
+    st.markdown('<p style="font-size: 13px; font-weight: bold; color: #111; border-left: 4px solid #c62828; padding-left: 8px; margin-top: 10px; margin-bottom: 6px;">TỒN KHÂU LM CÁC BƯU GỬI CHƯA PHÁT – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
     
     lm_rows_html = ""
-    for idx_t, (t_name, t_sl) in enumerate(tinh_rows):
+    for idx_t, (t_name, t_data) in enumerate(tinh_tree.items()):
+        t_sl = t_data['sl']
         t_id = f"lm_tinh_{idx_t}"
         lm_rows_html += f"""
         <tr style="cursor:pointer;" onclick="toggleTonRow('{t_id}', event, 'btn_{t_id}')">
@@ -752,14 +734,7 @@ with tab_odr:
             <td class="ton-highlight-orange">0.30%</td>
         </tr>
         """
-        bc_sub_rows = con.execute(f"""
-            SELECT ma_buucuc_phat, COUNT(*) as sl 
-            FROM orders 
-            WHERE {where_sql_odr} AND tinh_phat = '{t_name}' AND ma_buucuc_phat IS NOT NULL 
-            GROUP BY ma_buucuc_phat ORDER BY sl DESC
-        """).fetchall()
-
-        for b_name, b_sl in bc_sub_rows:
+        for b_name, b_sl in t_data['bcs'].items():
             lm_rows_html += f"""
             <tr class="{t_id}" style="display:none; background-color:#fafafa;">
                 <td class="col-branch" style="padding-left: 32px; color: #555;">• Bưu cục: {b_name}</td>
@@ -806,4 +781,4 @@ with tab_odr:
     </div>
     </body></html>
     """
-    components.html(html_lm, height=440, scrolling=False)
+    components.html(html_lm, height=390, scrolling=False)
