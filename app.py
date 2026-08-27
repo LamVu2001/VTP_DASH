@@ -575,17 +575,12 @@ with tab_opr:
 
     st.divider()
 
-    # 4. DANH SÁCH CHI NHÁNH & BƯU CỤC THỰC HIỆN (LỌC ĐỘNG TƯƠNG TÁC LẤY TOÀN BỘ)
-    st.markdown('<p class="section-red-title">DANH SÁCH CHI NHÁNH & BƯU CỤC THU (BẤM BÊN TRÁI ĐỂ BÊN PHẢI NHẢY DỮ LIỆU CỤ THỂ)</p>', unsafe_allow_html=True)
-    st.info("💡 Mẹo: Bấm chọn vào một dòng Chi nhánh ở bảng bên trái để lọc danh sách các Bưu cục thuộc chi nhánh đó ở bảng bên phải!")
+    # 4. DANH SÁCH CHI NHÁNH & BƯU CỤC THỰC HIỆN (LỌC ĐỘNG BÊN TRÁI SẼ LỌC BÊN PHẢI + GIỮ NGUYÊN MÀU SẮC ĐỎ/XÁM NỔI BẬT)
+    st.markdown('<p class="section-red-title">DANH SÁCH CHI NHÁNH & BƯU CỤC THU (CÓ ĐẦY ĐỦ CHỈ SỐ MÀU SẮC SS CÙNG KỲ)</p>', unsafe_allow_html=True)
+    st.info("💡 Mẹo: Bấm chọn vào một dòng Chi nhánh ở bảng bên trái để xem đầy đủ danh sách các Bưu cục thuộc chi nhánh đó ở bảng bên phải!")
 
     df_cn_opr_grouped = con.execute(f"""
-        SELECT 
-            tinh_phat AS "Chi nhánh", 
-            '76.2%' AS "Tỷ lệ thu thành công đúng giờ",
-            '-4.8%' AS "SS cùng kỳ",
-            '88.1%' AS "Tỷ lệ xuất sạch",
-            '-2.1%' AS "SS cùng kỳ (2)"
+        SELECT tinh_phat AS "cn_code"
         FROM orders 
         WHERE {where_sql_opr} AND tinh_phat IS NOT NULL
         GROUP BY tinh_phat 
@@ -595,8 +590,13 @@ with tab_opr:
     tbl_opr_col1, tbl_opr_col2 = st.columns(2)
     with tbl_opr_col1:
         st.markdown("**Bảng Chi Nhánh Thu (Bấm chọn dòng để lọc Bưu cục)**")
+        
+        # Tạo dataframe có định dạng hiển thị cho bảng Chi nhánh
+        df_cn_display = df_cn_opr_grouped.copy()
+        df_cn_display.columns = ["Chi nhánh"]
+        
         event_cn_opr = st.dataframe(
-            df_cn_opr_grouped, 
+            df_cn_display, 
             use_container_width=True, 
             hide_index=True,
             selection_mode="single-row",
@@ -608,41 +608,78 @@ with tab_opr:
     selected_cn_opr = None
     if selected_row_indices_opr:
         selected_idx_opr = selected_row_indices_opr[0]
-        selected_cn_opr = df_cn_opr_grouped.iloc[selected_idx_opr]["Chi nhánh"]
+        selected_cn_opr = df_cn_opr_grouped.iloc[selected_idx_opr]["cn_code"]
 
     with tbl_opr_col2:
         if selected_cn_opr:
             st.markdown(f"**Bưu cục thuộc Chi nhánh: <span style='color: #c62828;'>{selected_cn_opr}</span>**", unsafe_allow_html=True)
-            df_bc_opr_filtered = con.execute(f"""
+            df_bc_raw = con.execute(f"""
                 SELECT 
-                    ma_buucuc_phat AS "Bưu cục", 
-                    tinh_phat AS "Chi nhánh",
-                    '76.2%' AS "Tỷ lệ thu thành công đúng giờ",
-                    '-4.8%' AS "SS cùng kỳ",
-                    '88.1%' AS "Tỷ lệ xuất sạch",
-                    '-2.1%' AS "SS cùng kỳ (2)"
+                    ma_buucuc_phat AS bc, 
+                    tinh_phat AS cn
                 FROM orders 
                 WHERE {where_sql_opr} AND tinh_phat = '{selected_cn_opr}' AND ma_buucuc_phat IS NOT NULL
                 GROUP BY ma_buucuc_phat, tinh_phat
                 ORDER BY ma_buucuc_phat ASC
-            """).fetchdf()
-            st.dataframe(df_bc_opr_filtered, use_container_width=True, hide_index=True)
+            """).fetchall()
         else:
             st.markdown("**Bưu Cục Thu Toàn Quốc (Bấm chọn Chi nhánh bên trái để xem chi tiết)**")
-            df_bc_opr_all = con.execute(f"""
+            df_bc_raw = con.execute(f"""
                 SELECT 
-                    ma_buucuc_phat AS "Bưu cục", 
-                    tinh_phat AS "Chi nhánh",
-                    '76.2%' AS "Tỷ lệ thu thành công đúng giờ",
-                    '-4.8%' AS "SS cùng kỳ",
-                    '88.1%' AS "Tỷ lệ xuất sạch",
-                    '-2.1%' AS "SS cùng kỳ (2)"
+                    ma_buucuc_phat AS bc, 
+                    tinh_phat AS cn
                 FROM orders 
                 WHERE {where_sql_opr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
                 GROUP BY ma_buucuc_phat, tinh_phat 
                 ORDER BY ma_buucuc_phat ASC
-            """).fetchdf()
-            st.dataframe(df_bc_opr_all, use_container_width=True, hide_index=True)
+            """).fetchall()
+
+        rows_bc_styled_html = ""
+        for item in df_bc_raw:
+            bc_code = item[0]
+            cn_code = item[1]
+            rows_bc_styled_html += f"""
+            <tr>
+                <td style="font-weight: bold;">{bc_code}</td>
+                <td style="font-weight: bold;">{cn_code}</td>
+                <td>76.2%</td>
+                <td class="text-red">-4.8%</td>
+                <td style="background-color: #f5f5f5;">88.1%</td>
+                <td class="text-red" style="background-color: #f5f5f5;">-2.1%</td>
+            </tr>
+            """
+
+        html_bc_styled = f"""
+        <style>
+            .tbl-styled {{ 
+                width: 100%; border-collapse: collapse; font-size: 11.5px; 
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background: #fff; border: 1px solid #333; 
+            }}
+            .tbl-styled th {{ background: #222; color: #fff; padding: 6px; text-align: center; font-weight: bold; border: 1px solid #444; }}
+            .tbl-styled td {{ padding: 6px; border: 1px solid #ddd; text-align: center; color: #111; }}
+            .text-red {{ color: #c62828; font-weight: bold; background-color: #ffebee; }}
+            .table-scroll {{ max-height: 350px; overflow-y: auto; border: 1px solid #e0e0e0; }}
+        </style>
+        <div class="table-scroll">
+            <table class="tbl-styled">
+                <thead>
+                    <tr>
+                        <th>Bưu cục</th>
+                        <th>Chi nhánh</th>
+                        <th>Tỷ lệ thu thành công đúng giờ</th>
+                        <th>SS cùng kỳ</th>
+                        <th>Tỷ lệ xuất sạch</th>
+                        <th>SS cùng kỳ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_bc_styled_html if rows_bc_styled_html else "<tr><td colspan='6'>Không có dữ liệu</td></tr>"}
+                </tbody>
+            </table>
+        </div>
+        """
+        components.html(html_bc_styled, height=360, scrolling=False)
 
 
 # ==========================================
