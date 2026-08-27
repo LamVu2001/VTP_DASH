@@ -515,36 +515,62 @@ with tab_opr:
     with c_opr_right:
         st.markdown('<p class="section-red-title">TOP 10 ĐỐI TÁC TỒN THU CUỐI NGÀY CAO NHẤT</p>', unsafe_allow_html=True)
         
-        html_top10_opr = """
+        # Query trực tiếp dữ liệu Mã đối tác & Mã khách hàng từ DB DuckDB
+        top_dt_data = con.execute(f"""
+            SELECT COALESCE(ma_doitac, 'Khác') as dt, COUNT(ma_phieugui) as sl
+            FROM orders WHERE {where_sql_opr} AND ma_doitac IS NOT NULL
+            GROUP BY ma_doitac ORDER BY sl DESC LIMIT 10
+        """).fetchall()
+
+        top_kh_data = con.execute(f"""
+            SELECT COALESCE(ma_khgui, 'Khác') as kh, COUNT(ma_phieugui) as sl
+            FROM orders WHERE {where_sql_opr} AND ma_khgui IS NOT NULL
+            GROUP BY ma_khgui ORDER BY sl DESC LIMIT 10
+        """).fetchall()
+
+        # Tạo danh sách 10 dòng kết hợp
+        rows_top_html = ""
+        for i in range(max(len(top_dt_data), len(top_kh_data))):
+            dt_name = top_dt_data[i][0] if i < len(top_dt_data) else "-"
+            dt_sl = f"{top_dt_data[i][1]:,.0f}" if i < len(top_dt_data) else "-"
+            kh_name = top_kh_data[i][0] if i < len(top_kh_data) else "-"
+            kh_sl = f"{top_kh_data[i][1]:,.0f}" if i < len(top_kh_data) else "-"
+
+            rows_top_html += f"""
+            <tr>
+                <td><b>{dt_name}</b></td><td class="val-red">{dt_sl}</td>
+                <td><b>{kh_name}</b></td><td class="val-red">{kh_sl}</td>
+            </tr>
+            """
+
+        html_top10_opr = f"""
         <style>
-            .tbl-top10 { width: 100%; border-collapse: collapse; font-size: 11px; background: #fafafa; border: 1px solid #e0e0e0; }
-            .tbl-top10 th { background: #f0f0f0; color: #333; padding: 6px; text-align: center; font-weight: bold; border-bottom: 1px solid #ccc; }
-            .tbl-top10 td { padding: 5px 10px; border-bottom: 1px solid #eee; text-align: center; }
-            .val-red { color: #c62828; font-weight: bold; }
+            .tbl-top10 {{ width: 100%; border-collapse: collapse; font-size: 11px; background: #fafafa; border: 1px solid #e0e0e0; }}
+            .tbl-top10 th {{ background: #f0f0f0; color: #333; padding: 6px; text-align: center; font-weight: bold; border-bottom: 1px solid #ccc; }}
+            .tbl-top10 td {{ padding: 5px 10px; border-bottom: 1px solid #eee; text-align: center; }}
+            .val-red {{ color: #c62828; font-weight: bold; }}
+            .table-container-top {{ max-height: 250px; overflow-y: auto; }}
         </style>
-        <table class="tbl-top10">
-            <thead>
-                <tr>
-                    <th style="width: 30%;">MÃ ĐỐI TÁC</th>
-                    <th style="width: 20%;">SẢN LƯỢNG</th>
-                    <th style="width: 30%;">MÃ KH</th>
-                    <th style="width: 20%;">SẢN LƯỢNG</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td><b>VTPVN</b></td><td class="val-red">200</td><td><b>KHT</b></td><td class="val-red">102</td></tr>
-                <tr><td><b>SHOPEE</b></td><td class="val-red">151</td><td><b>TTQ</b></td><td class="val-red">99</td></tr>
-                <tr><td><b>ACB</b></td><td class="val-red">140</td><td><b>TTQ</b></td><td class="val-red">90</td></tr>
-                <tr><td><b>PANKET</b></td><td class="val-red">130</td><td><b>SHO</b></td><td class="val-red">85</td></tr>
-                <tr><td><b>ACC</b></td><td class="val-red">120</td><td><b>ATT</b></td><td class="val-red">70</td></tr>
-            </tbody>
-        </table>
+        <div class="table-container-top">
+            <table class="tbl-top10">
+                <thead>
+                    <tr>
+                        <th style="width: 30%;">MÃ ĐỐI TÁC</th>
+                        <th style="width: 20%;">SẢN LƯỢNG</th>
+                        <th style="width: 30%;">MÃ KH</th>
+                        <th style="width: 20%;">SẢN LƯỢNG</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_top_html if rows_top_html else "<tr><td colspan='4'>Không có dữ liệu</td></tr>"}
+                </tbody>
+            </table>
+        </div>
         """
         components.html(html_top10_opr, height=290, scrolling=False)
 
     st.divider()
 
-    # BẢNG TƯƠNG TÁC TỰ ĐỘNG LỌC: CHI NHÁNH THU & BƯU CỤC THU (GIỐNG TAB ODR)
     st.subheader("📍 DANH SÁCH CHI NHÁNH THU & BƯU CỤC THU (TƯƠNG TÁC TỰ ĐỘNG LỌC)")
     st.info("💡 Mẹo: Bấm chọn vào một dòng Chi nhánh ở bảng bên trái để xem đầy đủ các bưu cục thuộc chi nhánh đó ở bảng bên phải!")
 
