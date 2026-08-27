@@ -334,7 +334,6 @@ with tab_doanh_thu:
                     <td>10</td><td>100.00</td>
                     <td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td>{fmt(val_bc/7)}</td><td class="text-green">+6.8%</td>
                     <td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td class="text-green">+6.8%</td>
-                    <td>{fmt(val_bc)}</td><td>{fmt(val_bc)}</td><td class="text-green">+6.8%</td>
                     <td>{"10" if is_doanh_thu else "-"}</td><td class="text-green">{"Wait" if is_doanh_thu else "-"}</td>
                 </tr>
                 """
@@ -575,111 +574,197 @@ with tab_opr:
 
     st.divider()
 
-    # 4. DANH SÁCH CHI NHÁNH & BƯU CỤC THỰC HIỆN (LỌC ĐỘNG BÊN TRÁI SẼ LỌC BÊN PHẢI + GIỮ NGUYÊN MÀU SẮC ĐỎ/XÁM NỔI BẬT)
-    st.markdown('<p class="section-red-title">DANH SÁCH CHI NHÁNH & BƯU CỤC THU (CÓ ĐẦY ĐỦ CHỈ SỐ MÀU SẮC SS CÙNG KỲ)</p>', unsafe_allow_html=True)
-    st.info("💡 Mẹo: Bấm chọn vào một dòng Chi nhánh ở bảng bên trái để xem đầy đủ danh sách các Bưu cục thuộc chi nhánh đó ở bảng bên phải!")
+    # 4. DANH SÁCH CHI NHÁNH & BƯU CỤC THỰC HIỆN (BÊN TRÁI & PHẢI ĐỒNG BỘ CẤU TRÚC MÀU SẮC, CLICK TRÁI TỰ LỌC PHẢI)
+    st.markdown('<p class="section-red-title">DANH SÁCH CHI NHÁNH & BƯU CỤC THU (BẤM CHỌN DÒNG CHI NHÁNH BÊN TRÁI ĐỂ LỌC BƯU CỤC BÊN PHẢI)</p>', unsafe_allow_html=True)
 
-    df_cn_opr_grouped = con.execute(f"""
-        SELECT tinh_phat AS "cn_code"
+    # Truy vấn lấy danh sách Chi nhánh & Bưu cục chuẩn từ DuckDB
+    cn_data_raw = con.execute(f"""
+        SELECT tinh_phat AS cn
         FROM orders 
         WHERE {where_sql_opr} AND tinh_phat IS NOT NULL
         GROUP BY tinh_phat 
         ORDER BY tinh_phat ASC
-    """).fetchdf()
+    """).fetchall()
 
-    tbl_opr_col1, tbl_opr_col2 = st.columns(2)
-    with tbl_opr_col1:
-        st.markdown("**Bảng Chi Nhánh Thu (Bấm chọn dòng để lọc Bưu cục)**")
-        
-        # Tạo dataframe có định dạng hiển thị cho bảng Chi nhánh
-        df_cn_display = df_cn_opr_grouped.copy()
-        df_cn_display.columns = ["Chi nhánh"]
-        
-        event_cn_opr = st.dataframe(
-            df_cn_display, 
-            use_container_width=True, 
-            hide_index=True,
-            selection_mode="single-row",
-            on_select="rerun",
-            key="table_cn_thu_select_opr"
-        )
+    bc_data_raw = con.execute(f"""
+        SELECT 
+            ma_buucuc_phat AS bc, 
+            tinh_phat AS cn
+        FROM orders 
+        WHERE {where_sql_opr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
+        GROUP BY ma_buucuc_phat, tinh_phat 
+        ORDER BY ma_buucuc_phat ASC
+    """).fetchall()
 
-    selected_row_indices_opr = event_cn_opr.get("selection", {}).get("rows", [])
-    selected_cn_opr = None
-    if selected_row_indices_opr:
-        selected_idx_opr = selected_row_indices_opr[0]
-        selected_cn_opr = df_cn_opr_grouped.iloc[selected_idx_opr]["cn_code"]
-
-    with tbl_opr_col2:
-        if selected_cn_opr:
-            st.markdown(f"**Bưu cục thuộc Chi nhánh: <span style='color: #c62828;'>{selected_cn_opr}</span>**", unsafe_allow_html=True)
-            df_bc_raw = con.execute(f"""
-                SELECT 
-                    ma_buucuc_phat AS bc, 
-                    tinh_phat AS cn
-                FROM orders 
-                WHERE {where_sql_opr} AND tinh_phat = '{selected_cn_opr}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY ma_buucuc_phat, tinh_phat
-                ORDER BY ma_buucuc_phat ASC
-            """).fetchall()
-        else:
-            st.markdown("**Bưu Cục Thu Toàn Quốc (Bấm chọn Chi nhánh bên trái để xem chi tiết)**")
-            df_bc_raw = con.execute(f"""
-                SELECT 
-                    ma_buucuc_phat AS bc, 
-                    tinh_phat AS cn
-                FROM orders 
-                WHERE {where_sql_opr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
-                GROUP BY ma_buucuc_phat, tinh_phat 
-                ORDER BY ma_buucuc_phat ASC
-            """).fetchall()
-
-        rows_bc_styled_html = ""
-        for item in df_bc_raw:
-            bc_code = item[0]
-            cn_code = item[1]
-            rows_bc_styled_html += f"""
-            <tr>
-                <td style="font-weight: bold;">{bc_code}</td>
-                <td style="font-weight: bold;">{cn_code}</td>
-                <td>76.2%</td>
-                <td class="text-red">-4.8%</td>
-                <td style="background-color: #f5f5f5;">88.1%</td>
-                <td class="text-red" style="background-color: #f5f5f5;">-2.1%</td>
-            </tr>
-            """
-
-        html_bc_styled = f"""
-        <style>
-            .tbl-styled {{ 
-                width: 100%; border-collapse: collapse; font-size: 11.5px; 
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                background: #fff; border: 1px solid #333; 
-            }}
-            .tbl-styled th {{ background: #222; color: #fff; padding: 6px; text-align: center; font-weight: bold; border: 1px solid #444; }}
-            .tbl-styled td {{ padding: 6px; border: 1px solid #ddd; text-align: center; color: #111; }}
-            .text-red {{ color: #c62828; font-weight: bold; background-color: #ffebee; }}
-            .table-scroll {{ max-height: 350px; overflow-y: auto; border: 1px solid #e0e0e0; }}
-        </style>
-        <div class="table-scroll">
-            <table class="tbl-styled">
-                <thead>
-                    <tr>
-                        <th>Bưu cục</th>
-                        <th>Chi nhánh</th>
-                        <th>Tỷ lệ thu thành công đúng giờ</th>
-                        <th>SS cùng kỳ</th>
-                        <th>Tỷ lệ xuất sạch</th>
-                        <th>SS cùng kỳ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows_bc_styled_html if rows_bc_styled_html else "<tr><td colspan='6'>Không có dữ liệu</td></tr>"}
-                </tbody>
-            </table>
-        </div>
+    rows_cn_html = ""
+    for item in cn_data_raw:
+        cn_code = item[0]
+        rows_cn_html += f"""
+        <tr class="cn-row" data-cn="{cn_code}" onclick="filterBC('{cn_code}', this)">
+            <td style="font-weight: bold; cursor: pointer;">{cn_code}</td>
+            <td>76.2%</td>
+            <td class="text-red">-4.8%</td>
+            <td style="background-color: #f9f9f9;">88.1%</td>
+            <td class="text-red" style="background-color: #f9f9f9;">-2.1%</td>
+        </tr>
         """
-        components.html(html_bc_styled, height=360, scrolling=False)
+
+    rows_bc_html = ""
+    for item in bc_data_raw:
+        bc_code = item[0]
+        cn_code = item[1]
+        rows_bc_html += f"""
+        <tr class="bc-row" data-cn="{cn_code}">
+            <td style="font-weight: bold;">{bc_code}</td>
+            <td style="font-weight: bold;">{cn_code}</td>
+            <td>76.2%</td>
+            <td class="text-red">-4.8%</td>
+            <td style="background-color: #f9f9f9;">88.1%</td>
+            <td class="text-red" style="background-color: #f9f9f9;">-2.1%</td>
+        </tr>
+        """
+
+    interactive_tables_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{ 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; padding: 0; background: transparent; 
+        }}
+        .grid-container {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }}
+        .table-title {{
+            font-size: 12px; font-weight: bold; color: #333; margin-bottom: 6px;
+        }}
+        .table-scroll {{
+            max-height: 360px;
+            overflow-y: auto;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+            background: #fff;
+        }}
+        table {{
+            width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11.5px;
+        }}
+        th {{
+            position: sticky; top: 0; z-index: 10;
+            background-color: #222222; color: #ffffff;
+            text-align: center; padding: 7px 4px;
+            border-bottom: 1px solid #444; border-right: 1px solid #444;
+            font-weight: bold;
+        }}
+        td {{
+            padding: 6px 4px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;
+            text-align: center; color: #111;
+        }}
+        tr.cn-row:hover {{
+            background-color: #ffebee !important;
+            cursor: pointer;
+        }}
+        tr.selected-cn {{
+            background-color: #ffcdd2 !important;
+        }}
+        .text-red {{ color: #c62828; font-weight: bold; background-color: #fff5f5; }}
+        .btn-reset {{
+            display: inline-block; padding: 2px 8px; font-size: 11px;
+            background: #eee; border: 1px solid #ccc; border-radius: 3px;
+            cursor: pointer; margin-left: 8px; font-weight: normal;
+        }}
+    </style>
+    </head>
+    <body>
+
+    <div class="grid-container">
+        <div>
+            <div class="table-title">
+                Bảng Chi Nhánh Thu <span style="font-weight:normal; color:#666;">(Bấm chọn dòng để lọc Bưu cục)</span>
+                <span class="btn-reset" onclick="resetFilter()">Xóa lọc</span>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Chi nhánh</th>
+                            <th>Tỷ lệ thu thành công đúng giờ</th>
+                            <th>SS cùng kỳ</th>
+                            <th>Tỷ lệ xuất sạch</th>
+                            <th>SS cùng kỳ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows_cn_html if rows_cn_html else "<tr><td colspan='5'>Không có dữ liệu</td></tr>"}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <div class="table-title">
+                Bưu Cục Thu <span id="bc-title-status" style="color: #c62828; font-weight: bold;">(Toàn Quốc)</span>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bưu cục</th>
+                            <th>Chi nhánh</th>
+                            <th>Tỷ lệ thu thành công đúng giờ</th>
+                            <th>SS cùng kỳ</th>
+                            <th>Tỷ lệ xuất sạch</th>
+                            <th>SS cùng kỳ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bc-tbody">
+                        {rows_bc_html if rows_bc_html else "<tr><td colspan='6'>Không có dữ liệu</td></tr>"}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function filterBC(cnCode, rowElem) {{
+            var cnRows = document.getElementsByClassName('cn-row');
+            for (var i = 0; i < cnRows.length; i++) {{
+                cnRows[i].classList.remove('selected-cn');
+            }}
+            if (rowElem) rowElem.classList.add('selected-cn');
+
+            var bcRows = document.getElementsByClassName('bc-row');
+            var count = 0;
+            for (var j = 0; j < bcRows.length; j++) {{
+                if (bcRows[j].getAttribute('data-cn') === cnCode) {{
+                    bcRows[j].style.display = 'table-row';
+                    count++;
+                }} else {{
+                    bcRows[j].style.display = 'none';
+                }}
+            }}
+            document.getElementById('bc-title-status').innerText = '(Chi nhánh: ' + cnCode + ')';
+        }}
+
+        function resetFilter() {{
+            var cnRows = document.getElementsByClassName('cn-row');
+            for (var i = 0; i < cnRows.length; i++) {{
+                cnRows[i].classList.remove('selected-cn');
+            }}
+            var bcRows = document.getElementsByClassName('bc-row');
+            for (var j = 0; j < bcRows.length; j++) {{
+                bcRows[j].style.display = 'table-row';
+            }}
+            document.getElementById('bc-title-status').innerText = '(Toàn Quốc)';
+        }}
+    </script>
+    </body>
+    </html>
+    """
+
+    components.html(interactive_tables_html, height=410, scrolling=False)
 
 
 # ==========================================
