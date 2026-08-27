@@ -456,19 +456,15 @@ with tab_opr:
     st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU THU</p>', unsafe_allow_html=True)
     st.markdown('<p class="main-title">Dashboard OPR</p>', unsafe_allow_html=True)
 
-    col_kpi_area, col_filter_area = st.columns([4.2, 1.8])
-
-    with col_filter_area:
-        f_opr1, f_opr2 = st.columns(2)
-        with f_opr1: 
-            filter_date_opr = st.date_input("NGÀY", value=(), key="opr_date")
-            filter_dt_opr = st.selectbox("MÃ ĐỐI TÁC", dt_list, key="opr_dt")
-            filter_ld_opr = st.selectbox("LOẠI ĐƠN", ["Tất cả"], key="opr_ld")
-            filter_tl_opr = st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="opr_tl")
-        with f_opr2:
-            filter_kh_opr = st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="opr_kh")
-            filter_kh2_opr = st.selectbox("MÃ KHÁCH HÀNG (2)", kh_list, key="opr_kh2")
-            filter_tep_opr = st.selectbox("TỆP ĐƠN (YCT TTC PTC)", ["Tất cả"], key="opr_tep")
+    # 1. KHU VỰC BỘ LỌC NẰM NGANG PHÍA TRÊN (7 CỘT)
+    f_opr1, f_opr2, f_opr3, f_opr4, f_opr5, f_opr6, f_opr7 = st.columns(7)
+    with f_opr1: filter_date_opr = st.date_input("NGÀY", value=(), key="opr_date")
+    with f_opr2: filter_kh_opr = st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="opr_kh")
+    with f_opr3: filter_dt_opr = st.selectbox("MÃ ĐỐI TÁC", dt_list, key="opr_dt")
+    with f_opr4: filter_kh2_opr = st.selectbox("MÃ KHÁCH HÀNG (2)", kh_list, key="opr_kh2")
+    with f_opr5: filter_ld_opr = st.selectbox("LOẠI ĐƠN", ["Tất cả"], key="opr_ld")
+    with f_opr6: filter_tep_opr = st.selectbox("TỆP ĐƠN (YCT TTC PTC)", ["Tất cả"], key="opr_tep")
+    with f_opr7: filter_tl_opr = st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="opr_tl")
 
     where_clauses_opr = ["1=1"]
     if filter_dt_opr != "Tất cả": where_clauses_opr.append(f"ma_doitac = '{filter_dt_opr}'")
@@ -481,17 +477,20 @@ with tab_opr:
     tong_sl_opr = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_opr}").fetchone()[0]
     sl_hien_thi = tong_sl_opr if tong_sl_opr > 0 else 11180
 
-    with col_kpi_area:
-        k1, k2, k3, k4, k5, k6 = st.columns(6)
-        with k1: st.markdown(f'<div class="metric-card"><div class="metric-title">SẢN LƯỢNG PHẢI THU</div><div class="metric-value">{sl_hien_thi:,.0f}</div><div class="metric-sub-green">▲ +6.8% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-        with k2: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ THU TC</div><div class="metric-value">82.4%</div><div class="metric-sub-red">▼ -3.1% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-        with k3: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ THU ĐG LẦN 1</div><div class="metric-value">82.4%</div><div class="metric-sub-red">▼ -3.1% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-        with k4: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ THU ĐÚNG GIỜ</div><div class="metric-value">82.4%</div><div class="metric-sub-red">▼ -3.1% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-        with k5: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ XUẤT SẠCH</div><div class="metric-value">2.4%</div><div class="metric-sub-red">▼ -3.1% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-        with k6: st.markdown('<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN >1 NGÀY</div><div class="metric-value">221</div><div class="metric-sub-red">▼ -3.1% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    st.write("")
+
+    # 2. KHU VỰC 6 THẺ KPI DÀN NGANG RỘNG TOÀN MÀN HÌNH
+    k1, k2, k3, k4, k5, k6 = st.columns(6)
+    with k1: st.markdown(f'<div class="metric-card"><div class="metric-title">SẢN LƯỢNG PHẢI THU</div><div class="metric-value">{sl_hien_thi:,.0f}</div><div class="metric-sub-green">▲ +6.8% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with k2: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ THU TC</div><div class="metric-value">82.4%</div><div class="metric-sub-red">▼ -3.1% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with k3: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ THU ĐG LẦN 1</div><div class="metric-value">82.4%</div><div class="metric-sub-red">▼ -3.1% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with k4: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ THU ĐÚNG GIỜ</div><div class="metric-value">82.4%</div><div class="metric-sub-red">▼ -3.1% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with k5: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ XUẤT SẠCH</div><div class="metric-value">2.4%</div><div class="metric-sub-red">▼ -3.1% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with k6: st.markdown('<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN >1 NGÀY</div><div class="metric-value">221</div><div class="metric-sub-red">▼ -3.1% vs Mục tiêu</div></div>', unsafe_allow_html=True)
 
     st.write("")
 
+    # 3. KHU VỰC BIỂU ĐỒ XU HƯỚNG & TOP 10
     c_opr_left, c_opr_right = st.columns([1.1, 1])
 
     with c_opr_left:
@@ -515,7 +514,6 @@ with tab_opr:
     with c_opr_right:
         st.markdown('<p class="section-red-title">TOP 10 ĐỐI TÁC TỒN THU CUỐI NGÀY CAO NHẤT</p>', unsafe_allow_html=True)
         
-        # Query trực tiếp dữ liệu Mã đối tác & Mã khách hàng từ DB DuckDB
         top_dt_data = con.execute(f"""
             SELECT COALESCE(ma_doitac, 'Khác') as dt, COUNT(ma_phieugui) as sl
             FROM orders WHERE {where_sql_opr} AND ma_doitac IS NOT NULL
@@ -528,7 +526,6 @@ with tab_opr:
             GROUP BY ma_khgui ORDER BY sl DESC LIMIT 10
         """).fetchall()
 
-        # Tạo danh sách 10 dòng kết hợp
         rows_top_html = ""
         for i in range(max(len(top_dt_data), len(top_kh_data))):
             dt_name = top_dt_data[i][0] if i < len(top_dt_data) else "-"
@@ -571,6 +568,7 @@ with tab_opr:
 
     st.divider()
 
+    # 4. DANH SÁCH CHI NHÁNH THU & BƯU CỤC THU
     st.subheader("📍 DANH SÁCH CHI NHÁNH THU & BƯU CỤC THU (TƯƠNG TÁC TỰ ĐỘNG LỌC)")
     st.info("💡 Mẹo: Bấm chọn vào một dòng Chi nhánh ở bảng bên trái để xem đầy đủ các bưu cục thuộc chi nhánh đó ở bảng bên phải!")
 
@@ -696,7 +694,6 @@ with tab_odr:
 
     st.divider()
 
-    # 1. DANH SÁCH TỈNH PHÁT & BƯU CỤC
     st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC TỰ ĐỘNG LỌC)")
     st.info("💡 Mẹo: Bấm chọn vào một dòng Tỉnh ở bảng bên trái để xem đầy đủ các bưu cục thuộc tỉnh đó ở bảng bên phải!")
 
@@ -760,7 +757,6 @@ with tab_odr:
     st.write("")
     st.divider()
 
-    # 2. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
 
     days_data = con.execute(f"""
