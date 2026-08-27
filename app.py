@@ -132,7 +132,7 @@ with tab_doanh_thu:
                 fig = px.line(df_daily, x="ngay", y="DoanhThu", markers=True)
                 fig.update_traces(line=dict(color="#c62828", width=2.5), marker=dict(size=6, color="#c62828"))
                 fig.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
         except Exception:
             pass
 
@@ -143,7 +143,7 @@ with tab_doanh_thu:
             FROM orders WHERE {where_sql_dt} AND ma_khgui IS NOT NULL 
             GROUP BY ma_khgui ORDER BY "DOANH THU (TR)" DESC LIMIT 10
         """).fetchdf()
-        st.dataframe(df_top, use_container_width=True, hide_index=True, height=380)
+        st.dataframe(df_top, width='stretch', hide_index=True, height=380)
 
     st.divider()
 
@@ -508,7 +508,7 @@ with tab_opr:
             yaxis=dict(range=[70, 95], ticksuffix="%"),
             legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
         )
-        st.plotly_chart(fig_opr, use_container_width=True)
+        st.plotly_chart(fig_opr, width='stretch')
 
     with c_opr_right:
         st.markdown('<p class="section-red-title">TOP 10 ĐỐI TÁC TỒN THU CUỐI NGÀY CAO NHẤT</p>', unsafe_allow_html=True)
@@ -821,7 +821,7 @@ with tab_odr:
                 fig_odr = px.line(df_odr_daily, x="ngay", y="SanLuong", markers=True)
                 fig_odr.update_traces(line=dict(color="#c62828", width=2.5), marker=dict(size=6, color="#c62828"))
                 fig_odr.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
-                st.plotly_chart(fig_odr, use_container_width=True)
+                st.plotly_chart(fig_odr, width='stretch')
         except Exception:
             pass
 
@@ -850,7 +850,7 @@ with tab_odr:
         st.markdown("**Bảng Tỉnh Phát (Bấm chọn dòng để lọc Bưu cục)**")
         event_cn = st.dataframe(
             df_cn_grouped, 
-            use_container_width=True, 
+            width='stretch', 
             hide_index=True,
             selection_mode="single-row",
             on_select="rerun",
@@ -876,7 +876,7 @@ with tab_odr:
                 GROUP BY ma_buucuc_phat 
                 ORDER BY "Sản lượng đơn" DESC
             """).fetchdf()
-            st.dataframe(df_bc_filtered, use_container_width=True, hide_index=True)
+            st.dataframe(df_bc_filtered, width='stretch', hide_index=True)
         else:
             st.markdown("**Bưu Cục Toàn Quốc (Bấm chọn Tỉnh bên trái để xem chi tiết)**")
             df_bc_all = con.execute(f"""
@@ -889,7 +889,7 @@ with tab_odr:
                 GROUP BY tinh_phat, ma_buucuc_phat 
                 ORDER BY "Sản lượng đơn" DESC
             """).fetchdf()
-            st.dataframe(df_bc_all, use_container_width=True, hide_index=True)
+            st.dataframe(df_bc_all, width='stretch', hide_index=True)
 
     st.write("")
     st.divider()
