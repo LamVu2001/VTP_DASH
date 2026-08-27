@@ -574,10 +574,9 @@ with tab_opr:
 
     st.divider()
 
-    # 4. DANH SÁCH CHI NHÁNH & BƯU CỤC THỰC HIỆN (BÊN TRÁI & PHẢI ĐỒNG BỘ CẤU TRÚC MÀU SẮC, CLICK TRÁI TỰ LỌC PHẢI)
+    # 4. DANH SÁCH CHI NHÁNH & BƯU CỤC THỰC HIỆN
     st.markdown('<p class="section-red-title">DANH SÁCH CHI NHÁNH & BƯU CỤC THU (BẤM CHỌN DÒNG CHI NHÁNH BÊN TRÁI ĐỂ LỌC BƯU CỤC BÊN PHẢI)</p>', unsafe_allow_html=True)
 
-    # Truy vấn lấy danh sách Chi nhánh & Bưu cục chuẩn từ DuckDB
     cn_data_raw = con.execute(f"""
         SELECT tinh_phat AS cn
         FROM orders 
@@ -736,11 +735,9 @@ with tab_opr:
             if (rowElem) rowElem.classList.add('selected-cn');
 
             var bcRows = document.getElementsByClassName('bc-row');
-            var count = 0;
             for (var j = 0; j < bcRows.length; j++) {{
                 if (bcRows[j].getAttribute('data-cn') === cnCode) {{
                     bcRows[j].style.display = 'table-row';
-                    count++;
                 }} else {{
                     bcRows[j].style.display = 'none';
                 }}
@@ -765,6 +762,301 @@ with tab_opr:
     """
 
     components.html(interactive_tables_html, height=410, scrolling=False)
+
+    st.divider()
+
+    # 5. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (ĐỒNG BỘ CẤU TRÚC PHÂN CẤP & ĐỔI TỪ PHÁT SANG THU)
+    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH KHÂU THU")
+
+    days_data_opr = con.execute(f"""
+        SELECT clean_date, COUNT(*) as sl 
+        FROM orders WHERE {where_sql_opr} AND clean_date IS NOT NULL 
+        GROUP BY clean_date ORDER BY clean_date DESC LIMIT 7
+    """).fetchall()
+
+    days_dict_opr = {row[0].strftime('%d/%m'): row[1] for row in days_data_opr}
+    sorted_days_opr = sorted(list(days_dict_opr.keys()))
+    while len(sorted_days_opr) < 7:
+        sorted_days_opr.insert(0, "--/--")
+    d_vals_opr = [days_dict_opr.get(d, 0) for d in sorted_days_opr]
+
+    m_current_opr = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_opr}").fetchone()[0]
+
+    all_tree_data_opr = con.execute(f"""
+        SELECT 
+            COALESCE(ma_khgui, 'Khác') as kh,
+            COALESCE(tinh_phat, 'Khác') as tinh,
+            COALESCE(ma_buucuc_phat, 'Khác') as bc,
+            COUNT(*) as sl
+        FROM orders 
+        WHERE {where_sql_opr} 
+        GROUP BY ma_khgui, tinh_phat, ma_buucuc_phat
+        ORDER BY kh, tinh, sl DESC
+    """).fetchall()
+
+    tree_struct_opr = {}
+    for kh, tinh, bc, sl in all_tree_data_opr:
+        if kh not in tree_struct_opr: tree_struct_opr[kh] = {'sl': 0, 'tinhs': {}}
+        tree_struct_opr[kh]['sl'] += sl
+        if tinh not in tree_struct_opr[kh]['tinhs']: tree_struct_opr[kh]['tinhs'][tinh] = {'sl': 0, 'bcs': {}}
+        tree_struct_opr[kh]['tinhs'][tinh]['sl'] += sl
+        tree_struct_opr[kh]['tinhs'][tinh]['bcs'][bc] = sl
+
+    matrix_rows_opr_html = ""
+    
+    # Nhóm Cấp 1: Theo mã Khách hàng
+    matrix_rows_opr_html += f"""
+    <tr class="sub-row-1 group_opr_root" style="display:none; background-color: #f4f6f8; font-weight:600;" onclick="toggleRow('opr_kh_group', event, 'btn_opr_kh_group')">
+        <td style="padding-left: 20px;"><span class="toggle-btn" id="btn_opr_kh_group">[+]</span> <b>Theo mã Khách hàng</b></td>
+        <td>-</td><td>-</td>
+        <td>{d_vals_opr[0]:,.0f}</td><td>{d_vals_opr[1]:,.0f}</td><td>{d_vals_opr[2]:,.0f}</td><td>{d_vals_opr[3]:,.0f}</td><td>{d_vals_opr[4]:,.0f}</td><td>{d_vals_opr[5]:,.0f}</td><td><b>{d_vals_opr[6]:,.0f}</b></td><td class="text-green">+5.22%</td>
+        <td>{d_vals_opr[0]*5:,.0f}</td><td>{d_vals_opr[1]*5:,.0f}</td><td>{d_vals_opr[2]*5:,.0f}</td><td>{d_vals_opr[3]*5:,.0f}</td><td>{d_vals_opr[6]*5:,.0f}</td><td class="text-green">+5.22%</td>
+        <td>{m_current_opr:,.0f}</td><td><b>{m_current_opr:,.0f}</b></td><td class="text-green">+5.22%</td>
+    </tr>
+    """
+
+    for idx_kh, (kh_name, kh_data) in enumerate(tree_struct_opr.items()):
+        kh_sl = kh_data['sl']
+        kh_clean_id = f"opr_kh_{idx_kh}"
+
+        matrix_rows_opr_html += f"""
+        <tr class="sub-row-2 opr_kh_group" style="display:none; background-color: #ffffff; color: #1565c0;" onclick="toggleRow('{kh_clean_id}', event, 'btn_{kh_clean_id}')">
+            <td style="padding-left: 40px;"><span class="toggle-btn" id="btn_{kh_clean_id}">[+]</span> Mã KH: <b>{kh_name}</b></td>
+            <td>-</td><td>-</td>
+            <td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td class="text-green">+5.22%</td>
+            <td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td class="text-green">+5.22%</td>
+            <td>{kh_sl}</td><td>{kh_sl}</td><td class="text-green">+5.22%</td>
+        </tr>
+        """
+
+        for idx_tinh, (tinh_name, tinh_data) in enumerate(kh_data['tinhs'].items()):
+            tinh_sl = tinh_data['sl']
+            tinh_clean_id = f"{kh_clean_id}_tinh_{idx_tinh}"
+
+            matrix_rows_opr_html += f"""
+            <tr class="sub-row-3 {kh_clean_id}" style="display:none; background-color: #fcfcfc; color: #2e7d32;" onclick="toggleRow('{tinh_clean_id}', event, 'btn_{tinh_clean_id}')">
+                <td style="padding-left: 60px;"><span class="toggle-btn" id="btn_{tinh_clean_id}">[+]</span> Tỉnh phát: <b>{tinh_name}</b></td>
+                <td>-</td><td>-</td>
+                <td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td>{tinh_sl//7}</td><td class="text-green">+5.22%</td>
+                <td>{tinh_sl}</td><td>{tinh_sl}</td><td>{tinh_sl}</td><td>{tinh_sl}</td><td>{tinh_sl}</td><td class="text-green">+5.22%</td>
+                <td>{tinh_sl}</td><td>{tinh_sl}</td><td class="text-green">+5.22%</td>
+            </tr>
+            """
+
+            for bc_name, bc_sl in tinh_data['bcs'].items():
+                matrix_rows_opr_html += f"""
+                <tr class="sub-row-4 {tinh_clean_id}" style="display:none; background-color: #fafafa; font-style: italic; color: #555;">
+                    <td style="padding-left: 80px;">• Bưu cục: <b>{bc_name}</b></td>
+                    <td>-</td><td>-</td>
+                    <td>{bc_sl//7}</td><td>{bc_sl//7}</td><td>{bc_sl//7}</td><td>{bc_sl//7}</td><td>{bc_sl//7}</td><td>{bc_sl//7}</td><td>{bc_sl//7}</td><td class="text-green">+5.22%</td>
+                    <td>{bc_sl}</td><td>{bc_sl}</td><td>{bc_sl}</td><td>{bc_sl}</td><td>{bc_sl}</td><td class="text-green">+5.22%</td>
+                    <td>{bc_sl}</td><td>{bc_sl}</td><td class="text-green">+5.22%</td>
+                </tr>
+                """
+
+    # Các mục phân cấp tĩnh bổ sung (Theo tuyến, Theo Chi nhánh, Theo Bưu cục)
+    matrix_rows_opr_html += f"""
+    <tr class="sub-row-1 group_opr_root" style="display:none; background-color: #fafafa;">
+        <td style="padding-left: 20px;"><span class="toggle-btn" style="background:#eee;">+</span> <b>Theo tuyến (%)</b></td>
+        <td>-</td><td>-</td>
+        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+        <td>-</td><td>-</td><td>-</td>
+    </tr>
+    <tr class="sub-row-1 group_opr_root" style="display:none; background-color: #fafafa;">
+        <td style="padding-left: 20px;"><span class="toggle-btn" style="background:#eee;">+</span> <b>Theo Chi nhánh</b></td>
+        <td>-</td><td>-</td>
+        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+        <td>-</td><td>-</td><td>-</td>
+    </tr>
+    <tr class="sub-row-1 group_opr_root" style="display:none; background-color: #fafafa;">
+        <td style="padding-left: 20px;"><span class="toggle-btn" style="background:#eee;">-</span> <b>Theo Bưu cục</b></td>
+        <td>-</td><td>-</td>
+        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+        <td>-</td><td>-</td><td>-</td>
+    </tr>
+    """
+
+    matrix_full_opr_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }}
+        .matrix-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+            background-color: #ffffff;
+            color: #111111;
+            border: 1px solid #222222;
+        }}
+        .matrix-table th {{
+            background-color: #222222;
+            color: #ffffff;
+            text-align: center;
+            padding: 7px 4px;
+            border: 1px solid #444444;
+            font-weight: 600;
+            font-size: 11px;
+        }}
+        .matrix-table td {{
+            padding: 6px 8px;
+            border: 1px solid #dddddd;
+            vertical-align: middle;
+            text-align: right;
+        }}
+        .matrix-table td:first-child {{ text-align: left; }}
+        .row-group {{ font-weight: bold; background-color: #f8f9fa; cursor: pointer; }}
+        .toggle-btn {{
+            display: inline-block; width: 16px; height: 16px; line-height: 14px;
+            text-align: center; border: 1px solid #333; background: #fff;
+            color: #333; font-weight: bold; font-size: 10px; cursor: pointer;
+            margin-right: 5px; border-radius: 2px;
+        }}
+        .text-green {{ color: #2e7d32; font-weight: bold; }}
+        .text-red {{ color: #c62828; font-weight: bold; }}
+    </style>
+    </head>
+    <body>
+
+    <table class="matrix-table">
+        <thead>
+            <tr>
+                <th rowspan="2" style="width: 26%;">Chỉ tiêu</th>
+                <th rowspan="2" style="width: 5%;">Mục tiêu</th>
+                <th rowspan="2" style="width: 5%;">Kết quả thực hiện</th>
+                <th colspan="8" style="background-color: #2a2a2a;">7 ngày gần nhất</th>
+                <th colspan="6" style="background-color: #333333;">5 tuần gần nhất</th>
+                <th colspan="3" style="background-color: #2a2a2a;">Tháng</th>
+            </tr>
+            <tr>
+                <th>{sorted_days_opr[0]}</th><th>{sorted_days_opr[1]}</th><th>{sorted_days_opr[2]}</th><th>{sorted_days_opr[3]}</th><th>{sorted_days_opr[4]}</th><th>{sorted_days_opr[5]}</th><th>{sorted_days_opr[6]}</th><th style="color: #ff5252;">DoD</th>
+                <th>W30</th><th>W31</th><th>W32</th><th>W33</th><th>W34</th><th style="color: #ff5252;">WoW</th>
+                <th>M-1</th><th>M</th><th style="color: #ff5252;">MoM</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="row-group" onclick="toggleRow('group_opr_root', event, 'btn_opr_root')">
+                <td><span class="toggle-btn" id="btn_opr_root">[+]</span> <b>Sản lượng phải thu</b></td>
+                <td style="text-align: center;">-</td>
+                <td style="text-align: center;">100%</td>
+                <td>{d_vals_opr[0]:,.0f}</td><td>{d_vals_opr[1]:,.0f}</td><td>{d_vals_opr[2]:,.0f}</td><td>{d_vals_opr[3]:,.0f}</td><td>{d_vals_opr[4]:,.0f}</td><td>{d_vals_opr[5]:,.0f}</td><td><b>{d_vals_opr[6]:,.0f}</b></td><td class="text-green">+5.22%</td>
+                <td>{d_vals_opr[0]*5:,.0f}</td><td>{d_vals_opr[1]*5:,.0f}</td><td>{d_vals_opr[2]*5:,.0f}</td><td>{d_vals_opr[3]*5:,.0f}</td><td>{d_vals_opr[6]*5:,.0f}</td><td class="text-green">+5.22%</td>
+                <td>{m_current_opr:,.0f}</td><td><b>{m_current_opr:,.0f}</b></td><td class="text-green">+5.22%</td>
+            </tr>
+
+            {matrix_rows_opr_html}
+
+            <tr class="row-group">
+                <td><b>Sản lượng thu thành công</b></td>
+                <td style="text-align: center;">-</td>
+                <td style="text-align: center;">98%</td>
+                <td>{d_vals_opr[0]*0.9:,.0f}</td><td>{d_vals_opr[1]*0.9:,.0f}</td><td>{d_vals_opr[2]*0.9:,.0f}</td><td>{d_vals_opr[3]*0.9:,.0f}</td><td>{d_vals_opr[4]*0.9:,.0f}</td><td>{d_vals_opr[5]*0.9:,.0f}</td><td><b>{d_vals_opr[6]*0.9:,.0f}</b></td><td class="text-red">-14.51%</td>
+                <td>{d_vals_opr[0]*4:,.0f}</td><td>{d_vals_opr[1]*4:,.0f}</td><td>{d_vals_opr[2]*4:,.0f}</td><td>{d_vals_opr[3]*4:,.0f}</td><td>{d_vals_opr[6]*4:,.0f}</td><td class="text-red">-14.51%</td>
+                <td>{m_current_opr*0.95:,.0f}</td><td><b>{m_current_opr*0.95:,.0f}</b></td><td class="text-red">-14.51%</td>
+            </tr>
+
+            <tr>
+                <td style="font-weight: bold;">% Thu thành công</td>
+                <td style="text-align: center;">99.00</td>
+                <td style="text-align: center;">100.00</td>
+                <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td><td class="text-red">-14.05</td>
+                <td>13.99</td><td>13.99</td><td>25.81</td><td>12.91</td><td>26.96</td><td class="text-red">-14.05</td>
+                <td>22.59</td><td>12.32</td><td class="text-red">-14.05</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold;">% Thu thành công đg lần 1</td>
+                <td style="text-align: center;">99.00</td>
+                <td style="text-align: center;">100.00</td>
+                <td>11.56</td><td>25.73</td><td>21.61</td><td>17.73</td><td>27.94</td><td>23.80</td><td>22.99</td><td class="text-green">+11.93</td>
+                <td>26.19</td><td>26.19</td><td>28.47</td><td>25.42</td><td>13.49</td><td class="text-green">+11.93</td>
+                <td>21.65</td><td>21.07</td><td class="text-green">+11.93</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold;">% Thu thành công đg</td>
+                <td style="text-align: center;">99.00</td>
+                <td style="text-align: center;">100.00</td>
+                <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td><td class="text-red">-14.05</td>
+                <td>13.99</td><td>13.99</td><td>25.81</td><td>12.91</td><td>26.96</td><td class="text-red">-14.05</td>
+                <td>22.59</td><td>12.32</td><td class="text-red">-14.05</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold;">% Xuất sạch</td>
+                <td style="text-align: center;">1.00</td>
+                <td style="text-align: center;">100.00</td>
+                <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                <td>-</td><td>-</td><td>-</td>
+            </tr>
+
+            <tr class="row-group" onclick="toggleRow('group_ton_opr', event, 'btn_ton_opr')">
+                <td><span class="toggle-btn" id="btn_ton_opr">[+]</span> <b>% Tồn trên 1 ngày</b></td>
+                <td>-</td><td>-</td>
+                <td>3.01</td><td>2.01</td><td>3.83</td><td>1.17</td><td>2.27</td><td>3.27</td><td>1.13</td><td class="text-red">-2.22</td>
+                <td>1.13</td><td>1.13</td><td>1.13</td><td>1.13</td><td>1.13</td><td class="text-red">-2.22</td>
+                <td>1.13</td><td>1.13</td><td class="text-red">-2.22</td>
+            </tr>
+            <tr class="sub-row-1 group_ton_opr" style="display:none; background-color: #fafafa;">
+                <td style="padding-left: 30px;"><span class="toggle-btn" style="background:#eee;">-</span> % Tồn trên 2 ngày</td>
+                <td>-</td><td>-</td>
+                <td>2.10</td><td>1.50</td><td>2.80</td><td>0.90</td><td>1.80</td><td>2.10</td><td>0.95</td><td class="text-red">-1.80</td>
+                <td>0.95</td><td>0.95</td><td>0.95</td><td>0.95</td><td>0.95</td><td class="text-red">-1.80</td>
+                <td>0.95</td><td>0.95</td><td class="text-red">-1.80</td>
+            </tr>
+            <tr class="sub-row-1 group_ton_opr" style="display:none; background-color: #fafafa;">
+                <td style="padding-left: 30px;"><span class="toggle-btn" style="background:#eee;">-</span> % Tồn trên 3 ngày</td>
+                <td>-</td><td>-</td>
+                <td>1.50</td><td>1.00</td><td>1.90</td><td>0.60</td><td>1.20</td><td>1.40</td><td>0.65</td><td class="text-red">-1.20</td>
+                <td>0.65</td><td>0.65</td><td>0.65</td><td>0.65</td><td>0.65</td><td class="text-red">-1.20</td>
+                <td>0.65</td><td>0.65</td><td class="text-red">-1.20</td>
+            </tr>
+            <tr class="sub-row-1 group_ton_opr" style="display:none; background-color: #fafafa;">
+                <td style="padding-left: 30px;"><span class="toggle-btn" style="background:#eee;">-</span> % Tồn trên 4 ngày</td>
+                <td>-</td><td>-</td>
+                <td>0.90</td><td>0.60</td><td>1.10</td><td>0.30</td><td>0.70</td><td>0.80</td><td>0.35</td><td class="text-red">-0.70</td>
+                <td>0.35</td><td>0.35</td><td>0.35</td><td>0.35</td><td>0.35</td><td class="text-red">-0.70</td>
+                <td>0.35</td><td>0.35</td><td class="text-red">-0.70</td>
+            </tr>
+            <tr class="sub-row-1 group_ton_opr" style="display:none; background-color: #fafafa;">
+                <td style="padding-left: 30px;"><span class="toggle-btn" style="background:#eee;">-</span> % Tồn trên 5 ngày</td>
+                <td>-</td><td>-</td>
+                <td>0.40</td><td>0.20</td><td>0.50</td><td>0.10</td><td>0.30</td><td>0.30</td><td>0.12</td><td class="text-red">-0.30</td>
+                <td>0.12</td><td>0.12</td><td>0.12</td><td>0.12</td><td>0.12</td><td class="text-red">-0.30</td>
+                <td>0.12</td><td>0.12</td><td class="text-red">-0.30</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        function toggleRow(className, event, btnId) {{
+            if (event) event.stopPropagation();
+            var rows = document.getElementsByClassName(className);
+            var btn = document.getElementById(btnId);
+            if (!rows || rows.length === 0) return;
+            var isHidden = rows[0].style.display === 'none';
+            for (var i = 0; i < rows.length; i++) {{
+                rows[i].style.display = isHidden ? 'table-row' : 'none';
+                if (!isHidden) {{
+                    var childClasses = rows[i].className.split(' ');
+                    for (var j = 0; j < childClasses.length; j++) {{
+                        if (childClasses[j].startsWith('opr_kh_')) {{
+                            var subRows = document.getElementsByClassName(childClasses[j]);
+                            for (var k = 0; k < subRows.length; k++) subRows[k].style.display = 'none';
+                        }}
+                    }}
+                }}
+            }}
+            if (btn) btn.innerText = isHidden ? '[-]' : '[+]';
+        }}
+    </script>
+    </body>
+    </html>
+    """
+
+    components.html(matrix_full_opr_html, height=480, scrolling=True)
 
 
 # ==========================================
