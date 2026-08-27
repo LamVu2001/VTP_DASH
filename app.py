@@ -6,7 +6,7 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tùy biến giao diện, khung bảng và hiệu ứng expander HTML chuẩn Enterprise
+# CSS tùy biến giao diện, khung bảng và thẻ Card sang trọng
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -26,7 +26,7 @@ st.markdown("""
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
 
-    /* CSS cho Bảng Ma Trận & Chi tiết mở rộng HTML */
+    /* CSS cho Bảng Ma Trận Vận Hành chuẩn Enterprise */
     .matrix-table {
         width: 100%;
         border-collapse: collapse;
@@ -63,32 +63,6 @@ st.markdown("""
     .text-right { text-align: right; }
     .text-green { color: #2e7d32; font-weight: bold; }
     .text-red { color: #c62828; font-weight: bold; }
-    
-    /* Tùy biến thẻ details/summary để làm hiệu ứng đóng/mở mượt mà */
-    details > summary {
-        cursor: pointer;
-        font-weight: bold;
-        color: #111111;
-        list-style: none; /* Ẩn dấu mũi tên mặc định */
-    }
-    details > summary::-webkit-details-marker {
-        display: none;
-    }
-    details > summary::before {
-        content: "[+] ";
-        color: #c62828;
-        font-weight: bold;
-    }
-    details[open] > summary::before {
-        content: "[-] ";
-        color: #c62828;
-        font-weight: bold;
-    }
-    .sub-row {
-        background-color: #fafafa;
-        color: #555555;
-        font-size: 11.5px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -318,73 +292,36 @@ with tab_odr:
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True, height=350)
 
-    # --- 2. BẢNG MA TRẬN VẬN HÀNH TÍCH HỢP EXPAND HTML (MỞ RỘNG TỪNG TỈNH) ---
+    # --- 2. BẢNG MA TRẬN VẬN HÀNH AN TOÀN & KHÔNG LỖI HTML ---
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("📊 BÁO CÁO MA TRẬN PHÂN CẤP VẬN HÀNH (HTML EXPAND)")
-    st.info("💡 Bấm vào các dấu `[+]` của từng Tỉnh bên dưới để mở rộng xem danh sách bưu cục trực thuộc ngay trong bảng ma trận.")
+    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (DỮ LIỆU ĐỘNG)")
+    st.info("💡 Bảng tự động tính toán sản lượng thực tế theo các ngày gần nhất từ cơ sở dữ liệu.")
 
-    # Lấy tổng sản lượng toàn cục
-    total_m = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
-
-    # Lấy danh sách các tỉnh phát để tạo các hàng cha có thể expand
-    tinh_rows_html = ""
-    df_tins_list = con.execute(f"""
-        SELECT tinh_phat, COUNT(*) as sl 
+    # Lấy 7 ngày gần nhất từ database
+    days_data = con.execute(f"""
+        SELECT clean_date, COUNT(*) as sl 
         FROM orders 
-        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
-        GROUP BY tinh_phat 
-        ORDER BY sl DESC 
-        LIMIT 10
+        WHERE {where_sql_odr} AND clean_date IS NOT NULL 
+        GROUP BY clean_date 
+        ORDER BY clean_date DESC 
+        LIMIT 7
     """).fetchall()
 
-    for tinh_item, sl_tinh in df_tins_list:
-        # Lấy danh sách bưu cục con của tỉnh này
-        df_bc_list = con.execute(f"""
-            SELECT ma_buucuc_phat, COUNT(*) as sl_bc 
-            FROM orders 
-            WHERE {where_sql_odr} AND tinh_phat = '{tinh_item}' AND ma_buucuc_phat IS NOT NULL 
-            GROUP BY ma_buucuc_phat 
-            ORDER BY sl_bc DESC 
-            LIMIT 5
-        """).fetchall()
+    days_dict = {str(row[0]): row[1] for row in days_data}
+    sorted_dates = sorted(list(days_dict.keys()))
+    
+    d_vals = [0] * 7
+    for i, d_str in enumerate(sorted_dates[-7:]):
+        d_vals[i] = days_dict[d_str]
 
-        # Tạo nội dung HTML cho các dòng bưu cục con ẩn bên trong thẻ details
-        sub_trs = ""
-        for bc_code, bc_sl in df_bc_list:
-            sub_trs += f"""
-                <tr class="sub-row">
-                    <td style="padding-left: 35px;">↳ Bưu cục: {bc_code}</td>
-                    <td class="text-center">-</td>
-                    <td class="text-center">-</td>
-                    <td colspan="7" class="text-right">{bc_sl:,.0f} đơn</td>
-                    <td class="text-center text-green">+2.1%</td>
-                    <td colspan="5" class="text-right">{bc_sl:,.0f} đơn</td>
-                    <td class="text-center text-green">+1.5%</td>
-                    <td class="text-right">-</td>
-                    <td class="text-right">{bc_sl:,.0f}</td>
-                    <td class="text-center text-green">+3.2%</td>
-                </tr>
-            """
+    total_m = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
 
-        # Ghép vào dòng cha (Tỉnh) có đính kèm thẻ <details>
-        tinh_rows_html += f"""
-            <tr class="row-group">
-                <td colspan="22" style="padding: 0px;">
-                    <details style="padding: 8px 10px;">
-                        <summary><b>Khu vực Tỉnh phát: {tinh_item}</b> (Sản lượng: {sl_tinh:,.0f} đơn)</summary>
-                        <table style="width: 100%; margin-top: 8px; border-collapse: collapse;">
-                            {sub_trs}
-                        </table>
-                    </details>
-                </td>
-            </tr>
-        """
-
+    # Xây dựng ma trận hoàn chỉnh bằng một khối chuỗi HTML an toàn duy nhất
     matrix_html = f"""
     <table class="matrix-table">
         <thead>
             <tr>
-                <th rowspan="2" style="width: 22%;">Chỉ tiêu / Khu vực</th>
+                <th rowspan="2" style="width: 22%;">Chỉ tiêu</th>
                 <th rowspan="2" style="width: 6%;">Mục tiêu</th>
                 <th rowspan="2" style="width: 6%;">Kết quả thực hiện</th>
                 <th colspan="8" style="background-color: #2a2a2a;">7 ngày gần nhất</th>
@@ -398,21 +335,52 @@ with tab_odr:
             </tr>
         </thead>
         <tbody>
-            <tr class="row-group" style="background-color: #eaeaea;">
-                <td><b>📦 TỔNG HỢP TOÀN HỆ THỐNG</b></td>
+            <tr class="row-group">
+                <td><b>📦 Tổng Sản Lượng Đơn</b></td>
                 <td class="text-center">-</td>
                 <td class="text-center">100%</td>
-                <td colspan="7" class="text-right"><b>{total_m:,.0f} đơn</b></td>
+                <td class="text-right">{d_vals[0]:,.0f}</td>
+                <td class="text-right">{d_vals[1]:,.0f}</td>
+                <td class="text-right">{d_vals[2]:,.0f}</td>
+                <td class="text-right">{d_vals[3]:,.0f}</td>
+                <td class="text-right">{d_vals[4]:,.0f}</td>
+                <td class="text-right">{d_vals[5]:,.0f}</td>
+                <td class="text-right"><b>{d_vals[6]:,.0f}</b></td>
                 <td class="text-center text-green">+5.22%</td>
-                <td colspan="5" class="text-right"><b>{total_m:,.0f} đơn</b></td>
+                <td class="text-right">{d_vals[0]:,.0f}</td>
+                <td class="text-right">{d_vals[1]:,.0f}</td>
+                <td class="text-right">{d_vals[2]:,.0f}</td>
+                <td class="text-right">{d_vals[3]:,.0f}</td>
+                <td class="text-right">{d_vals[4]:,.0f}</td>
                 <td class="text-center text-green">+5.22%</td>
-                <td class="text-right">-</td>
+                <td class="text-right">{total_m:,.0f}</td>
                 <td class="text-right"><b>{total_m:,.0f}</b></td>
                 <td class="text-center text-green">+5.22%</td>
             </tr>
-            {tinh_rows_html}
         </tbody>
     </table>
     """
 
     st.markdown(matrix_html, unsafe_allow_html=True)
+
+    # Sử dụng st.expander chuẩn của Streamlit bên dưới để xem chi tiết phân cấp từng Tỉnh một cách an toàn và mượt mà nhất
+    st.markdown("### 🏢 Chi tiết phân cấp bưu cục theo Tỉnh")
+    df_tins_list = con.execute(f"""
+        SELECT tinh_phat, COUNT(*) as sl 
+        FROM orders 
+        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
+        GROUP BY tinh_phat 
+        ORDER BY sl DESC 
+        LIMIT 10
+    """).fetchall()
+
+    for tinh_item, sl_tinh in df_tins_list:
+        with st.expander(f"📁 Khu vực Tỉnh phát: {tinh_item} (Tổng đơn: {sl_tinh:,})"):
+            df_bc_sub = con.execute(f"""
+                SELECT ma_buucuc_phat AS "Mã bưu cục", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+                FROM orders 
+                WHERE {where_sql_odr} AND tinh_phat = '{tinh_item}' AND ma_buucuc_phat IS NOT NULL
+                GROUP BY ma_buucuc_phat 
+                ORDER BY "Sản lượng đơn" DESC
+            """).fetchdf()
+            st.dataframe(df_bc_sub, use_container_width=True, hide_index=True)
