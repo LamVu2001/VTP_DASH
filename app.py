@@ -48,6 +48,7 @@ def get_db_connection():
                    TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%d-%m-%Y %H:%M') AS DATE),
                    TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%d-%m-%Y') AS DATE),
                    TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%Y-%m-%d %H:%M:%S') AS DATE),
+                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%Y-%m-%d %H:%M') AS DATE),
                    TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%Y-%m-%d') AS DATE)
                ) as clean_date
         FROM read_parquet('{file_path}')
