@@ -27,10 +27,7 @@ st.markdown("""
 # 1. HÀM TẢI DỮ LIỆU TỪ GOOGLE DRIVE (TỐI ƯU TRÁNH TRÀN RAM)
 @st.cache_data(ttl=86400)
 def load_data():
-    # --------------------------------------------------------------------------
-    # FILE ID CỦA BẠN ĐÃ ĐƯỢC TÍCH HỢP:
     FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag" 
-    # --------------------------------------------------------------------------
     
     local_file = Path("data.parquet")
     win_path = Path(r"C:\Users\Win 10\Desktop\streamlit\data.parquet")
@@ -42,7 +39,6 @@ def load_data():
 
     file_to_read = local_file if local_file.exists() else win_path
     
-    # Dùng scan_parquet (Lazy) và chỉ đọc các cột cần thiết để không bị tràn RAM
     try:
         schema = pl.read_parquet_schema(file_to_read)
         columns_to_load = [c for c in schema.keys() if any(k in c.lower() for k in [
@@ -176,17 +172,22 @@ with tab_odr:
     st.markdown("<h4 style='color: #c62828; margin-bottom: 0;'>CHẤT LƯỢNG KHÂU PHÁT</h4>", unsafe_allow_html=True)
     st.markdown("<h1 style='margin-top: 0; margin-bottom: 15px;'>Dashboard ODR</h1>", unsafe_allow_html=True)
 
-    o_col_title, o_col_filters = st.columns([2, 1.2])
-    with o_col_filters:
-        of1, of2 = st.columns(2)
-        with of1:
-            st.date_input("NGÀY", value=(min_date, max_date) if min_date and max_date else None, key="odr_date")
-            st.selectbox("MÃ ĐỐI TÁC", dt_list, key="odr_dt")
-            st.selectbox("LOẠI ĐƠN", ld_list, key="odr_ld")
-        with of2:
-            st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="odr_kh")
-            st.selectbox("MÃ KHÁCH HÀNG (2)", kh_list, key="odr_kh2")
-            st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="odr_tl")
+    # Bộ lọc ngang phía trên cho ODR (6 cột giống Tab Doanh Thu)
+    of1, of2, of3, of4, of5, of6 = st.columns(6)
+    with of1:
+        min_date = df_raw["ngay_phat"].min() if "ngay_phat" in df_raw.columns else None
+        max_date = df_raw["ngay_phat"].max() if "ngay_phat" in df_raw.columns else None
+        st.date_input("NGÀY", value=(min_date, max_date) if min_date and max_date else None, key="odr_date")
+    with of2:
+        st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="odr_kh")
+    with of3:
+        st.selectbox("MÃ ĐỐI TÁC", dt_list, key="odr_dt")
+    with of4:
+        st.selectbox("MÃ KHÁCH HÀNG (2)", kh_list, key="odr_kh2")
+    with of5:
+        st.selectbox("LOẠI ĐƠN", ld_list, key="odr_ld")
+    with of6:
+        st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="odr_tl")
 
     df_odr = df_raw
     total_phat = df_odr[col_phieu].n_unique() if col_phieu and col_phieu in df_odr.columns else len(df_odr)
