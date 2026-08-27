@@ -6,23 +6,48 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
+# CSS tùy biến nâng cao: Biến expander thành các Card hiện đại, sang trọng
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
     .main-title { font-size: 28px; font-weight: bold; color: #111111; margin-top: 0px; margin-bottom: 20px; }
+    
     .metric-card {
         background-color: #ffffff;
-        border: 1px solid #dcdcdc;
-        border-radius: 6px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
         padding: 14px;
         text-align: left;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         height: 95px;
     }
-    .metric-title { font-size: 11px; font-weight: bold; color: #555555; text-transform: uppercase; }
+    .metric-title { font-size: 11px; font-weight: bold; color: #666666; text-transform: uppercase; }
     .metric-value { font-size: 26px; font-weight: bold; color: #111111; margin: 4px 0; }
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
+
+    /* Tùy biến hộp Expander thành Card chuyên nghiệp */
+    .streamlit-expanderHeader {
+        background-color: #ffffff !important;
+        border: 1px solid #e0e0e0 !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        color: #222222 !important;
+        transition: all 0.2s ease-in-out;
+    }
+    .streamlit-expanderHeader:hover {
+        border-color: #c62828 !important;
+        background-color: #fafafa !important;
+        color: #c62828 !important;
+    }
+    .streamlit-expanderContent {
+        background-color: #ffffff !important;
+        border: 1px solid #e0e0e0 !important;
+        border-top: none !important;
+        border-bottom-left-radius: 8px !important;
+        border-bottom-right-radius: 8px !important;
+        padding: 15px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -206,26 +231,31 @@ with tab_odr:
         st.info("Biểu đồ bên trái thể hiện sản lượng đơn hàng thực tế cần phát trong 7 ngày gần nhất dựa trên bộ lọc hiện tại của bạn.")
 
     st.divider()
-    st.subheader("📍 CHI TIẾT TỈNH PHÁT & BƯU CỤC")
-    
-    # Tạo thêm một bộ lọc chọn nhanh Tỉnh ngay trên bảng bưu cục để thay thế cho dạng bấm mở rộng
-    selected_tinh_filter = st.selectbox("🔍 Lọc nhanh theo Tỉnh phát để xem bưu cục:", tinh_list, key="tinh_filter_dropdown")
+    st.subheader("📍 CHI TIẾT BƯU CỤC THEO TỈNH PHÁT")
+    st.info("💡 Bấm vào các thẻ Tỉnh phát bên dưới để mở rộng xem danh sách bưu cục chi tiết.")
 
-    # Xây dựng câu lệnh SQL lọc theo tỉnh được chọn từ dropdown
-    tinh_filter_sql = ""
-    if selected_tinh_filter != "Tất cả":
-        tinh_filter_sql = f"AND tinh_phat = '{selected_tinh_filter}'"
-
-    df_combined = con.execute(f"""
-        SELECT 
-            tinh_phat AS "Tỉnh phát", 
-            ma_buucuc_phat AS "Mã bưu cục phát", 
-            COUNT(*) AS "Tổng đơn", 
-            ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+    # Lấy danh sách các tỉnh phát
+    df_tins = con.execute(f"""
+        SELECT tinh_phat, COUNT(*) AS tong_don, ROUND(SUM(tong_cuoc)/1e6, 1) AS doanh_thu
         FROM orders 
-        WHERE {where_sql_odr} {tinh_filter_sql} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
-        GROUP BY tinh_phat, ma_buucuc_phat 
-        ORDER BY "Tổng đơn" DESC
-    """).fetchdf()
+        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
+        GROUP BY tinh_phat 
+        ORDER BY tong_don DESC 
+        LIMIT 12
+    """).fetchall()
 
-    st.dataframe(df_combined, use_container_width=True, hide_index=True, height=450)
+    # Chia danh sách thành 2 cột card để giao diện trông cân đối, đẹp mắt hơn
+    col_left, col_right = st.columns(2)
+
+    for i, (tinh, tong_don, doanh_thu) in enumerate(df_tins):
+        target_col = col_left if i % 2 == 0 else col_right
+        with target_col:
+            with st.expander(f"🏙️  {tinh}  —  {tong_don:,} đơn  ({doanh_thu:,.1f} Tr VNĐ)"):
+                df_bc = con.execute(f"""
+                    SELECT ma_buucuc_phat AS "Mã bưu cục", COUNT(*) AS "Sản lượng", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+                    FROM orders 
+                    WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND ma_buucuc_phat IS NOT NULL
+                    GROUP BY ma_buucuc_phat 
+                    ORDER BY "Sản lượng" DESC
+                """).fetchdf()
+                st.dataframe(df_bc, use_container_width=True, hide_index=True)
