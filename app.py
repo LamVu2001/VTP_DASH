@@ -6,7 +6,7 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tùy biến giao diện, thẻ Card và phong cách báo cáo quản trị sang trọng
+# CSS tùy biến giao diện, khung bảng và thẻ Card sang trọng
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -25,30 +25,6 @@ st.markdown("""
     .metric-value { font-size: 26px; font-weight: bold; color: #111111; margin: 4px 0; }
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
-
-    /* Phong cách báo cáo quản trị cấp cao cho Expander */
-    .streamlit-expanderHeader {
-        background-color: #ffffff !important;
-        border: 1px solid #dcdcdc !important;
-        border-radius: 4px !important;
-        font-weight: 600 !important;
-        color: #111111 !important;
-        padding: 10px 15px !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-    }
-    .streamlit-expanderHeader:hover {
-        border-color: #c62828 !important;
-        background-color: #fcfcfc !important;
-        color: #c62828 !important;
-    }
-    .streamlit-expanderContent {
-        background-color: #fafafa !important;
-        border: 1px solid #dcdcdc !important;
-        border-top: none !important;
-        border-bottom-left-radius: 4px !important;
-        border-bottom-right-radius: 4px !important;
-        padding: 15px !important;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -234,8 +210,8 @@ with tab_odr:
 
     st.divider()
     
-    # --- 1. HAI BẢNG TƯƠNG TÁC BAN ĐẦU ---
-    st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC CHỌN DÒNG)")
+    # --- HAI BẢNG TƯƠNG TÁC CHỌN DÒNG CHÍNH (TRÁI: TỈNH PHÁT, PHẢI: BƯU CỤC) ---
+    st.subheader("📍 BẢNG TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC CHỌN DÒNG)")
     st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
     
     df_cn_grouped = con.execute(f"""
@@ -246,7 +222,7 @@ with tab_odr:
 
     tbl_col1, tbl_col2 = st.columns(2)
     with tbl_col1:
-        st.markdown("**Bảng Tỉnh Phạt (Đầy đủ - Bấm chọn dòng để lọc)**")
+        st.markdown("**Bảng Tỉnh Phạt (Bấm chọn dòng để lọc)**")
         event_cn = st.dataframe(
             df_cn_grouped, 
             use_container_width=True, 
@@ -280,50 +256,3 @@ with tab_odr:
                 GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True, height=350)
-
-    # --- 2. BÁO CÁO PHÂN CẤP CHẤT LƯỢNG KHÂU PHÁT (ĐÃ SỬA CHUẨN ĐỊNH DẠNG NGÀY THÁNG NGANG) ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("📊 BÁO CÁO PHÂN CẤP CHẤT LƯỢNG KHÂU PHÁT (EXECUTIVE REPORT)")
-    st.info("💡 Bấm vào từng khu vực tỉnh bên dưới để mở rộng xem chi tiết bưu cục và số liệu 7 ngày gần nhất định dạng chuẩn.")
-
-    df_tins_rpt = con.execute(f"""
-        SELECT tinh_phat, COUNT(*) AS tong_don, ROUND(SUM(tong_cuoc)/1e6, 1) AS doanh_thu
-        FROM orders 
-        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
-        GROUP BY tinh_phat 
-        ORDER BY tong_don DESC 
-        LIMIT 10
-    """).fetchall()
-
-    for tinh, tong_don, doanh_thu in df_tins_rpt:
-        with st.expander(f"[+] Khu vực Tỉnh phát: {tinh}  |  Tổng đơn: {tong_don:,}  |  Doanh thu: {doanh_thu:,.1f} Tr"):
-            
-            st.markdown(f"**📊 Bảng tổng hợp số liệu theo ngày của Tỉnh: {tinh}**")
-            
-            # Truy vấn xoay ngang 7 ngày dạng DD/MM chính xác
-            df_pivot_7days = con.execute(f"""
-                SELECT 
-                    strftime(clean_date, '%d/%m') as Ngay,
-                    COUNT(*) as SanLuong
-                FROM orders 
-                WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND clean_date IS NOT NULL 
-                GROUP BY clean_date 
-                ORDER BY clean_date DESC 
-                LIMIT 7
-            """).fetchdf()
-            
-            if not df_pivot_7days.empty:
-                df_pivot_7days = df_pivot_7days.sort_values("Ngay").T
-                df_pivot_7days.index = ["Chỉ tiêu", "Sản lượng"]
-                st.dataframe(df_pivot_7days, use_container_width=True)
-
-            st.markdown(f"🔹 **Danh sách Bưu cục trực thuộc {tinh}:**")
-            df_bc_sub = con.execute(f"""
-                SELECT ma_buucuc_phat AS "Mã bưu cục", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-                FROM orders 
-                WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY ma_buucuc_phat 
-                ORDER BY "Sản lượng đơn" DESC
-            """).fetchdf()
-            
-            st.dataframe(df_bc_sub, use_container_width=True, hide_index=True)
