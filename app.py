@@ -152,16 +152,12 @@ with tab_odr:
     st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU PHÁT</p>', unsafe_allow_html=True)
     st.markdown('<p class="main-title">Dashboard ODR</p>', unsafe_allow_html=True)
 
-    # Bộ lọc chuẩn có liên kết bưu cục theo từng tỉnh
     of1, of2, of3, of4, of5, of6 = st.columns(6)
     with of1: filter_date_odr = st.date_input("NGÀY", value=(), key="odr_date")
     with of2: filter_kh_odr = st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="odr_kh")
     with of3: filter_dt_odr = st.selectbox("MÃ ĐỐI TÁC", dt_list, key="odr_dt")
-    
-    # Lọc Tỉnh phát trước để lọc Bưu cục trực thuộc
     with of4: filter_cn_odr = st.selectbox("TỈNH PHÁT", tinh_list, key="odr_cn")
     
-    # Dynamic Bưu cục dựa trên Tỉnh đã chọn
     if filter_cn_odr != "Tất cả":
         bc_query = f"SELECT DISTINCT ma_buucuc_phat FROM orders WHERE tinh_phat = '{filter_cn_odr}' AND ma_buucuc_phat IS NOT NULL ORDER BY 1"
     else:
@@ -219,6 +215,47 @@ with tab_odr:
         st.subheader("💡 THÔNG TIN TỔNG QUAN ODR")
         st.info("Biểu đồ bên trái thể hiện sản lượng đơn hàng thực tế cần phát trong 7 ngày gần nhất dựa trên bộ lọc hiện tại của bạn.")
 
+    st.divider()
+
+    # ==========================================
+    # ĐÃ ĐỔI 2 BẢNG TOP 5 LÊN TRƯỚC BẢNG MA TRẬN
+    # ==========================================
+    top_col1, top_col2 = st.columns(2)
+
+    with top_col1:
+        st.markdown("🔴 **TOP 5 CHI NHÁNH THỰC HIỆN KÉM NHẤT**")
+        df_top_tinh = con.execute(f"""
+            SELECT 
+                COALESCE(tinh_phat, 'Chưa rõ') AS "Chi nhánh",
+                CONCAT(ROUND(RANDOM() * 10 + 70, 1), '%') AS "Tỷ lệ phát đúng giờ",
+                CONCAT(ROUND((RANDOM() - 0.5) * 10, 1), '%') AS "SS cùng kỳ",
+                CONCAT(CAST(CAST(RANDOM() * 300 + 100 AS INTEGER) AS VARCHAR), ' đơn') AS "Tồn quá hạn 2 ngày",
+                CONCAT('+', CAST(CAST(RANDOM() * 150 + 50 AS INTEGER) AS VARCHAR)) AS "SS cùng kỳ (2)"
+            FROM orders 
+            WHERE {where_sql_odr} AND tinh_phat IS NOT NULL
+            GROUP BY tinh_phat
+            LIMIT 5
+        """).fetchdf()
+        st.dataframe(df_top_tinh, use_container_width=True, hide_index=True)
+
+    with top_col2:
+        st.markdown("🔴 **TOP 5 BƯU CỤC THỰC HIỆN KÉM NHẤT**")
+        df_top_bc = con.execute(f"""
+            SELECT 
+                COALESCE(ma_buucuc_phat, 'Chưa rõ') AS "Bưu cục",
+                COALESCE(tinh_phat, 'Chưa rõ') AS "Chi nhánh",
+                CONCAT(ROUND(RANDOM() * 10 + 75, 1), '%') AS "Tỷ lệ phát đúng giờ",
+                CONCAT(ROUND((RANDOM() - 0.5) * 8, 1), '%') AS "SS cùng kỳ",
+                CONCAT(ROUND(RANDOM() * 10 + 85, 1), '%') AS "Tồn quá hạn 2 ngày",
+                CONCAT(ROUND((RANDOM() - 0.5) * 4, 1), '%') AS "SS cùng kỳ (2)"
+            FROM orders 
+            WHERE {where_sql_odr} AND ma_buucuc_phat IS NOT NULL
+            GROUP BY ma_buucuc_phat, tinh_phat
+            LIMIT 5
+        """).fetchdf()
+        st.dataframe(df_top_bc, use_container_width=True, hide_index=True)
+
+    st.write("")
     st.divider()
 
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
@@ -367,42 +404,3 @@ with tab_odr:
     """
 
     components.html(matrix_full_html, height=350, scrolling=True)
-
-    st.write("")
-    st.markdown("---")
-    
-    # 3. Trả lại 2 bảng Top 5 Chi nhánh và Bưu cục thực hiện kém nhất (Đã đổi lại đúng vị trí chuẩn)
-    top_col1, top_col2 = st.columns(2)
-
-    with top_col1:
-        st.markdown("🔴 **TOP 5 CHI NHÁNH THỰC HIỆN KÉM NHẤT**")
-        df_top_tinh = con.execute(f"""
-            SELECT 
-                COALESCE(tinh_phat, 'Chưa rõ') AS "Chi nhánh",
-                CONCAT(ROUND(RANDOM() * 10 + 70, 1), '%') AS "Tỷ lệ phát đúng giờ",
-                CONCAT(ROUND((RANDOM() - 0.5) * 10, 1), '%') AS "SS cùng kỳ",
-                CONCAT(CAST(CAST(RANDOM() * 300 + 100 AS INTEGER) AS VARCHAR), ' đơn') AS "Tồn quá hạn 2 ngày",
-                CONCAT('+', CAST(CAST(RANDOM() * 150 + 50 AS INTEGER) AS VARCHAR)) AS "SS cùng kỳ (2)"
-            FROM orders 
-            WHERE {where_sql_odr} AND tinh_phat IS NOT NULL
-            GROUP BY tinh_phat
-            LIMIT 5
-        """).fetchdf()
-        st.dataframe(df_top_tinh, use_container_width=True, hide_index=True)
-
-    with top_col2:
-        st.markdown("🔴 **TOP 5 BƯU CỤC THỰC HIỆN KÉM NHẤT**")
-        df_top_bc = con.execute(f"""
-            SELECT 
-                COALESCE(ma_buucuc_phat, 'Chưa rõ') AS "Bưu cục",
-                COALESCE(tinh_phat, 'Chưa rõ') AS "Chi nhánh",
-                CONCAT(ROUND(RANDOM() * 10 + 75, 1), '%') AS "Tỷ lệ phát đúng giờ",
-                CONCAT(ROUND((RANDOM() - 0.5) * 8, 1), '%') AS "SS cùng kỳ",
-                CONCAT(ROUND(RANDOM() * 10 + 85, 1), '%') AS "Tồn quá hạn 2 ngày",
-                CONCAT(ROUND((RANDOM() - 0.5) * 4, 1), '%') AS "SS cùng kỳ (2)"
-            FROM orders 
-            WHERE {where_sql_odr} AND ma_buucuc_phat IS NOT NULL
-            GROUP BY ma_buucuc_phat, tinh_phat
-            LIMIT 5
-        """).fetchdf()
-        st.dataframe(df_top_bc, use_container_width=True, hide_index=True)
