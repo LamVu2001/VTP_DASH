@@ -27,6 +27,45 @@ st.markdown("""
     .metric-value { font-size: 26px; font-weight: bold; color: #111111; margin: 4px 0; }
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
+    
+    /* Style riêng cho 3 bảng Tồn Khâu */
+    .ton-section-title {
+        font-size: 14px;
+        font-weight: bold;
+        color: #111111;
+        border-left: 4px solid #c62828;
+        padding-left: 8px;
+        margin-top: 25px;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+    }
+    .ton-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        background-color: #ffffff;
+        border: 1px solid #d3d3d3;
+        margin-bottom: 15px;
+    }
+    .ton-table th {
+        background-color: #c62828;
+        color: #ffffff;
+        text-align: center;
+        padding: 8px 6px;
+        border: 1px solid #b71c1c;
+        font-weight: bold;
+    }
+    .ton-table td {
+        padding: 6px 8px;
+        border: 1px solid #e0e0e0;
+        text-align: center;
+    }
+    .ton-table tr.total-row {
+        background-color: #f5f5f5;
+        font-weight: bold;
+    }
+    .ton-highlight-red { color: #c62828; font-weight: bold; }
+    .ton-highlight-orange { color: #e65100; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -273,9 +312,7 @@ with tab_odr:
     st.write("")
     st.divider()
 
-    # =========================================================================
-    # 2. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (ĐÃ BỔ SUNG CÁC CHỈ TIÊU VÀ TỒN QUÁ HẠN)
-    # =========================================================================
+    # 2. BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
     st.info("💡 Bấm `[+]` tại Sản lượng phải phát để xem chi tiết theo Đối tác -> Tỉnh -> Bưu cục, hoặc bấm `[+]` tại % Tồn quá hạn 1 ngày để xổ rộng 4 chỉ tiêu tồn quá hạn.")
 
@@ -293,7 +330,6 @@ with tab_odr:
 
     m_current = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
 
-    # Truy vấn cấp 1: Mã đối tác
     dt_rows_db = con.execute(f"""
         SELECT COALESCE(ma_doitac, 'Khác') as dt, COUNT(*) as sl 
         FROM orders WHERE {where_sql_odr} GROUP BY ma_doitac ORDER BY sl DESC LIMIT 5
@@ -305,7 +341,6 @@ with tab_odr:
         dt_sl = dt_row[1]
         dt_clean_id = f"dt_{idx_dt}"
 
-        # Cấp 1: Thẻ Mã đối tác
         matrix_rows_html += f"""
         <tr class="sub-row-1 group_root" style="display:none; background-color: #f4f6f8; font-weight:600;" onclick="toggleRow('{dt_clean_id}', event, 'btn_{dt_clean_id}')">
             <td style="padding-left: 20px;"><span class="toggle-btn" id="btn_{dt_clean_id}">[+]</span> Đối tác: <b>{dt_name}</b></td>
@@ -316,7 +351,6 @@ with tab_odr:
         </tr>
         """
 
-        # Truy vấn cấp 2: Tỉnh phát của đối tác này
         tinh_rows_db = con.execute(f"""
             SELECT COALESCE(tinh_phat, 'Khác') as tinh, COUNT(*) as sl 
             FROM orders WHERE {where_sql_odr} AND ma_doitac = '{dt_name}' 
@@ -328,7 +362,6 @@ with tab_odr:
             tinh_sl = tinh_row[1]
             tinh_clean_id = f"{dt_clean_id}_tinh_{idx_tinh}"
 
-            # Cấp 2: Thẻ Tỉnh phát
             matrix_rows_html += f"""
             <tr class="sub-row-2 {dt_clean_id}" style="display:none; background-color: #ffffff; color: #1565c0;" onclick="toggleRow('{tinh_clean_id}', event, 'btn_{tinh_clean_id}')">
                 <td style="padding-left: 40px;"><span class="toggle-btn" id="btn_{tinh_clean_id}">[+]</span> Tỉnh: <b>{tinh_name}</b></td>
@@ -339,7 +372,6 @@ with tab_odr:
             </tr>
             """
 
-            # Truy vấn cấp 3: Bưu cục phát của Tỉnh này
             bc_rows_db = con.execute(f"""
                 SELECT COALESCE(ma_buucuc_phat, 'Khác') as bc, COUNT(*) as sl 
                 FROM orders WHERE {where_sql_odr} AND ma_doitac = '{dt_name}' AND tinh_phat = '{tinh_name}'
@@ -350,7 +382,6 @@ with tab_odr:
                 bc_name = bc_row[0]
                 bc_sl = bc_row[1]
 
-                # Cấp 3: Thẻ Bưu cục phát
                 matrix_rows_html += f"""
                 <tr class="sub-row-3 {tinh_clean_id}" style="display:none; background-color: #fafafa; font-style: italic; color: #555;">
                     <td style="padding-left: 60px;">• Bưu cục: <b>{bc_name}</b></td>
@@ -453,7 +484,6 @@ with tab_odr:
                 <td>{m_current*0.95:,.0f}</td><td><b>{m_current*0.95:,.0f}</b></td><td class="text-red">-1.20%</td>
             </tr>
 
-            <!-- CÁC CHỈ TIÊU BỔ SUNG THEO YÊU CẦU -->
             <tr>
                 <td style="font-weight: bold;">% Phát thành công</td>
                 <td style="text-align: center;">99.00</td>
@@ -495,7 +525,6 @@ with tab_odr:
                 <td>21.65</td><td>21.07</td><td class="text-red">-2.22</td>
             </tr>
 
-            <!-- NHÓM % TỒN QUÁ HẠN (TƯƠNG TÁC [+]/[-]) -->
             <tr class="row-group" onclick="toggleRow('group_ton', event, 'btn_ton')">
                 <td><span class="toggle-btn" id="btn_ton">[+]</span> <b>% Tồn quá hạn 1 ngày</b></td>
                 <td>-</td><td>-</td>
@@ -561,3 +590,226 @@ with tab_odr:
     """
 
     components.html(matrix_full_html, height=520, scrolling=True)
+
+    st.write("")
+    st.divider()
+
+    # =========================================================================
+    # 3. BA BẢNG TỒN KHÂU (FM, MM, LM) DƯỚI CÙNG
+    # =========================================================================
+    
+    # --- BẢNG 1: TỒN KHÂU FM ---
+    st.markdown('<p class="ton-section-title">TỒN KHÂU FM CÁC BƯU GỬI CHƯA XUẤT SẠCH – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
+    html_fm = """
+    <table class="ton-table">
+        <thead>
+            <tr>
+                <th style="width: 16%;">Chi Nhánh</th>
+                <th style="width: 14%;">Sản lượng đã thu thành công</th>
+                <th style="width: 10%;">Tổng tồn</th>
+                <th style="width: 10%;">Tỷ lệ tồn</th>
+                <th style="width: 12%;">Tồn quá 1 ngày</th>
+                <th style="width: 12%;">Tồn quá 2 ngày</th>
+                <th style="width: 13%;">Tỷ lệ tồn quá 1 ngày</th>
+                <th style="width: 13%;">Tỷ lệ tồn quá 2 ngày</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="total-row">
+                <td>TOTAL</td>
+                <td>312,981</td>
+                <td>1,381</td>
+                <td>1.12%</td>
+                <td class="ton-highlight-red">111</td>
+                <td class="ton-highlight-orange">111</td>
+                <td class="ton-highlight-red">10.03%</td>
+                <td class="ton-highlight-orange">10.03%</td>
+            </tr>
+            <tr>
+                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> HNI</td>
+                <td>12,981</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td class="ton-highlight-red">2.11%</td>
+                <td class="ton-highlight-orange">2.11%</td>
+            </tr>
+            <tr>
+                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> HCM</td>
+                <td>12,981</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td class="ton-highlight-red">2.11%</td>
+                <td class="ton-highlight-orange">2.11%</td>
+            </tr>
+            <tr>
+                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> DLK</td>
+                <td>12,981</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td class="ton-highlight-red">2.11%</td>
+                <td class="ton-highlight-orange">2.11%</td>
+            </tr>
+            <tr>
+                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> GLI</td>
+                <td>12,981</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td class="ton-highlight-red">2.11%</td>
+                <td class="ton-highlight-orange">2.11%</td>
+            </tr>
+        </tbody>
+    </table>
+    """
+    st.markdown(html_fm, unsafe_allow_html=True)
+
+    # --- BẢNG 2: TỒN KHÂU MM ---
+    st.markdown('<p class="ton-section-title">TỒN KHÂU MM CÁC BƯU GỬI CHƯA KẾT NỐI – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
+    html_mm = """
+    <table class="ton-table">
+        <thead>
+            <tr>
+                <th style="width: 16%;">Đơn vị kết nối</th>
+                <th style="width: 14%;">Sản lượng đã nhận bàn giao</th>
+                <th style="width: 10%;">Tổng tồn</th>
+                <th style="width: 10%;">Tỷ lệ tồn</th>
+                <th style="width: 12%;">Quá 6H</th>
+                <th style="width: 12%;">Quá 12H</th>
+                <th style="width: 13%;">Quá 24H</th>
+                <th style="width: 13%;">Quá 48H</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="total-row">
+                <td>TOTAL</td>
+                <td class="ton-highlight-red">222</td>
+                <td>1,381</td>
+                <td>1.12%</td>
+                <td class="ton-highlight-red">111</td>
+                <td class="ton-highlight-orange">111</td>
+                <td>13</td>
+                <td>23</td>
+            </tr>
+            <tr>
+                <td>TTKT3</td>
+                <td class="ton-highlight-red">5</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td>1</td>
+                <td>2</td>
+            </tr>
+            <tr>
+                <td>HNIVC</td>
+                <td class="ton-highlight-red">5</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td>1</td>
+                <td>2</td>
+            </tr>
+            <tr>
+                <td>DVVC</td>
+                <td class="ton-highlight-red">5</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td>1</td>
+                <td>2</td>
+            </tr>
+            <tr>
+                <td>DVVTNN3</td>
+                <td class="ton-highlight-red">5</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td>1</td>
+                <td>2</td>
+            </tr>
+        </tbody>
+    </table>
+    """
+    st.markdown(html_mm, unsafe_allow_html=True)
+
+    # --- BẢNG 3: TỒN KHÂU LM ---
+    st.markdown('<p class="ton-section-title">TỒN KHÂU LM CÁC BƯU GỬI CHƯA PHÁT – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</p>', unsafe_allow_html=True)
+    html_lm = """
+    <table class="ton-table">
+        <thead>
+            <tr>
+                <th style="width: 16%;">Chi nhánh</th>
+                <th style="width: 14%;">Sản lượng đã phát thành công</th>
+                <th style="width: 10%;">Tổng tồn</th>
+                <th style="width: 10%;">Tỷ lệ tồn</th>
+                <th style="width: 12%;">Tồn quá 1 ngày</th>
+                <th style="width: 12%;">Tồn quá 2 ngày</th>
+                <th style="width: 13%;">Tồn quá 3 ngày</th>
+                <th style="width: 13%;">Tồn quá 4 ngày</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="total-row">
+                <td>TOTAL</td>
+                <td>312,981</td>
+                <td>1,381</td>
+                <td>1.12%</td>
+                <td class="ton-highlight-red">111</td>
+                <td class="ton-highlight-orange">111</td>
+                <td class="ton-highlight-orange">10.03%</td>
+                <td class="ton-highlight-orange">10.03%</td>
+            </tr>
+            <tr>
+                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> HNI</td>
+                <td>12,981</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td class="ton-highlight-orange">2.11%</td>
+                <td class="ton-highlight-orange">2.11%</td>
+            </tr>
+            <tr>
+                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> HCM</td>
+                <td>12,981</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td class="ton-highlight-orange">2.11%</td>
+                <td class="ton-highlight-orange">2.11%</td>
+            </tr>
+            <tr>
+                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> DLK</td>
+                <td>12,981</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td class="ton-highlight-orange">2.11%</td>
+                <td class="ton-highlight-orange">2.11%</td>
+            </tr>
+            <tr>
+                <td><span style="font-size:10px; border:1px solid #999; padding:0 3px;">+</span> GLI</td>
+                <td>12,981</td>
+                <td>381</td>
+                <td>4.2%</td>
+                <td class="ton-highlight-red">2</td>
+                <td class="ton-highlight-orange">3</td>
+                <td class="ton-highlight-orange">2.11%</td>
+                <td class="ton-highlight-orange">2.11%</td>
+            </tr>
+        </tbody>
+    </table>
+    """
+    st.markdown(html_lm, unsafe_allow_html=True)
