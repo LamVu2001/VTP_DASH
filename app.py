@@ -3,7 +3,6 @@ import duckdb
 import plotly.express as px
 from pathlib import Path
 import gdown
-from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
@@ -282,10 +281,10 @@ with tab_odr:
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True, height=350)
 
-    # --- 2. BÁO CÁO PHÂN CẤP CHẤT LƯỢNG KHÂU PHÁT (ĐẦY ĐỦ CỤC 7 NGÀY, 5 TUẦN, THÁNG) ---
+    # --- 2. BÁO CÁO PHÂN CẤP CHẤT LƯỢNG KHÂU PHÁT (ĐÃ SỬA CHUẨN ĐỊNH DẠNG NGÀY THÁNG NGANG) ---
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("📊 BÁO CÁO PHÂN CẤP CHẤT LƯỢNG KHÂU PHÁT (EXECUTIVE REPORT)")
-    st.info("💡 Bấm vào từng khu vực tỉnh bên dưới để mở rộng xem chi tiết bưu cục theo 7 ngày gần nhất, 5 tuần gần nhất và Tháng.")
+    st.info("💡 Bấm vào từng khu vực tỉnh bên dưới để mở rộng xem chi tiết bưu cục và số liệu 7 ngày gần nhất định dạng chuẩn.")
 
     df_tins_rpt = con.execute(f"""
         SELECT tinh_phat, COUNT(*) AS tong_don, ROUND(SUM(tong_cuoc)/1e6, 1) AS doanh_thu
@@ -297,26 +296,27 @@ with tab_odr:
     """).fetchall()
 
     for tinh, tong_don, doanh_thu in df_tins_rpt:
-        # Mở rộng hiển thị chi tiết theo định dạng báo cáo quản trị 3 cụm thời gian
         with st.expander(f"[+] Khu vực Tỉnh phát: {tinh}  |  Tổng đơn: {tong_don:,}  |  Doanh thu: {doanh_thu:,.1f} Tr"):
             
-            st.markdown(f"**📈 Chi tiết số liệu theo thời gian của Tỉnh: {tinh}**")
+            st.markdown(f"**📊 Bảng tổng hợp số liệu theo ngày của Tỉnh: {tinh}**")
             
-            # Truy vấn lấy số liệu 7 ngày gần nhất của tỉnh này
-            df_7days = con.execute(f"""
-                SELECT clean_date as Ngay, COUNT(*) as SanLuong 
+            # Truy vấn xoay ngang 7 ngày dạng DD/MM chính xác
+            df_pivot_7days = con.execute(f"""
+                SELECT 
+                    strftime(clean_date, '%d/%m') as Ngay,
+                    COUNT(*) as SanLuong
                 FROM orders 
                 WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND clean_date IS NOT NULL 
-                GROUP BY Ngay ORDER BY Ngay DESC LIMIT 7
+                GROUP BY clean_date 
+                ORDER BY clean_date DESC 
+                LIMIT 7
             """).fetchdf()
             
-            if not df_7days.empty:
-                st.markdown("🔹 **7 ngày gần nhất:**")
-                # Đảo ngược lại theo thứ tự từ quá khứ tới hiện tại để dễ nhìn trên bảng
-                df_7days = df_7days.sort_values("Ngay")
-                st.dataframe(df_7days.T, use_container_width=True)
+            if not df_pivot_7days.empty:
+                df_pivot_7days = df_pivot_7days.sort_values("Ngay").T
+                df_pivot_7days.index = ["Chỉ tiêu", "Sản lượng"]
+                st.dataframe(df_pivot_7days, use_container_width=True)
 
-            # Truy vấn danh sách bưu cục con chi tiết
             st.markdown(f"🔹 **Danh sách Bưu cục trực thuộc {tinh}:**")
             df_bc_sub = con.execute(f"""
                 SELECT ma_buucuc_phat AS "Mã bưu cục", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
