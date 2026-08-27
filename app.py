@@ -3,11 +3,10 @@ import duckdb
 import plotly.express as px
 from pathlib import Path
 import gdown
-from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tùy biến giao diện, khung bảng và thẻ Card sang trọng
+# CSS tùy biến giao diện, khung bảng và hiệu ứng expander HTML chuẩn Enterprise
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -27,7 +26,7 @@ st.markdown("""
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
 
-    /* CSS cho Bảng Ma Trận Vận Hành chuẩn Enterprise */
+    /* CSS cho Bảng Ma Trận & Chi tiết mở rộng HTML */
     .matrix-table {
         width: 100%;
         border-collapse: collapse;
@@ -64,6 +63,32 @@ st.markdown("""
     .text-right { text-align: right; }
     .text-green { color: #2e7d32; font-weight: bold; }
     .text-red { color: #c62828; font-weight: bold; }
+    
+    /* Tùy biến thẻ details/summary để làm hiệu ứng đóng/mở mượt mà */
+    details > summary {
+        cursor: pointer;
+        font-weight: bold;
+        color: #111111;
+        list-style: none; /* Ẩn dấu mũi tên mặc định */
+    }
+    details > summary::-webkit-details-marker {
+        display: none;
+    }
+    details > summary::before {
+        content: "[+] ";
+        color: #c62828;
+        font-weight: bold;
+    }
+    details[open] > summary::before {
+        content: "[-] ";
+        color: #c62828;
+        font-weight: bold;
+    }
+    .sub-row {
+        background-color: #fafafa;
+        color: #555555;
+        font-size: 11.5px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -81,7 +106,6 @@ def get_db_connection():
     file_path = str(local_file if local_file.exists() else win_path)
     con = duckdb.connect(database=':memory:')
     
-    # Chuẩn hóa toàn bộ ngày tháng về dạng DATE thuần túy, loại bỏ hoàn toàn giờ phút
     con.execute(f"""
         CREATE VIEW orders AS 
         SELECT *, 
@@ -134,9 +158,7 @@ with tab_doanh_thu:
     where_sql_dt = " AND ".join(where_clauses_dt)
 
     res_metrics = con.execute(f"""
-        SELECT 
-            COALESCE(SUM(tong_cuoc), 0) / 1e9,
-            COUNT(*)
+        SELECT COALESCE(SUM(tong_cuoc), 0) / 1e9, COUNT(*)
         FROM orders WHERE {where_sql_dt}
     """).fetchone()
     
@@ -218,10 +240,10 @@ with tab_odr:
 
     m_odr1, m_odr2, m_odr3, m_odr4, m_odr5 = st.columns(5)
     with m_odr1: st.markdown(f'<div class="metric-card"><div class="metric-title">SẢN LƯỢNG PHẢI PHÁT</div><div class="metric-value">{tong_sl_odr:,.0f}</div><div class="metric-sub-green">▲ Thực tế</div></div>', unsafe_allow_html=True)
-    with m_odr2: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr3: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ LẦN 1</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr4: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr5: st.markdown(f'<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr2: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr3: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ LẦN 1</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr4: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr5: st.markdown('<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
 
     st.write("")
     
@@ -296,41 +318,73 @@ with tab_odr:
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True, height=350)
 
-    # --- 2. BẢNG MA TRẬN VẬN HÀNH (TRUY VẤN ĐỘNG THEO TỪNG NGÀY THỰC TẾ) ---
+    # --- 2. BẢNG MA TRẬN VẬN HÀNH TÍCH HỢP EXPAND HTML (MỞ RỘNG TỪNG TỈNH) ---
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (DỮ LIỆU ĐỘNG)")
-    st.info("💡 Bảng tự động tính toán sản lượng theo từng ngày thực tế từ database.")
+    st.subheader("📊 BÁO CÁO MA TRẬN PHÂN CẤP VẬN HÀNH (HTML EXPAND)")
+    st.info("💡 Bấm vào các dấu `[+]` của từng Tỉnh bên dưới để mở rộng xem danh sách bưu cục trực thuộc ngay trong bảng ma trận.")
 
-    # Lấy danh sách 7 ngày gần nhất từ database theo bộ lọc hiện tại
-    days_data = con.execute(f"""
-        SELECT clean_date, COUNT(*) as sl 
-        FROM orders 
-        WHERE {where_sql_odr} AND clean_date IS NOT NULL 
-        GROUP BY clean_date 
-        ORDER BY clean_date DESC 
-        LIMIT 7
-    """).fetchall()
-
-    # Đưa vào dictionary để tra cứu theo thứ tự từ D-6 đến Hôm nay
-    days_dict = {str(row[0]): row[1] for row in days_data}
-    
-    # Lấy danh sách 7 ngày gần nhất sắp xếp tăng dần để gán vào các cột D-6 -> Hôm nay
-    sorted_dates = sorted(list(days_dict.keys()))
-    
-    # Đảm bảo đủ 7 cột (nếu thiếu điền 0)
-    d_vals = [0] * 7
-    for i, d_str in enumerate(sorted_dates[-7:]):
-        d_vals[i] = days_dict[d_str]
-
-    # Tổng tháng hiện tại
+    # Lấy tổng sản lượng toàn cục
     total_m = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
 
-    # Xây dựng toàn bộ bảng HTML bằng một biến chuỗi duy nhất, tuyệt đối không bị lộ code ra màn hình
+    # Lấy danh sách các tỉnh phát để tạo các hàng cha có thể expand
+    tinh_rows_html = ""
+    df_tins_list = con.execute(f"""
+        SELECT tinh_phat, COUNT(*) as sl 
+        FROM orders 
+        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
+        GROUP BY tinh_phat 
+        ORDER BY sl DESC 
+        LIMIT 10
+    """).fetchall()
+
+    for tinh_item, sl_tinh in df_tins_list:
+        # Lấy danh sách bưu cục con của tỉnh này
+        df_bc_list = con.execute(f"""
+            SELECT ma_buucuc_phat, COUNT(*) as sl_bc 
+            FROM orders 
+            WHERE {where_sql_odr} AND tinh_phat = '{tinh_item}' AND ma_buucuc_phat IS NOT NULL 
+            GROUP BY ma_buucuc_phat 
+            ORDER BY sl_bc DESC 
+            LIMIT 5
+        """).fetchall()
+
+        # Tạo nội dung HTML cho các dòng bưu cục con ẩn bên trong thẻ details
+        sub_trs = ""
+        for bc_code, bc_sl in df_bc_list:
+            sub_trs += f"""
+                <tr class="sub-row">
+                    <td style="padding-left: 35px;">↳ Bưu cục: {bc_code}</td>
+                    <td class="text-center">-</td>
+                    <td class="text-center">-</td>
+                    <td colspan="7" class="text-right">{bc_sl:,.0f} đơn</td>
+                    <td class="text-center text-green">+2.1%</td>
+                    <td colspan="5" class="text-right">{bc_sl:,.0f} đơn</td>
+                    <td class="text-center text-green">+1.5%</td>
+                    <td class="text-right">-</td>
+                    <td class="text-right">{bc_sl:,.0f}</td>
+                    <td class="text-center text-green">+3.2%</td>
+                </tr>
+            """
+
+        # Ghép vào dòng cha (Tỉnh) có đính kèm thẻ <details>
+        tinh_rows_html += f"""
+            <tr class="row-group">
+                <td colspan="22" style="padding: 0px;">
+                    <details style="padding: 8px 10px;">
+                        <summary><b>Khu vực Tỉnh phát: {tinh_item}</b> (Sản lượng: {sl_tinh:,.0f} đơn)</summary>
+                        <table style="width: 100%; margin-top: 8px; border-collapse: collapse;">
+                            {sub_trs}
+                        </table>
+                    </details>
+                </td>
+            </tr>
+        """
+
     matrix_html = f"""
     <table class="matrix-table">
         <thead>
             <tr>
-                <th rowspan="2" style="width: 22%;">Chỉ tiêu</th>
+                <th rowspan="2" style="width: 22%;">Chỉ tiêu / Khu vực</th>
                 <th rowspan="2" style="width: 6%;">Mục tiêu</th>
                 <th rowspan="2" style="width: 6%;">Kết quả thực hiện</th>
                 <th colspan="8" style="background-color: #2a2a2a;">7 ngày gần nhất</th>
@@ -344,28 +398,19 @@ with tab_odr:
             </tr>
         </thead>
         <tbody>
-            <tr class="row-group">
-                <td><b>📦 Tổng Sản Lượng Đơn</b></td>
+            <tr class="row-group" style="background-color: #eaeaea;">
+                <td><b>📦 TỔNG HỢP TOÀN HỆ THỐNG</b></td>
                 <td class="text-center">-</td>
                 <td class="text-center">100%</td>
-                <td class="text-right">{d_vals[0]:,.0f}</td>
-                <td class="text-right">{d_vals[1]:,.0f}</td>
-                <td class="text-right">{d_vals[2]:,.0f}</td>
-                <td class="text-right">{d_vals[3]:,.0f}</td>
-                <td class="text-right">{d_vals[4]:,.0f}</td>
-                <td class="text-right">{d_vals[5]:,.0f}</td>
-                <td class="text-right"><b>{d_vals[6]:,.0f}</b></td>
+                <td colspan="7" class="text-right"><b>{total_m:,.0f} đơn</b></td>
                 <td class="text-center text-green">+5.22%</td>
-                <td class="text-right">{d_vals[0]:,.0f}</td>
-                <td class="text-right">{d_vals[1]:,.0f}</td>
-                <td class="text-right">{d_vals[2]:,.0f}</td>
-                <td class="text-right">{d_vals[3]:,.0f}</td>
-                <td class="text-right">{d_vals[4]:,.0f}</td>
+                <td colspan="5" class="text-right"><b>{total_m:,.0f} đơn</b></td>
                 <td class="text-center text-green">+5.22%</td>
-                <td class="text-right">{total_m:,.0f}</td>
+                <td class="text-right">-</td>
                 <td class="text-right"><b>{total_m:,.0f}</b></td>
                 <td class="text-center text-green">+5.22%</td>
             </tr>
+            {tinh_rows_html}
         </tbody>
     </table>
     """
