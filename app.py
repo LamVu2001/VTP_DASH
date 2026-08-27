@@ -111,7 +111,8 @@ with tab_doanh_thu:
     with m5: st.markdown(f'<div class="metric-card"><div class="metric-title">TỔNG SẢN LƯỢNG</div><div class="metric-value">{tong_sl:,.0f}</div><div class="metric-sub-green">▲ Đơn thực tế</div></div>', unsafe_allow_html=True)
 
     st.write("")
-    c_chart, c_top = st.columns([2.2, 1])
+    # Điều chỉnh tỉ lệ hiển thị cân đối [2, 1.3] để bảng top 10 hiển thị rộng và đủ 10 dòng
+    c_chart, c_top = st.columns([2, 1.3])
     
     with c_chart:
         st.subheader("XU HƯỚNG DOANH THU 7 NGÀY GẦN NHẤT (TỶ ĐỒNG)")
@@ -125,20 +126,20 @@ with tab_doanh_thu:
                 df_daily = df_daily.sort_values("ngay")
                 fig = px.line(df_daily, x="ngay", y="DoanhThu", markers=True)
                 fig.update_traces(line=dict(color="#c62828", width=2.5), marker=dict(size=6, color="#c62828"))
-                fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
+                fig.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
                 st.plotly_chart(fig, use_container_width=True)
         except Exception:
             pass
 
     with c_top:
         st.subheader("TOP 10 KHÁCH HÀNG GIẢM DOANH THU")
-        # Đã chỉnh thành LIMIT 10 để hiện đủ 10 khách hàng
+        # Đặt LIMIT 10 và chiều cao 380 để hiển thị trọn vẹn đủ 10 dòng
         df_top = con.execute(f"""
             SELECT ma_khgui AS "MÃ KH", ROUND(SUM(tong_cuoc)/1e6, 1) AS "DOANH THU (TR)" 
             FROM orders WHERE {where_sql_dt} AND ma_khgui IS NOT NULL 
             GROUP BY ma_khgui ORDER BY "DOANH THU (TR)" DESC LIMIT 10
         """).fetchdf()
-        st.dataframe(df_top, use_container_width=True, hide_index=True, height=280)
+        st.dataframe(df_top, use_container_width=True, hide_index=True, height=380)
 
     st.divider()
     st.subheader("📋 Bảng Tổng Hợp Chi Tiết Dữ Liệu Lọc")
@@ -186,8 +187,7 @@ with tab_odr:
 
     st.write("")
     
-    # Bổ sung biểu đồ trực quan xu hướng sản lượng phát cho Tab ODR
-    c_odr_chart, c_odr_right = st.columns([2.2, 1])
+    c_odr_chart, c_odr_right = st.columns([2, 1.3])
     with c_odr_chart:
         st.subheader("📈 XU HƯỚNG SẢN LƯỢNG PHÁT 7 NGÀY GẦN NHẤT")
         try:
@@ -200,7 +200,7 @@ with tab_odr:
                 df_odr_daily = df_odr_daily.sort_values("ngay")
                 fig_odr = px.line(df_odr_daily, x="ngay", y="SanLuong", markers=True)
                 fig_odr.update_traces(line=dict(color="#c62828", width=2.5), marker=dict(size=6, color="#c62828"))
-                fig_odr.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
+                fig_odr.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
                 st.plotly_chart(fig_odr, use_container_width=True)
         except Exception:
             pass
