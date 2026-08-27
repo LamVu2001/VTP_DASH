@@ -289,7 +289,6 @@ with tab_odr:
 
     m_current = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
 
-    # TOÀN BỘ ĐỐI TÁC -> TỈNH -> BƯU CỤC
     all_tree_data = con.execute(f"""
         SELECT 
             COALESCE(ma_doitac, 'Khác') as dt,
@@ -535,8 +534,8 @@ with tab_odr:
     </html>
     """
 
-    # THU GỌN CHIỀU CAO XUỐNG 380PX ĐỂ LOẠI BỎ KHOẢNG TRẮNG TO ĐÙNG
-    components.html(matrix_full_html, height=380, scrolling=True)
+    # ĐÃ TĂNG CHIỀU CAO KHUNG MA TRẬN LÊN 480PX (TĂNG 100PX)
+    components.html(matrix_full_html, height=480, scrolling=True)
 
     # =========================================================================
     # 3. BA BẢNG TỒN KHÂU (LẤY DỮ LIỆU SIÊU TỐC BẰNG 1 CÂU QUERY)
