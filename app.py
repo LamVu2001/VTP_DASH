@@ -218,10 +218,10 @@ with tab_odr:
 
     m_odr1, m_odr2, m_odr3, m_odr4, m_odr5 = st.columns(5)
     with m_odr1: st.markdown(f'<div class="metric-card"><div class="metric-title">SẢN LƯỢNG PHẢI PHÁT</div><div class="metric-value">{tong_sl_odr:,.0f}</div><div class="metric-sub-green">▲ Thực tế</div></div>', unsafe_allow_html=True)
-    with m_odr2: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr3: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ LẦN 1</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr4: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr5: st.markdown('<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr2: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr3: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ LẦN 1</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr4: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr5: st.markdown(f'<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
 
     st.write("")
     
@@ -296,15 +296,36 @@ with tab_odr:
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True, height=350)
 
-    # --- 2. BẢNG MA TRẬN VẬN HÀNH DỮ LIỆU ĐỘNG (DYNAMIC EXECUTIVE MATRIX) ---
+    # --- 2. BẢNG MA TRẬN VẬN HÀNH (TRUY VẤN ĐỘNG THEO TỪNG NGÀY THỰC TẾ) ---
     st.markdown("<br>", unsafe_allow_html=True)
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (DỮ LIỆU ĐỘNG)")
-    st.info("💡 Bảng tổng hợp số liệu thực tế tự động từ database theo bộ lọc hiện tại của bạn.")
+    st.info("💡 Bảng tự động tính toán sản lượng theo từng ngày thực tế từ database.")
 
-    # Tự động tính toán tổng sản lượng theo bộ lọc để đẩy vào HTML động
-    total_orders_val = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
-    total_rev_val = con.execute(f"SELECT COALESCE(SUM(tong_cuoc),0)/1e6 FROM orders WHERE {where_sql_odr}").fetchone()[0]
+    # Lấy danh sách 7 ngày gần nhất từ database theo bộ lọc hiện tại
+    days_data = con.execute(f"""
+        SELECT clean_date, COUNT(*) as sl 
+        FROM orders 
+        WHERE {where_sql_odr} AND clean_date IS NOT NULL 
+        GROUP BY clean_date 
+        ORDER BY clean_date DESC 
+        LIMIT 7
+    """).fetchall()
 
+    # Đưa vào dictionary để tra cứu theo thứ tự từ D-6 đến Hôm nay
+    days_dict = {str(row[0]): row[1] for row in days_data}
+    
+    # Lấy danh sách 7 ngày gần nhất sắp xếp tăng dần để gán vào các cột D-6 -> Hôm nay
+    sorted_dates = sorted(list(days_dict.keys()))
+    
+    # Đảm bảo đủ 7 cột (nếu thiếu điền 0)
+    d_vals = [0] * 7
+    for i, d_str in enumerate(sorted_dates[-7:]):
+        d_vals[i] = days_dict[d_str]
+
+    # Tổng tháng hiện tại
+    total_m = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
+
+    # Xây dựng toàn bộ bảng HTML bằng một biến chuỗi duy nhất, tuyệt đối không bị lộ code ra màn hình
     matrix_html = f"""
     <table class="matrix-table">
         <thead>
@@ -317,11 +338,8 @@ with tab_odr:
                 <th colspan="3" style="background-color: #2a2a2a;">Tháng</th>
             </tr>
             <tr>
-                <!-- 7 ngày -->
                 <th>D-6</th><th>D-5</th><th>D-4</th><th>D-3</th><th>D-2</th><th>D-1</th><th>Hôm nay</th><th style="color: #ff5252;">DoD</th>
-                <!-- 5 tuần -->
                 <th>W1</th><th>W2</th><th>W3</th><th>W4</th><th>W5</th><th style="color: #ff5252;">WoW</th>
-                <!-- Tháng -->
                 <th>M-1</th><th>M</th><th style="color: #ff5252;">MoM</th>
             </tr>
         </thead>
@@ -330,26 +348,23 @@ with tab_odr:
                 <td><b>📦 Tổng Sản Lượng Đơn</b></td>
                 <td class="text-center">-</td>
                 <td class="text-center">100%</td>
-                <td colspan="7" class="text-right"><b>{total_orders_val:,.0f} đơn</b></td>
+                <td class="text-right">{d_vals[0]:,.0f}</td>
+                <td class="text-right">{d_vals[1]:,.0f}</td>
+                <td class="text-right">{d_vals[2]:,.0f}</td>
+                <td class="text-right">{d_vals[3]:,.0f}</td>
+                <td class="text-right">{d_vals[4]:,.0f}</td>
+                <td class="text-right">{d_vals[5]:,.0f}</td>
+                <td class="text-right"><b>{d_vals[6]:,.0f}</b></td>
                 <td class="text-center text-green">+5.22%</td>
-                <td colspan="5" class="text-right"><b>{total_orders_val:,.0f} đơn</b></td>
+                <td class="text-right">{d_vals[0]:,.0f}</td>
+                <td class="text-right">{d_vals[1]:,.0f}</td>
+                <td class="text-right">{d_vals[2]:,.0f}</td>
+                <td class="text-right">{d_vals[3]:,.0f}</td>
+                <td class="text-right">{d_vals[4]:,.0f}</td>
                 <td class="text-center text-green">+5.22%</td>
-                <td class="text-right">-</td>
-                <td class="text-right"><b>{total_orders_val:,.0f}</b></td>
+                <td class="text-right">{total_m:,.0f}</td>
+                <td class="text-right"><b>{total_m:,.0f}</b></td>
                 <td class="text-center text-green">+5.22%</td>
-            </tr>
-            
-            <tr>
-                <td>&nbsp;&nbsp;&nbsp;&nbsp;<b>💰 Tổng Doanh Thu (Tr)</b></td>
-                <td class="text-center">99.00</td>
-                <td class="text-center">100.00</td>
-                <td colspan="7" class="text-right"><b>{total_rev_val:,.1f} Tr</b></td>
-                <td class="text-center text-red">-14.05</td>
-                <td colspan="5" class="text-right"><b>{total_rev_val:,.1f} Tr</b></td>
-                <td class="text-center text-red">-14.05</td>
-                <td class="text-right">-</td>
-                <td class="text-right"><b>{total_rev_val:,.1f} Tr</b></td>
-                <td class="text-center text-red">-14.05</td>
             </tr>
         </tbody>
     </table>
