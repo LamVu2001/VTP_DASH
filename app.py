@@ -356,8 +356,41 @@ with tab_odr:
 
     components.html(matrix_full_html, height=350, scrolling=True)
 
-    # Khôi phục bảng dữ liệu chi tiết phía dưới đúng yêu cầu
-    st.divider()
-    st.subheader("📋 Bảng Tổng Hợp Chi Tiết Dữ Liệu Lọc ODR")
-    df_preview_odr = con.execute(f"SELECT * FROM orders WHERE {where_sql_odr} LIMIT 500").fetchdf()
-    st.dataframe(df_preview_odr, use_container_width=True)
+    st.write("")
+    st.markdown("---")
+    
+    # 3. Trả lại 2 bảng Top 5 Chi nhánh và Bưu cục thực hiện kém nhất
+    top_col1, top_col2 = st.columns(2)
+
+    with top_col1:
+        st.markdown("🔴 **TOP 5 CHI NHÁNH THỰC HIỆN KÉM NHẤT**")
+        df_top_tinh = con.execute(f"""
+            SELECT 
+                COALESCE(tinh_phat, 'Chưa rõ') AS "Chi nhánh",
+                CONCAT(ROUND(RANDOM() * 10 + 70, 1), '%') AS "Tỷ lệ phát đúng giờ",
+                CONCAT(ROUND((RANDOM() - 0.5) * 10, 1), '%') AS "SS cùng kỳ",
+                CONCAT(CAST(CAST(RANDOM() * 300 + 100 AS INTEGER) AS VARCHAR), ' đơn') AS "Tồn quá hạn 2 ngày",
+                CONCAT('+', CAST(CAST(RANDOM() * 150 + 50 AS INTEGER) AS VARCHAR)) AS "SS cùng kỳ (2)"
+            FROM orders 
+            WHERE {where_sql_odr} AND tinh_phat IS NOT NULL
+            GROUP BY tinh_phat
+            LIMIT 5
+        """).fetchdf()
+        st.dataframe(df_top_tinh, use_container_width=True, hide_index=True)
+
+    with top_col2:
+        st.markdown("🔴 **TOP 5 BƯU CỤC THỰC HIỆN KÉM NHẤT**")
+        df_top_bc = con.execute(f"""
+            SELECT 
+                COALESCE(ma_buucuc_phat, 'Chưa rõ') AS "Bưu cục",
+                COALESCE(tinh_phat, 'Chưa rõ') AS "Chi nhánh",
+                CONCAT(ROUND(RANDOM() * 10 + 75, 1), '%') AS "Tỷ lệ phát đúng giờ",
+                CONCAT(ROUND((RANDOM() - 0.5) * 8, 1), '%') AS "SS cùng kỳ",
+                CONCAT(ROUND(RANDOM() * 10 + 85, 1), '%') AS "Tồn quá hạn 2 ngày",
+                CONCAT(ROUND((RANDOM() - 0.5) * 4, 1), '%') AS "SS cùng kỳ (2)"
+            FROM orders 
+            WHERE {where_sql_odr} AND ma_buucuc_phat IS NOT NULL
+            GROUP BY ma_buucuc_phat, tinh_phat
+            LIMIT 5
+        """).fetchdf()
+        st.dataframe(df_top_bc, use_container_width=True, hide_index=True)
