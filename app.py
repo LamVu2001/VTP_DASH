@@ -206,20 +206,27 @@ with tab_odr:
         st.info("Biểu đồ bên trái thể hiện sản lượng đơn hàng thực tế cần phát trong 7 ngày gần nhất dựa trên bộ lọc hiện tại của bạn.")
 
     st.divider()
-    st.subheader("📍 BẢNG TỔNG HỢP TỈNH PHÁT & BƯU CỤC CHI TIẾT")
-    st.info("💡 Bảng dưới đây gom nhóm đầy đủ Tỉnh phát và Mã bưu cục tương ứng giúp bạn dễ dàng theo dõi toàn bộ số liệu.")
+    st.subheader("📍 DANH SÁCH BƯU CỤC THEO TỪNG TỈNH PHÁT (MỞ RỘNG)")
+    st.info("💡 Bấm vào từng hộp Tỉnh phát bên dưới để mở rộng xem danh sách bưu cục và số liệu chi tiết bên trong!")
 
-    # Gộp chung thành 1 bảng lớn duy nhất hiển thị cả Tỉnh phát, Bưu cục, Tổng đơn và Doanh thu
-    df_combined = con.execute(f"""
-        SELECT 
-            tinh_phat AS "Tỉnh phát", 
-            ma_buucuc_phat AS "Mã bưu cục phát", 
-            COUNT(*) AS "Tổng đơn", 
-            ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+    # Lấy danh sách các tỉnh phát theo thứ tự sản lượng giảm dần
+    df_tinhs = con.execute(f"""
+        SELECT tinh_phat, COUNT(*) AS tong_don, ROUND(SUM(tong_cuoc)/1e6, 1) AS doanh_thu
         FROM orders 
-        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
-        GROUP BY tinh_phat, ma_buucuc_phat 
-        ORDER BY "Tổng đơn" DESC
-    """).fetchdf()
+        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
+        GROUP BY tinh_phat 
+        ORDER BY tong_don DESC 
+        LIMIT 15
+    """).fetchall()
 
-    st.dataframe(df_combined, use_container_width=True, hide_index=True, height=450)
+    # Tạo các expander (hộp mở rộng) cho từng tỉnh
+    for tinh, tong_don, doanh_thu in df_tinhs:
+        with st.expander(f"📌 Tỉnh: {tinh}  |  Tổng đơn: {tong_don:,}  |  Doanh thu: {doanh_thu:,.1f} Tr"):
+            df_bc = con.execute(f"""
+                SELECT ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+                FROM orders 
+                WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND ma_buucuc_phat IS NOT NULL
+                GROUP BY ma_buucuc_phat 
+                ORDER BY "Sản lượng đơn" DESC
+            """).fetchdf()
+            st.dataframe(df_bc, use_container_width=True, hide_index=True)
