@@ -41,17 +41,19 @@ def get_db_connection():
     file_path = str(local_file if local_file.exists() else win_path)
     con = duckdb.connect(database=':memory:')
     
-    # Tự động chuẩn hóa toàn bộ ngày tháng (tự đổi / thành -, cắt khoảng trắng, nhận diện Excel serial và mọi định dạng)
+    # Xử lý an toàn mọi định dạng ngày giờ (đủ giây, thiếu giây, dấu /, -, hoặc số Serial Excel)
     con.execute(f"""
         CREATE VIEW orders AS 
         SELECT *, 
                COALESCE(
-                   TRY_CAST(EPOCH_MS(CAST(TRY_CAST(tg_quydinhphat AS BIGINT) AS BIGINT) * 86400000 - 2209161600000) AS DATE),
                    TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%d-%m-%Y %H:%M:%S') AS DATE),
                    TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%d-%m-%Y %H:%M') AS DATE),
                    TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%d-%m-%Y') AS DATE),
                    TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%Y-%m-%d %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%Y-%m-%d') AS DATE)
+                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%Y-%m-%d %H:%M') AS DATE),
+                   TRY_CAST(STRPTIME(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g'), '%Y-%m-%d') AS DATE),
+                   TRY_CAST(CAST(REGEXP_REPLACE(TRIM(tg_quydinhphat), '[/]', '-', 'g') AS DATE) AS DATE),
+                   TRY_CAST(EPOCH_MS(CAST(TRY_CAST(tg_quydinhphat AS BIGINT) AS BIGINT) * 86400000 - 2209161600000) AS DATE)
                ) as clean_date
         FROM read_parquet('{file_path}')
     """)
