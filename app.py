@@ -1,12 +1,11 @@
 import streamlit as st
-import polars as pl
+import duckdb
 import plotly.express as px
 from pathlib import Path
 import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS giao diện
 st.markdown("""
 <style>
     .metric-card {
@@ -24,56 +23,37 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 1. HÀM TẢI DỮ LIỆU TỪ GOOGLE DRIVE (TỐI ƯU TRÁNH TRÀN RAM)
-@st.cache_data(ttl=86400)
-def load_data():
-    FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag" 
-    
+# 1. KẾT NỐI VÀ TẢI FILE TỪ GOOGLE DRIVE (NẾU CHƯA CÓ)
+@st.cache_resource
+def get_db_connection():
+    FILE_ID = "1-Wjf_aAvxCQfIfNMBYNGJZZZm60P_Tag"
     local_file = Path("data.parquet")
     win_path = Path(r"C:\Users\Win 10\Desktop\streamlit\data.parquet")
 
     if not local_file.exists() and not win_path.exists():
         url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
-        with st.spinner("Đang tải dữ liệu từ Google Drive (lần đầu có thể mất một chút thời gian)..."):
+        with st.spinner("Đang tải dữ liệu từ Google Drive..."):
             gdown.download(url, str(local_file), quiet=False, use_cookies=False)
 
-    file_to_read = local_file if local_file.exists() else win_path
+    file_path = str(local_file if local_file.exists() else win_path)
     
-    try:
-        schema = pl.read_parquet_schema(file_to_read)
-        columns_to_load = [c for c in schema.keys() if any(k in c.lower() for k in [
-            'cuoc', 'tien', 'phieu', 'ma_don', 'khach', 'ma_kh', 'tinh_phat', 'ma_buucuc_phat', 
-            'doitac', 'doi_tac', 'loai', 'dichvu', 'lydo', 'nguyen_nhan', 'reason', 'tg_quydinhphat'
-        ])]
-        if not columns_to_load:
-            columns_to_load = None
-            
-        df = pl.read_parquet(file_to_read, columns=columns_to_load)
-    except Exception:
-        df = pl.read_parquet(file_to_read)
+    # Mở kết nối DuckDB trực tiếp tới file parquet mà không load vào RAM
+    con = duckdb.connect(database=':memory:')
+    con.execute(f"CREATE VIEW orders AS SELECT * FROM read_parquet('{file_path}')")
+    return con
 
-    df = df.rename({c: c.strip() for c in df.columns})
-    
-    if "tg_quydinhphat" in df.columns:
-        df = df.with_columns(
-            pl.col("tg_quydinhphat")
-            .str.replace_all('"', '')
-            .str.strip_chars()
-            .str.to_datetime("%d-%m-%Y %H:%M:%S", strict=False)
-            .dt.date()
-            .alias("ngay_phat")
-        )
-    return df
+con = get_db_connection()
 
-df_raw = load_data()
+# Lấy danh sách các giá trị cho các bộ lọc từ DuckDB (siêu nhẹ)
+@st.cache_data
+def get_filter_options():
+    kh_list = ["Tất cả"] + [row[0] for row in con.execute("SELECT DISTINCT ma_khachhang FROM orders WHERE ma_khachhang IS NOT NULL ORDER BY 1").fetchall()] if "ma_khachhang" in [col[0] for col in con.execute("DESCRIBE orders").fetchall()] else ["Tất cả"]
+    tinh_list = ["Tất cả"] + [row[0] for row in con.execute("SELECT DISTINCT tinh_phat FROM orders WHERE tinh_phat IS NOT NULL ORDER BY 1").fetchall()]
+    dt_list = ["Tất cả"] + [row[0] for row in con.execute("SELECT DISTINCT doi_tac FROM orders WHERE doi_tac IS NOT NULL ORDER BY 1").fetchall()] if "doi_tac" in [col[0] for col in con.execute("DESCRIBE orders").fetchall()] else ["Tất cả"]
+    ld_list = ["Tất cả"] + [row[0] for row in con.execute("SELECT DISTINCT loai_don FROM orders WHERE loai_don IS NOT NULL ORDER BY 1").fetchall()] if "loai_don" in [col[0] for col in con.execute("DESCRIBE orders").fetchall()] else ["Tất cả"]
+    return kh_list, tinh_list, dt_list, ld_list
 
-# Nhận diện cột dữ liệu
-col_cuoc = next((c for c in df_raw.columns if "cuoc" in c.lower() or "tien" in c.lower()), None)
-col_phieu = next((c for c in df_raw.columns if "phieu" in c.lower() or "ma_don" in c.lower()), None)
-col_kh = next((c for c in df_raw.columns if "khach" in c.lower() or "ma_kh" in c.lower()), None)
-col_doitac = next((c for c in df_raw.columns if "doitac" in c.lower() or "doi_tac" in c.lower()), None)
-col_loaidon = next((c for c in df_raw.columns if "loai" in c.lower() or "dichvu" in c.lower()), None)
-col_lydo = next((c for c in df_raw.columns if "lydo" in c.lower() or "nguyen_nhan" in c.lower() or "reason" in c.lower()), None)
+kh_list, tinh_list, dt_list, ld_list = get_filter_options()
 
 # --- KHỞI TẠO TABS ---
 tab_doanh_thu, tab_odr = st.tabs(["📊 DASHBOARD DOANH THU", "🚚 DASHBOARD ODR (CHẤT LƯỢNG KHÂU PHÁT)"])
@@ -87,35 +67,38 @@ with tab_doanh_thu:
     
     f1, f2, f3, f4, f5, f6 = st.columns(6)
     with f1:
-        min_date = df_raw["ngay_phat"].min() if "ngay_phat" in df_raw.columns else None
-        max_date = df_raw["ngay_phat"].max() if "ngay_phat" in df_raw.columns else None
-        filter_date = st.date_input("NGÀY", value=(min_date, max_date) if min_date and max_date else None, key="dt_date")
+        filter_date = st.date_input("NGÀY", value=(), key="dt_date")
     with f2:
-        kh_list = ["Tất cả"] + sorted(df_raw[col_kh].drop_nulls().unique().to_list()) if col_kh else ["Tất cả"]
         filter_kh = st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="dt_kh")
     with f3:
-        dt_list = ["Tất cả"] + sorted(df_raw[col_doitac].drop_nulls().unique().to_list()) if col_doitac else ["Tất cả"]
         filter_dt = st.selectbox("MÃ ĐỐI TÁC", dt_list, key="dt_dt")
     with f4:
-        cn_list = ["Tất cả"] + sorted(df_raw["tinh_phat"].drop_nulls().unique().to_list()) if "tinh_phat" in df_raw.columns else ["Tất cả"]
-        filter_cn = st.selectbox("TỈNH PHÁT", cn_list, key="dt_cn")
+        filter_cn = st.selectbox("TỈNH PHÁT", tinh_list, key="dt_cn")
     with f5:
-        ld_list = ["Tất cả"] + sorted(df_raw[col_loaidon].drop_nulls().unique().to_list()) if col_loaidon else ["Tất cả"]
         filter_ld = st.selectbox("LOẠI ĐƠN", ld_list, key="dt_ld")
     with f6:
         st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="dt_tl")
 
-    df_dt = df_raw
-    if "ngay_phat" in df_dt.columns and isinstance(filter_date, tuple) and len(filter_date) == 2:
-        df_dt = df_dt.filter((pl.col("ngay_phat") >= filter_date[0]) & (pl.col("ngay_phat") <= filter_date[1]))
-    if col_kh and filter_kh != "Tất cả": df_dt = df_dt.filter(pl.col(col_kh) == filter_kh)
-    if "tinh_phat" in df_dt.columns and filter_cn != "Tất cả": df_dt = df_dt.filter(pl.col("tinh_phat") == filter_cn)
-    if col_doitac and filter_dt != "Tất cả": df_dt = df_dt.filter(pl.col(col_doitac) == filter_dt)
-    if col_loaidon and filter_ld != "Tất cả": df_dt = df_dt.filter(pl.col(col_loaidon) == filter_ld)
-
-    tong_dt = (df_dt[col_cuoc].sum() / 1e9) if col_cuoc and col_cuoc in df_dt.columns else 0.0
-    tong_sl = df_dt[col_phieu].n_unique() if col_phieu and col_phieu in df_dt.columns else len(df_dt)
+    # Xây dựng câu lệnh SQL động để query dữ liệu trực tiếp từ file Parquet
+    where_clauses = ["1=1"]
+    if filter_cn != "Tất cả":
+        where_clauses.append(f"tinh_phat = '{filter_cn}'")
+    if filter_dt != "Tất cả":
+        where_clauses.append(f"doi_tac = '{filter_dt}'")
     
+    where_sql = " AND ".join(where_clauses)
+
+    # Tính toán Metrics nhanh qua SQL
+    res_metrics = con.execute(f"""
+        SELECT 
+            COALESCE(SUM(tien_cuoc), 0) / 1e9,
+            COUNT(DISTINCT ma_phieu_gui)
+        FROM orders WHERE {where_sql}
+    """).fetchone()
+    
+    tong_dt = res_metrics[0]
+    tong_sl = res_metrics[1]
+
     m1, m2, m3, m4 = st.columns(4)
     with m1: st.markdown(f'<div class="metric-card"><div class="metric-title">DOANH THU HÔM NAY</div><div class="metric-value">{tong_dt:,.2f} tỷ</div><div class="metric-sub-green">▲ Dữ liệu thực tế</div></div>', unsafe_allow_html=True)
     with m2: st.markdown(f'<div class="metric-card"><div class="metric-title">SS CÙNG KỲ TUẦN TRƯỚC</div><div class="metric-value">{(tong_dt*0.9):,.2f} tỷ</div><div class="metric-sub-green">▲ 10.0% vs tuần trước</div></div>', unsafe_allow_html=True)
@@ -126,43 +109,30 @@ with tab_doanh_thu:
     c_chart, c_top = st.columns([2.2, 1])
     with c_chart:
         st.subheader("XU HƯỚNG DOANH THU 7 NGÀY GẦN NHẤT (TỶ ĐỒNG)")
-        if "ngay_phat" in df_dt.columns and col_cuoc and col_cuoc in df_dt.columns:
-            df_daily = df_dt.filter(pl.col("ngay_phat").is_not_null()).group_by("ngay_phat").agg((pl.col(col_cuoc).sum()/1e9).alias("Thực tế")).sort("ngay_phat").tail(7)
-            if len(df_daily) > 0:
-                df_p = df_daily.to_pandas()
-                df_p["Mục tiêu"] = df_p["Thực tế"] * 0.95
-                fig = px.line(df_p, x="ngay_phat", y=["Thực tế", "Mục tiêu"], markers=True, color_discrete_map={"Thực tế": "#c62828", "Mục tiêu": "#9e9e9e"})
-                fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), legend_title_text="")
-                st.plotly_chart(fig, use_container_width=True)
+        df_daily = con.execute(f"""
+            SELECT CAST(tg_quydinhphat AS DATE) as ngay, SUM(tien_cuoc)/1e9 as DoanhThu 
+            FROM orders WHERE {where_sql} AND tg_quydinhphat IS NOT NULL 
+            GROUP BY ngay ORDER BY ngay DESC LIMIT 7
+        """).fetchdf()
+        if len(df_daily) > 0:
+            df_daily["Mục tiêu"] = df_daily["DoanhThu"] * 0.95
+            fig = px.line(df_daily, x="ngay", y=["DoanhThu", "Mục tiêu"], markers=True, color_discrete_map={"DoanhThu": "#c62828", "Mục tiêu": "#9e9e9e"})
+            fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), legend_title_text="")
+            st.plotly_chart(fig, use_container_width=True)
+
     with c_top:
         st.subheader("TOP KHÁCH HÀNG DOANH THU CAO")
-        if col_kh and col_cuoc and col_kh in df_dt.columns and col_cuoc in df_dt.columns:
-            df_top = df_dt.group_by(col_kh).agg((pl.col(col_cuoc).sum()/1e6).round(1).alias("Doanh Thu (Tr)")).sort("Doanh Thu (Tr)", descending=True).head(5)
-            st.dataframe(df_top.to_pandas(), use_container_width=True, hide_index=True)
+        df_top = con.execute(f"""
+            SELECT ma_khachhang, SUM(tien_cuoc)/1e6 as DoanhThuTr 
+            FROM orders WHERE {where_sql} AND ma_khachhang IS NOT NULL 
+            GROUP BY ma_khachhang ORDER BY DoanhThuTr DESC LIMIT 5
+        """).fetchdf()
+        st.dataframe(df_top, use_container_width=True, hide_index=True)
 
     st.divider()
-
-    st.subheader("📊 BÁO CÁO TỔNG HỢP DOANH THU THỜI GIAN")
-    if "ngay_phat" in df_dt.columns and col_cuoc and col_cuoc in df_dt.columns:
-        df_summary = (
-            df_dt.filter(pl.col("ngay_phat").is_not_null())
-            .with_columns([
-                pl.col("ngay_phat").dt.year().alias("Năm"),
-                pl.col("ngay_phat").dt.month().alias("Tháng"),
-                pl.col("ngay_phat").dt.week().alias("Tuần")
-            ])
-            .group_by(["Năm", "Tháng", "Tuần"])
-            .agg([
-                (pl.col(col_cuoc).sum() / 1e9).round(2).alias("Doanh thu (Tỷ)"),
-                pl.col(col_phieu).n_unique().alias("Sản lượng (Đơn)") if col_phieu and col_phieu in df_dt.columns else pl.count().alias("Sản lượng (Đơn)")
-            ])
-            .sort(["Năm", "Tháng", "Tuần"], descending=True)
-        )
-        st.dataframe(df_summary.to_pandas(), use_container_width=True, hide_index=True)
-    
-    st.write("")
-    st.subheader("📋 Bảng Tổng Hợp Chi Tiết Dữ Liệu Lọc")
-    st.dataframe(df_dt.head(500).to_pandas(), use_container_width=True)
+    st.subheader("📋 Bảng Tổng Hợp Chi Tiết Dữ Liệu")
+    df_preview = con.execute(f"SELECT * FROM orders WHERE {where_sql} LIMIT 500").fetchdf()
+    st.dataframe(df_preview, use_container_width=True)
 
 
 # ==========================================
@@ -172,128 +142,64 @@ with tab_odr:
     st.markdown("<h4 style='color: #c62828; margin-bottom: 0;'>CHẤT LƯỢNG KHÂU PHÁT</h4>", unsafe_allow_html=True)
     st.markdown("<h1 style='margin-top: 0; margin-bottom: 15px;'>Dashboard ODR</h1>", unsafe_allow_html=True)
 
-    # Bộ lọc ngang phía trên cho ODR (6 cột giống Tab Doanh Thu)
     of1, of2, of3, of4, of5, of6 = st.columns(6)
-    with of1:
-        min_date = df_raw["ngay_phat"].min() if "ngay_phat" in df_raw.columns else None
-        max_date = df_raw["ngay_phat"].max() if "ngay_phat" in df_raw.columns else None
-        st.date_input("NGÀY", value=(min_date, max_date) if min_date and max_date else None, key="odr_date")
-    with of2:
-        st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="odr_kh")
-    with of3:
-        st.selectbox("MÃ ĐỐI TÁC", dt_list, key="odr_dt")
-    with of4:
-        st.selectbox("MÃ KHÁCH HÀNG (2)", kh_list, key="odr_kh2")
-    with of5:
-        st.selectbox("LOẠI ĐƠN", ld_list, key="odr_ld")
-    with of6:
-        st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="odr_tl")
+    with of1: st.date_input("NGÀY", value=(), key="odr_date")
+    with of2: st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="odr_kh")
+    with of3: st.selectbox("MÃ ĐỐI TÁC", dt_list, key="odr_dt")
+    with of4: st.selectbox("MÃ KHÁCH HÀNG (2)", kh_list, key="odr_kh2")
+    with of5: st.selectbox("LOẠI ĐƠN", ld_list, key="odr_ld")
+    with of6: st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="odr_tl")
 
-    df_odr = df_raw
-    total_phat = df_odr[col_phieu].n_unique() if col_phieu and col_phieu in df_odr.columns else len(df_odr)
-    
     m_odr1, m_odr2, m_odr3, m_odr4, m_odr5 = st.columns(5)
-    with m_odr1:
-        st.markdown(f'<div class="metric-card"><div class="metric-title">SẢN LƯỢNG PHẢI PHÁT</div><div class="metric-value">{total_phat:,.0f}</div><div class="metric-sub-green">▲ +6,913 vs MT</div></div>', unsafe_allow_html=True)
-    with m_odr2:
-        st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr3:
-        st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ LẦN 1</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr4:
-        st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr5:
-        st.markdown('<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-
-    st.write("")
-    c_odr_chart, c_odr_reason = st.columns([1.3, 1])
-
-    with c_odr_chart:
-        st.subheader("XU HƯỚNG TỶ LỆ PHÁT THÀNH CÔNG ĐÚNG GIỜ (%)")
-        if "ngay_phat" in df_odr.columns:
-            df_trend = (
-                df_odr.filter(pl.col("ngay_phat").is_not_null())
-                .group_by("ngay_phat")
-                .agg(pl.count().alias("total"))
-                .sort("ngay_phat")
-                .tail(7)
-                .to_pandas()
-            )
-            df_trend["Thực tế"] = [85, 82, 80, 78, 76, 75, 74.8] if len(df_trend) >= 7 else 74.8
-            df_trend["Mục tiêu"] = 90.0
-
-            fig_odr = px.line(df_trend, x="ngay_phat", y=["Thực tế", "Mục tiêu"], markers=True,
-                              color_discrete_map={"Thực tế": "#c62828", "Mục tiêu": "#9e9e9e"})
-            fig_odr.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), legend_title_text="", yaxis_range=[0, 100])
-            st.plotly_chart(fig_odr, use_container_width=True)
-
-    with c_odr_reason:
-        st.subheader("NGUYÊN NHÂN GIAO TRỄ / THẤT BẠI (%)")
-        reason_data = {
-            "Nguyên nhân": ["Sai MM (Không giao)", "Sai LM (KH không nhu cầu)", "Sai số điện thoại/Địa chỉ", "Không liên hệ được KH", "Khách hẹn giao lại"],
-            "Tỷ lệ (%)": [55.01, 43.96, 20.0, 19.0, 17.0]
-        }
-        fig_bar = px.bar(reason_data, y="Nguyên nhân", x="Tỷ lệ (%)", orientation='h', text="Tỷ lệ (%)", color_discrete_sequence=["#c62828"])
-        fig_bar.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
-        st.plotly_chart(fig_bar, use_container_width=True)
+    with m_odr1: st.markdown(f'<div class="metric-card"><div class="metric-title">SẢN LƯỢNG PHẢI PHÁT</div><div class="metric-value">{tong_sl:,.0f}</div><div class="metric-sub-green">▲ Thực tế</div></div>', unsafe_allow_html=True)
+    with m_odr2: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr3: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ LẦN 1</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr4: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr5: st.markdown('<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ Mục tiêu</div></div>', unsafe_allow_html=True)
 
     st.write("")
     st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC THỰC TẾ)")
     st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
 
-    col_cn_real = "tinh_phat"
-    col_bc_real = "ma_buucuc_phat"
+    # Lấy dữ liệu nhóm tỉnh trực tiếp từ DuckDB (siêu nhẹ, không tốn RAM)
+    df_cn_grouped = con.execute("""
+        SELECT tinh_phat AS "Tỉnh phát", COUNT(*) AS "Tổng đơn", ROUND(SUM(tien_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+        FROM orders WHERE tinh_phat IS NOT NULL
+        GROUP BY tinh_phat ORDER BY "Tổng đơn" DESC LIMIT 15
+    """).fetchdf()
 
-    if col_cn_real in df_raw.columns and col_bc_real in df_raw.columns:
-        df_cn_grouped = (
-            df_raw.group_by(col_cn_real)
-            .agg([
-                pl.count().alias("Tổng đơn"),
-                (pl.col(col_cuoc).sum() / 1e6).round(1).alias("Doanh thu (Tr)") if col_cuoc and col_cuoc in df_raw.columns else pl.count().alias("Dummy")
-            ])
-            .sort("Tổng đơn", descending=True)
-            .head(15)
+    tbl_col1, tbl_col2 = st.columns(2)
+    with tbl_col1:
+        st.markdown("**Bảng Tỉnh Phạt (Bấm chọn dòng để lọc)**")
+        event_cn = st.dataframe(
+            df_cn_grouped, 
+            use_container_width=True, 
+            hide_index=True,
+            selection_mode="single-row",
+            on_select="rerun",
+            key="table_tinh_phat_select"
         )
 
-        tbl_col1, tbl_col2 = st.columns(2)
+    selected_row_indices = event_cn.get("selection", {}).get("rows", [])
+    selected_tinh = None
+    if selected_row_indices:
+        selected_idx = selected_row_indices[0]
+        selected_tinh = df_cn_grouped.iloc[selected_idx]["Tỉnh phát"]
 
-        with tbl_col1:
-            st.markdown("**Bảng Tỉnh Phạt (Bấm chọn dòng để lọc)**")
-            event_cn = st.dataframe(
-                df_cn_grouped.to_pandas(), 
-                use_container_width=True, 
-                hide_index=True,
-                selection_mode="single-row",
-                on_select="rerun",
-                key="table_tinh_phat_select"
-            )
-
-        selected_row_indices = event_cn.get("selection", {}).get("rows", [])
-        selected_tinh = None
-        if selected_row_indices:
-            selected_idx = selected_row_indices[0]
-            selected_tinh = df_cn_grouped[col_cn_real][selected_idx]
-
-        with tbl_col2:
-            if selected_tinh:
-                st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span>**", unsafe_allow_html=True)
-                df_bc_filtered = (
-                    df_raw.filter(pl.col(col_cn_real) == selected_tinh)
-                    .group_by(col_bc_real)
-                    .agg([
-                        pl.count().alias("Sản lượng đơn"),
-                        (pl.col(col_cuoc).sum() / 1e6).round(1).alias("Doanh thu (Tr)") if col_cuoc and col_cuoc in df_raw.columns else pl.count().alias("Dummy")
-                    ])
-                    .sort("Sản lượng đơn", descending=True)
-                )
-                st.dataframe(df_bc_filtered.to_pandas(), use_container_width=True, hide_index=True)
-            else:
-                st.markdown("**Bảng Bưu Cục Toàn Quốc (Hoặc bấm chọn Tỉnh bên trái)**")
-                df_bc_all = (
-                    df_raw.group_by([col_cn_real, col_bc_real])
-                    .agg(pl.count().alias("Sản lượng đơn"))
-                    .sort("Sản lượng đơn", descending=True)
-                    .head(10)
-                )
-                st.dataframe(df_bc_all.to_pandas(), use_container_width=True, hide_index=True)
-    else:
-        st.warning("Không tìm thấy cột tinh_phat hoặc ma_buucuc_phat trong dữ liệu.")
+    with tbl_col2:
+        if selected_tinh:
+            st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span>**", unsafe_allow_html=True)
+            df_bc_filtered = con.execute(f"""
+                SELECT ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tien_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+                FROM orders WHERE tinh_phat = '{selected_tinh}' AND ma_buucuc_phat IS NOT NULL
+                GROUP BY ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
+            """).fetchdf()
+            st.dataframe(df_bc_filtered, use_container_width=True, hide_index=True)
+        else:
+            st.markdown("**Bảng Bưu Cục Toàn Quốc (Hoặc bấm chọn Tỉnh bên trái)**")
+            df_bc_all = con.execute("""
+                SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
+                FROM orders WHERE tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
+                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC LIMIT 10
+            """).fetchdf()
+            st.dataframe(df_bc_all, use_container_width=True, hide_index=True)
