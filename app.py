@@ -35,7 +35,6 @@ def get_db_connection():
             gdown.download(url, str(local_file), quiet=False, use_cookies=False)
 
     file_path = str(local_file if local_file.exists() else win_path)
-    
     con = duckdb.connect(database=':memory:')
     con.execute(f"CREATE VIEW orders AS SELECT * FROM read_parquet('{file_path}')")
     return con
@@ -94,23 +93,22 @@ with tab_doanh_thu:
     c_chart, c_top = st.columns([2.2, 1])
     with c_chart:
         st.subheader("XU HƯỚNG DOANH THU 7 NGÀY GẦN NHẤT (TỶ ĐỒNG)")
-        try:
-            df_daily = con.execute(f"""
-                SELECT CAST(strptime(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE) as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
-                FROM orders WHERE {where_sql} AND tg_quydinhphat IS NOT NULL 
-                GROUP BY ngay ORDER BY ngay DESC LIMIT 7
-            """).fetchdf()
-            if len(df_daily) > 0:
-                df_daily["Mục tiêu"] = df_daily["DoanhThu"] * 0.95
-                fig = px.line(df_daily, x="ngay", y=["DoanhThu", "Mục tiêu"], markers=True, color_discrete_map={"DoanhThu": "#c62828", "Mục tiêu": "#9e9e9e"})
-                fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), legend_title_text="")
-                st.plotly_chart(fig, use_container_width=True)
-        except Exception:
-            pass
+        # Query an toàn không dùng strptime để tránh trắng biểu đồ
+        df_daily = con.execute(f"""
+            SELECT tg_quydinhphat as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
+            FROM orders WHERE {where_sql} AND tg_quydinhphat IS NOT NULL 
+            GROUP BY ngay ORDER BY ngay DESC LIMIT 7
+        """).fetchdf()
+        
+        if len(df_daily) > 0:
+            fig = px.line(df_daily, x="ngay", y="DoanhThu", markers=True)
+            fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Chưa có dữ liệu biểu đồ.")
 
     with c_top:
         st.subheader("TOP KHÁCH HÀNG DOANH THU CAO")
-        # Đã sửa thành cột ma_khgui chuẩn xác
         df_top = con.execute(f"""
             SELECT ma_khgui AS "Mã KH", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh Thu (Tr)" 
             FROM orders WHERE {where_sql} AND ma_khgui IS NOT NULL 
@@ -151,20 +149,16 @@ with tab_odr:
 
     with c_odr_chart:
         st.subheader("XU HƯỚNG TỶ LỆ PHÁT THÀNH CÔNG ĐÚNG GIỜ (%)")
-        try:
-            df_trend = con.execute("""
-                SELECT CAST(strptime(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE) as ngay, COUNT(*) as total 
-                FROM orders WHERE tg_quydinhphat IS NOT NULL 
-                GROUP BY ngay ORDER BY ngay DESC LIMIT 7
-            """).fetchdf()
-            if len(df_trend) > 0:
-                df_trend["Thực tế"] = 74.8
-                df_trend["Mục tiêu"] = 90.0
-                fig_odr = px.line(df_trend, x="ngay", y=["Thực tế", "Mục tiêu"], markers=True, color_discrete_map={"Thực tế": "#c62828", "Mục tiêu": "#9e9e9e"})
-                fig_odr.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), legend_title_text="", yaxis_range=[0, 100])
-                st.plotly_chart(fig_odr, use_container_width=True)
-        except Exception:
-            pass
+        df_trend = con.execute("""
+            SELECT tg_quydinhphat as ngay, COUNT(*) as total 
+            FROM orders WHERE tg_quydinhphat IS NOT NULL 
+            GROUP BY ngay ORDER BY ngay DESC LIMIT 7
+        """).fetchdf()
+        if len(df_trend) > 0:
+            df_trend["Thực tế"] = 74.8
+            fig_odr = px.line(df_trend, x="ngay", y="Thực tế", markers=True)
+            fig_odr.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), yaxis_range=[0, 100])
+            st.plotly_chart(fig_odr, use_container_width=True)
 
     with c_odr_reason:
         st.subheader("NGUYÊN NHÂN GIAO TRỄ / THẤT BẠI (%)")
