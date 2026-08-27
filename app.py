@@ -3,10 +3,11 @@ import duckdb
 import plotly.express as px
 from pathlib import Path
 import gdown
+from st_aggrid import AgGrid, GridOptionsBuilder
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tùy biến giao diện, khung bảng và hiệu ứng dòng phân cấp trong HTML
+# CSS tùy biến giao diện, khung bảng và thẻ Card sang trọng
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -26,7 +27,7 @@ st.markdown("""
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
 
-    /* CSS cho Bảng Ma Trận & Hàng Phân Cấp */
+    /* CSS cho Bảng Ma Trận Vận Hành chuẩn Enterprise */
     .matrix-table {
         width: 100%;
         border-collapse: collapse;
@@ -58,11 +59,6 @@ st.markdown("""
     .row-group { 
         font-weight: bold; 
         background-color: #fcfcfc; 
-    }
-    .sub-row {
-        background-color: #fafafa;
-        color: #444444;
-        font-size: 11.5px;
     }
     .text-center { text-align: center; }
     .text-right { text-align: right; }
@@ -250,57 +246,9 @@ with tab_odr:
 
     st.divider()
     
-    # --- 1. HAI BẢNG TƯƠNG TÁC CHỌN DÒNG CHÍNH ---
-    st.subheader("📍 BẢNG TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC CHỌN DÒNG)")
-    st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
-    
-    df_cn_grouped = con.execute(f"""
-        SELECT tinh_phat AS "Tỉnh phát", COUNT(*) AS "Tổng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-        FROM orders WHERE {where_sql_odr} AND tinh_phat IS NOT NULL
-        GROUP BY tinh_phat ORDER BY "Tổng đơn" DESC
-    """).fetchdf()
-
-    tbl_col1, tbl_col2 = st.columns(2)
-    with tbl_col1:
-        st.markdown("**Bảng Tỉnh Phạt (Bấm chọn dòng để lọc)**")
-        event_cn = st.dataframe(
-            df_cn_grouped, 
-            use_container_width=True, 
-            hide_index=True,
-            selection_mode="single-row",
-            on_select="rerun",
-            key="table_tinh_phat_select",
-            height=350
-        )
-
-    selected_row_indices = event_cn.get("selection", {}).get("rows", [])
-    selected_tinh = None
-    if selected_row_indices:
-        selected_idx = selected_row_indices[0]
-        selected_tinh = df_cn_grouped.iloc[selected_idx]["Tỉnh phát"]
-
-    with tbl_col2:
-        if selected_tinh:
-            st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span>**", unsafe_allow_html=True)
-            df_bc_filtered = con.execute(f"""
-                SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
-                FROM orders WHERE {where_sql_odr} AND tinh_phat = '{selected_tinh}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
-            """).fetchdf()
-            st.dataframe(df_bc_filtered, use_container_width=True, hide_index=True, height=350)
-        else:
-            st.markdown("**Bảng Bưu Cục (Hoặc bấm chọn Tỉnh bên trái)**")
-            df_bc_all = con.execute(f"""
-                SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
-                FROM orders WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
-                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
-            """).fetchdf()
-            st.dataframe(df_bc_all, use_container_width=True, hide_index=True, height=350)
-
-    # --- 2. BẢNG MA TRẬN VẬN HÀNH TÍCH HỢP HÀNG PHÂN CẤP TỈNH & BƯU CỤC TRỰC TIẾP ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("📊 BÁO CÁO MA TRẬN PHÂN CẤP VẬN HÀNH")
-    st.info("💡 Bảng ma trận tổng hợp tích hợp sẵn danh sách Tỉnh và Bưu cục con hiển thị trực tiếp ngay bên dưới.")
+    # --- 1. BẢNG MA TRẬN VẬN HÀNH TỔNG QUAN ---
+    st.markdown("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
+    st.info("💡 Bảng ma trận tổng hợp sản lượng thực tế theo thời gian.")
 
     days_data = con.execute(f"""
         SELECT clean_date, COUNT(*) as sl 
@@ -320,64 +268,11 @@ with tab_odr:
 
     total_m = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
 
-    # Lấy danh sách các tỉnh phát để nhúng vào bảng ma trận
-    df_tins_list = con.execute(f"""
-        SELECT tinh_phat, COUNT(*) as sl 
-        FROM orders 
-        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
-        GROUP BY tinh_phat 
-        ORDER BY sl DESC 
-        LIMIT 5
-    """).fetchall()
-
-    tinh_sub_rows_html = ""
-    for tinh_item, sl_tinh in df_tins_list:
-        # Hàng hiển thị Tỉnh
-        tinh_sub_rows_html += f"""
-            <tr class="row-group" style="background-color: #f1f3f5;">
-                <td style="padding-left: 20px;">📁 Khu vực Tỉnh phát: <b>{tinh_item}</b></td>
-                <td class="text-center">-</td>
-                <td class="text-center">-</td>
-                <td colspan="7" class="text-right"><b>{sl_tinh:,.0f} đơn</b></td>
-                <td class="text-center text-green">+5.22%</td>
-                <td colspan="5" class="text-right"><b>{sl_tinh:,.0f} đơn</b></td>
-                <td class="text-center text-green">+5.22%</td>
-                <td class="text-right">-</td>
-                <td class="text-right"><b>{sl_tinh:,.0f}</b></td>
-                <td class="text-center text-green">+5.22%</td>
-            </tr>
-        """
-        # Lấy danh sách bưu cục con của tỉnh này
-        df_bc_list = con.execute(f"""
-            SELECT ma_buucuc_phat, COUNT(*) as sl_bc 
-            FROM orders 
-            WHERE {where_sql_odr} AND tinh_phat = '{tinh_item}' AND ma_buucuc_phat IS NOT NULL 
-            GROUP BY ma_buucuc_phat 
-            ORDER BY sl_bc DESC 
-            LIMIT 3
-        """).fetchall()
-
-        for bc_code, bc_sl in df_bc_list:
-            tinh_sub_rows_html += f"""
-                <tr class="sub-row">
-                    <td style="padding-left: 45px; color: #555;">↳ Bưu cục: <b>{bc_code}</b></td>
-                    <td class="text-center">-</td>
-                    <td class="text-center">-</td>
-                    <td colspan="7" class="text-right">{bc_sl:,.0f} đơn</td>
-                    <td class="text-center text-green">+2.1%</td>
-                    <td colspan="5" class="text-right">{bc_sl:,.0f} đơn</td>
-                    <td class="text-center text-green">+1.5%</td>
-                    <td class="text-right">-</td>
-                    <td class="text-right">{bc_sl:,.0f}</td>
-                    <td class="text-center text-green">+3.2%</td>
-                </tr>
-            """
-
     matrix_html = f"""
     <table class="matrix-table">
         <thead>
             <tr>
-                <th rowspan="2" style="width: 22%;">Chỉ tiêu / Khu vực</th>
+                <th rowspan="2" style="width: 22%;">Chỉ tiêu</th>
                 <th rowspan="2" style="width: 6%;">Mục tiêu</th>
                 <th rowspan="2" style="width: 6%;">Kết quả thực hiện</th>
                 <th colspan="8" style="background-color: #2a2a2a;">7 ngày gần nhất</th>
@@ -413,9 +308,46 @@ with tab_odr:
                 <td class="text-right"><b>{total_m:,.0f}</b></td>
                 <td class="text-center text-green">+5.22%</td>
             </tr>
-            {tinh_sub_rows_html}
         </tbody>
     </table>
     """
-
     st.markdown(matrix_html, unsafe_allow_html=True)
+
+    # --- 2. BẢNG PHÂN CẤP TỈNH & BƯU CỤC (DÙNG AGGRID TREE VIEW CÓ NÚT EXPAND [+] / [-]) ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("📁 BẢNG PHÂN CẤP VẬN HÀNH (TỈNH & BƯU CỤC)")
+    st.info("💡 Bảng hỗ trợ gom nhóm chuyên nghiệp. Bấm vào nút `[>]` hoặc dấu cộng bên cạnh tên Tỉnh để mở rộng xem các Bưu cục trực thuộc ngay bên trong bảng.")
+
+    # Truy vấn dữ liệu phân cấp chi tiết
+    df_tree = con.execute(f"""
+        SELECT 
+            COALESCE(tinh_phat, 'Chưa xác định') AS "Tỉnh phát",
+            COALESCE(ma_buucuc_phat, 'Chưa xác định') AS "Mã bưu cục",
+            COUNT(*) AS "Sản lượng đơn",
+            ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+        FROM orders 
+        WHERE {where_sql_odr}
+        GROUP BY tinh_phat, ma_buucuc_phat
+        ORDER BY "Sản lượng đơn" DESC
+    """).fetchdf()
+
+    # Cấu hình AgGrid Tree Grouping
+    gb = GridOptionsBuilder.from_dataframe(df_tree)
+    gb.configure_default_column(editable=False, sortable=True, filter=True, resizable=True)
+    
+    # Cài đặt gom nhóm theo cột Tỉnh phát
+    gb.configure_column("Tỉnh phát", rowGroup=True, hide=True)
+    gb.configure_column("Sản lượng đơn", aggFunc="sum")
+    gb.configure_column("Doanh thu (Tr)", aggFunc="sum")
+
+    gridOptions = gb.build()
+    gridOptions['groupDefaultExpanded'] = 0  # Thu gọn mặc định, bấm mở trực tiếp trên bảng
+
+    AgGrid(
+        df_tree, 
+        gridOptions=gridOptions, 
+        height=420, 
+        use_container_width=True,
+        fit_columns_on_grid_load=True,
+        allow_unsafe_jscode=True
+    )
