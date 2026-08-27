@@ -110,7 +110,6 @@ with tab_doanh_thu:
 
     with c_top:
         st.subheader("TOP KHÁCH HÀNG DOANH THU CAO")
-        # Đã sửa thành cột ma_khgui chuẩn xác
         df_top = con.execute(f"""
             SELECT ma_khgui AS "Mã KH", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh Thu (Tr)" 
             FROM orders WHERE {where_sql} AND ma_khgui IS NOT NULL 
@@ -176,19 +175,29 @@ with tab_odr:
         fig_bar.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
         st.plotly_chart(fig_bar, use_container_width=True)
 
+    # =========================================================================
+    # CẢNH BÁO BƯU CỤC CÓ TỶ LỆ THÀNH CÔNG THẤP (SỬ DỤNG SELECTION SEAMLESS)
+    # =========================================================================
     st.write("")
-    st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC THỰC TẾ)")
-    st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
-    
+    st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC CÓ TỶ LỆ THÀNH CÔNG THẤP")
+    st.info("💡 Bấm chọn dòng của một Tỉnh ở bảng bên trái để bung toàn bộ danh sách bưu cục thuộc tỉnh đó!")
+
+    # Lấy toàn bộ danh sách các tỉnh phát
     df_cn_grouped = con.execute("""
-        SELECT tinh_phat AS "Tỉnh phát", COUNT(*) AS "Tổng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-        FROM orders WHERE tinh_phat IS NOT NULL
-        GROUP BY tinh_phat ORDER BY "Tổng đơn" DESC LIMIT 15
+        SELECT 
+            tinh_phat AS "Tỉnh phát", 
+            COUNT(*) AS "Tổng đơn", 
+            SUM(CASE WHEN CAST(ma_trangthai AS INTEGER) = 501 THEN 1 ELSE 0 END) AS "Thành công",
+            ROUND(SUM(CASE WHEN CAST(ma_trangthai AS INTEGER) = 501 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS "% Thành công"
+        FROM orders 
+        WHERE tinh_phat IS NOT NULL
+        GROUP BY tinh_phat 
+        ORDER BY "% Thành công" ASC
     """).fetchdf()
 
     tbl_col1, tbl_col2 = st.columns(2)
     with tbl_col1:
-        st.markdown("**Bảng Tỉnh Phạt (Bấm chọn dòng để lọc)**")
+        st.markdown("**Bảng Chi Nhánh / Tỉnh Phát (Bấm chọn dòng để lọc Bưu cục)**")
         event_cn = st.dataframe(
             df_cn_grouped, 
             use_container_width=True, 
@@ -206,18 +215,30 @@ with tab_odr:
 
     with tbl_col2:
         if selected_tinh:
-            st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span>**", unsafe_allow_html=True)
+            st.markdown(f"**Danh sách toàn bộ Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span>**", unsafe_allow_html=True)
             df_bc_filtered = con.execute(f"""
-                SELECT ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-                FROM orders WHERE tinh_phat = '{selected_tinh}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
+                SELECT 
+                    ma_buucuc_phat AS "Mã bưu cục phát", 
+                    COUNT(*) AS "Sản lượng đơn", 
+                    SUM(CASE WHEN CAST(ma_trangthai AS INTEGER) = 501 THEN 1 ELSE 0 END) AS "Đơn thành công",
+                    ROUND(SUM(CASE WHEN CAST(ma_trangthai AS INTEGER) = 501 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS "% Thành công"
+                FROM orders 
+                WHERE tinh_phat = '{selected_tinh}' AND ma_buucuc_phat IS NOT NULL
+                GROUP BY ma_buucuc_phat 
+                ORDER BY "% Thành công" ASC
             """).fetchdf()
             st.dataframe(df_bc_filtered, use_container_width=True, hide_index=True)
         else:
-            st.markdown("**Bảng Bưu Cục Toàn Quốc (Hoặc bấm chọn Tỉnh bên trái)**")
+            st.markdown("**Bưu Cục Toàn Quốc (Hoặc bấm chọn Tỉnh bên trái để xem bưu cục tỉnh đó)**")
             df_bc_all = con.execute("""
-                SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
-                FROM orders WHERE tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
-                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC LIMIT 10
+                SELECT 
+                    tinh_phat AS "Tỉnh phát", 
+                    ma_buucuc_phat AS "Mã bưu cục phát", 
+                    COUNT(*) AS "Sản lượng đơn",
+                    ROUND(SUM(CASE WHEN CAST(ma_trangthai AS INTEGER) = 501 THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS "% Thành công"
+                FROM orders 
+                WHERE tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
+                GROUP BY tinh_phat, ma_buucuc_phat 
+                ORDER BY "% Thành công" ASC
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True)
