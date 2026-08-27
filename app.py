@@ -6,7 +6,7 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tùy biến giao diện và thẻ Card hiện đại, sang trọng
+# CSS tùy biến giao diện, khung bảng và thẻ Card sang trọng
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -25,14 +25,13 @@ st.markdown("""
     .metric-value { font-size: 26px; font-weight: bold; color: #111111; margin: 4px 0; }
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
-    
-    .section-box {
-        background-color: #fafafa;
-        border: 1px solid #e6e6e6;
+
+    .table-container {
+        background-color: #ffffff;
+        border: 1px solid #e0e0e0;
         border-radius: 8px;
         padding: 15px;
-        margin-top: 15px;
-        margin-bottom: 15px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -188,10 +187,10 @@ with tab_odr:
 
     m_odr1, m_odr2, m_odr3, m_odr4, m_odr5 = st.columns(5)
     with m_odr1: st.markdown(f'<div class="metric-card"><div class="metric-title">SẢN LƯỢNG PHẢI PHÁT</div><div class="metric-value">{tong_sl_odr:,.0f}</div><div class="metric-sub-green">▲ Thực tế</div></div>', unsafe_allow_html=True)
-    with m_odr2: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr3: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ LẦN 1</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr4: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr5: st.markdown(f'<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr2: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr3: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ LẦN 1</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr4: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr5: st.markdown('<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
 
     st.write("")
     
@@ -219,19 +218,19 @@ with tab_odr:
 
     st.divider()
     
-    # --- 1. GIỮ NGUYÊN 2 BẢNG TƯƠNG TÁC BAN ĐẦU (TRÁI: TỈNH PHÁT, PHẢI: BƯU CỤC) ---
+    # --- 1. HAI BẢNG TƯƠNG TÁC BAN ĐẦU (TỈNH PHÁT TOP 5 & BƯU CỤC) ---
     st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC CHỌN DÒNG)")
     st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
     
     df_cn_grouped = con.execute(f"""
         SELECT tinh_phat AS "Tỉnh phát", COUNT(*) AS "Tổng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
         FROM orders WHERE {where_sql_odr} AND tinh_phat IS NOT NULL
-        GROUP BY tinh_phat ORDER BY "Tổng đơn" DESC LIMIT 15
+        GROUP BY tinh_phat ORDER BY "Tổng đơn" DESC LIMIT 5
     """).fetchdf()
 
     tbl_col1, tbl_col2 = st.columns(2)
     with tbl_col1:
-        st.markdown("**Bảng Tỉnh Phạt (Bấm chọn dòng để lọc)**")
+        st.markdown("**Bảng Tỉnh Phạt (Top 5 - Bấm chọn dòng để lọc)**")
         event_cn = st.dataframe(
             df_cn_grouped, 
             use_container_width=True, 
@@ -251,9 +250,9 @@ with tab_odr:
         if selected_tinh:
             st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span>**", unsafe_allow_html=True)
             df_bc_filtered = con.execute(f"""
-                SELECT ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+                SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
                 FROM orders WHERE {where_sql_odr} AND tinh_phat = '{selected_tinh}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
+                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
             """).fetchdf()
             st.dataframe(df_bc_filtered, use_container_width=True, hide_index=True)
         else:
@@ -265,10 +264,10 @@ with tab_odr:
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True)
 
-    # --- 2. CHÈN THÊM BẢNG PHÂN CẤP MỞ RỘNG [+] / [-] XUỐNG DƯỚI ---
+    # --- 2. BẢNG PHÂN CẤP ĐƯỢC XẾP GỌN GÀNG NHƯ MỘT BẢNG HỆ THỐNG LỚN DUY NHẤT ---
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader("📑 BẢNG PHÂN CẤP MỞ RỘNG CHI TIẾT THEO MẪU ([+] / [-])")
-    st.info("💡 Bấm vào nút `[+] / [-]` bên dưới để mở rộng hoặc thu gọn danh sách Bưu cục theo từng Tỉnh một cách trực quan!")
+    st.subheader("📑 BẢNG PHÂN CẤP TỈNH PHÁT & BƯU CỤC LIỀN MẠCH ([+] / [-])")
+    st.info("💡 Bấm vào nút `[+] / [-]` để mở rộng hoặc thu gọn các dòng bưu cục ngay trong cùng một bảng thống kê.")
 
     df_tins = con.execute(f"""
         SELECT tinh_phat, COUNT(*) AS tong_don, ROUND(SUM(tong_cuoc)/1e6, 1) AS doanh_thu
@@ -282,29 +281,36 @@ with tab_odr:
     if "expanded_tinhs" not in st.session_state:
         st.session_state.expanded_tinhs = {}
 
-    for tinh, tong_don, doanh_thu in df_tins:
-        is_expanded = st.session_state.expanded_tinhs.get(tinh, False)
+    # Bọc toàn bộ các dòng vào chung một "Table Container" để nhìn thành một bảng hệ thống duy nhất
+    with st.container():
+        st.markdown('<div class="table-container">', unsafe_allow_html=True)
         
-        # Làm đẹp các dòng phân cấp bằng khung bọc
-        with st.container():
-            col_btn, col_info1, col_info2, col_info3 = st.columns([0.6, 2.4, 1, 1])
+        for tinh, tong_don, doanh_thu in df_tins:
+            is_expanded = st.session_state.expanded_tinhs.get(tinh, False)
             
-            with col_btn:
+            # Dựng các hàng thẳng tắp y hệt cấu trúc cột của một bảng dữ liệu lớn
+            col_b, col_t, col_d, col_s = st.columns([1, 2.5, 1.5, 1.5])
+            
+            with col_b:
                 btn_label = "[-] Thu gọn" if is_expanded else "[+] Mở rộng"
-                if st.button(btn_label, key=f"btn_tree_{tinh}"):
+                if st.button(btn_label, key=f"tbl_row_{tinh}", use_container_width=True):
                     st.session_state.expanded_tinhs[tinh] = not is_expanded
                     st.rerun()
-                    
-            with col_info1:
-                st.markdown(f"🏢 **Tỉnh phát: {tinh}**")
-            with col_info2:
+            with col_t:
+                st.markdown(f"**🏢 Tỉnh: {tinh}**")
+            with col_d:
                 st.markdown(f"📦 Tổng đơn: **{tong_don:,}**")
-            with col_info3:
+            with col_s:
                 st.markdown(f"💰 Doanh thu: **{doanh_thu:,.1f} Tr**")
 
+            # Nếu bấm mở rộng, bảng bưu cục con sẽ chạy ngay dưới dòng Tỉnh với hiệu ứng lề thụt vào
             if is_expanded:
-                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↳ **Danh sách Bưu cục chi tiết thuộc {tinh}:**")
-                df_bc_tree = con.execute(f"""
+                st.markdown(f"""
+                    <div style="margin-left: 20px; border-left: 3px solid #c62828; padding-left: 15px; margin-top: 8px; margin-bottom: 12px; background-color: #fdfdfd; padding-top: 5px; padding-bottom: 5px; border-radius: 4px;">
+                """, unsafe_allow_html=True)
+                st.markdown(f"↳ **Danh sách Bưu cục trực thuộc {tinh}:**")
+                
+                df_bc_sub = con.execute(f"""
                     SELECT ma_buucuc_phat AS "Mã bưu cục", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
                     FROM orders 
                     WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND ma_buucuc_phat IS NOT NULL
@@ -312,5 +318,9 @@ with tab_odr:
                     ORDER BY "Sản lượng đơn" DESC
                 """).fetchdf()
                 
-                st.dataframe(df_bc_tree, use_container_width=True, hide_index=True)
-            st.markdown("---")
+                st.dataframe(df_bc_sub, use_container_width=True, hide_index=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+            
+            st.markdown("<hr style='margin: 8px 0px 8px 0px; border-top: 1px solid #f0f0f0;'>", unsafe_allow_html=True)
+            
+        st.markdown('</div>', unsafe_allow_html=True)
