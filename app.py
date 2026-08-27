@@ -209,19 +209,17 @@ with tab_odr:
     st.divider()
 
     # =========================================================================
-    # BẢNG MA TRẬN PHÂN CẤP VẬN HÀNH (MỤC 1 & MỤC 2 CÓ HIỂN THỊ NÚT [+] / [-])
+    # BẢNG MA TRẬN CHẤT LƯỢNG VẬN HÀNH (SỬ DỤNG AGGRID TREE TABLE CHUYÊN NGHIỆP)
     # =========================================================================
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (CÂY PHÂN CẤP)")
-    st.info("💡 Bảng mô phỏng cấu trúc cây quản trị: Bấm vào nút mũi tên/dấu cộng bên cạnh tên Khách hàng để mở rộng xem Chi nhánh và Bưu cục con.")
+    st.info("💡 Bảng phân cấp quản trị: Bấm vào nút `[+]` bên cạnh tên Khách hàng để mở rộng xem Tỉnh và Bưu cục chi tiết.")
 
-    # Truy vấn phân cấp: Khách hàng -> Tỉnh phát -> Bưu cục phát
-    # Mục 1: Sản lượng phải phát (COUNT(*))
-    # Mục 2: Sản lượng phát thành công (ma_trangthai = 501)
-    df_tree_data = con.execute(f"""
+    # Truy vấn dữ liệu chi tiết theo Khách hàng -> Tỉnh phát -> Bưu cục phát
+    df_tree_matrix = con.execute(f"""
         SELECT 
-            COALESCE(ma_khgui, 'Khách vãng lai') AS "path_1",
-            COALESCE(tinh_phat, 'Chưa rõ tỉnh') AS "path_2",
-            COALESCE(ma_buucuc_phat, 'Chưa rõ bưu cục') AS "path_3",
+            COALESCE(ma_khgui, 'Khách vãng lai') AS "Mã Khách Hàng",
+            COALESCE(tinh_phat, 'Chưa rõ tỉnh') AS "Tỉnh Phát",
+            COALESCE(ma_buucuc_phat, 'Chưa rõ bưu cục') AS "Mã Bưu Cục",
             COUNT(*) AS "Sản lượng phải phát",
             SUM(CASE WHEN CAST(ma_trangthai AS INTEGER) = 501 THEN 1 ELSE 0 END) AS "Sản lượng phát thành công",
             ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
@@ -232,17 +230,17 @@ with tab_odr:
         LIMIT 300
     """).fetchdf()
 
-    # Cấu hình lưới AgGrid theo dạng cây phân cấp (Tree Data) với đầy đủ renderer nút [+] / [-]
-    gb = GridOptionsBuilder.from_dataframe(df_tree_data)
+    # Cấu hình AgGrid hiển thị dạng Tree Data có nút mở rộng [+] / [-]
+    gb = GridOptionsBuilder.from_dataframe(df_tree_matrix)
     gb.configure_default_column(editable=False, sortable=True, filter=True, resizable=True)
 
     gb.configure_grid_options(
         treeData=True,
         animateRows=True,
-        groupDefaultExpanded=0,  # Thu gọn toàn bộ ban đầu, bấm [+] để mở
+        groupDefaultExpanded=0,  # Thu gọn toàn bộ ban đầu
         getDataPath=JsCode("""
             function(data) {
-                return [data.path_1, data.path_2, data.path_3];
+                return [data["Mã Khách Hàng"], data["Tỉnh Phát"], data["Mã Bưu Cục"]];
             }
         """),
         autoGroupColumnDef={
@@ -261,21 +259,21 @@ with tab_odr:
         }
     )
 
-    # Ẩn các cột đường dẫn thô
-    gb.configure_column("path_1", hide=True)
-    gb.configure_column("path_2", hide=True)
-    gb.configure_column("path_3", hide=True)
+    # Ẩn các cột thô dùng làm đường dẫn cây
+    gb.configure_column("Mã Khách Hàng", hide=True)
+    gb.configure_column("Tỉnh Phát", hide=True)
+    gb.configure_column("Mã Bưu Cục", hide=True)
 
-    # Định dạng các cột số liệu cho Mục 1 và Mục 2
+    # Cấu hình định dạng cột số liệu và tự động cộng tổng (aggFunc="sum") cho cấp cha
     gb.configure_column("Sản lượng phải phát", type=["numericColumn", "numberColumnFilter"], precision=0, aggFunc="sum")
     gb.configure_column("Sản lượng phát thành công", type=["numericColumn", "numberColumnFilter"], precision=0, aggFunc="sum")
     gb.configure_column("Doanh thu (Tr)", type=["numericColumn", "numberColumnFilter"], precision=1, aggFunc="sum")
 
     gridOptions = gb.build()
 
-    # Hiển thị bảng AgGrid ra màn hình Streamlit
+    # Hiển thị bảng AgGrid tương tác trực tiếp
     AgGrid(
-        df_tree_data,
+        df_tree_matrix,
         gridOptions=gridOptions,
         height=500,
         use_container_width=True,
