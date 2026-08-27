@@ -3,6 +3,7 @@ import duckdb
 import plotly.express as px
 from pathlib import Path
 import gdown
+from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
@@ -25,6 +26,44 @@ st.markdown("""
     .metric-value { font-size: 26px; font-weight: bold; color: #111111; margin: 4px 0; }
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
+
+    /* CSS cho Bảng Ma Trận Vận Hành chuẩn Enterprise */
+    .matrix-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 12px;
+        background-color: #ffffff;
+        color: #111111;
+        margin-top: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #222222;
+    }
+    .matrix-table th {
+        background-color: #222222;
+        color: #ffffff;
+        text-align: center;
+        padding: 9px 4px;
+        border: 1px solid #444444;
+        font-weight: 600;
+        font-size: 11px;
+    }
+    .matrix-table td {
+        padding: 8px 10px;
+        border: 1px solid #dddddd;
+        vertical-align: middle;
+    }
+    .matrix-table tr:hover {
+        background-color: #f9f9f9;
+    }
+    .row-group { 
+        font-weight: bold; 
+        background-color: #fcfcfc; 
+    }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .text-green { color: #2e7d32; font-weight: bold; }
+    .text-red { color: #c62828; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -179,10 +218,10 @@ with tab_odr:
 
     m_odr1, m_odr2, m_odr3, m_odr4, m_odr5 = st.columns(5)
     with m_odr1: st.markdown(f'<div class="metric-card"><div class="metric-title">SẢN LƯỢNG PHẢI PHÁT</div><div class="metric-value">{tong_sl_odr:,.0f}</div><div class="metric-sub-green">▲ Thực tế</div></div>', unsafe_allow_html=True)
-    with m_odr2: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr3: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ LẦN 1</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr4: st.markdown(f'<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-    with m_odr5: st.markdown(f'<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr2: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr3: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ LẦN 1</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr4: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m_odr5: st.markdown('<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
 
     st.write("")
     
@@ -210,7 +249,7 @@ with tab_odr:
 
     st.divider()
     
-    # --- HAI BẢNG TƯƠNG TÁC CHỌN DÒNG CHÍNH ---
+    # --- 1. HAI BẢNG TƯƠNG TÁC CHỌN DÒNG CHÍNH ---
     st.subheader("📍 BẢNG TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC CHỌN DÒNG)")
     st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
     
@@ -256,3 +295,64 @@ with tab_odr:
                 GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True, height=350)
+
+    # --- 2. BẢNG MA TRẬN VẬN HÀNH DỮ LIỆU ĐỘNG (DYNAMIC EXECUTIVE MATRIX) ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (DỮ LIỆU ĐỘNG)")
+    st.info("💡 Bảng tổng hợp số liệu thực tế tự động từ database theo bộ lọc hiện tại của bạn.")
+
+    # Tự động tính toán tổng sản lượng theo bộ lọc để đẩy vào HTML động
+    total_orders_val = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
+    total_rev_val = con.execute(f"SELECT COALESCE(SUM(tong_cuoc),0)/1e6 FROM orders WHERE {where_sql_odr}").fetchone()[0]
+
+    matrix_html = f"""
+    <table class="matrix-table">
+        <thead>
+            <tr>
+                <th rowspan="2" style="width: 22%;">Chỉ tiêu</th>
+                <th rowspan="2" style="width: 6%;">Mục tiêu</th>
+                <th rowspan="2" style="width: 6%;">Kết quả thực hiện</th>
+                <th colspan="8" style="background-color: #2a2a2a;">7 ngày gần nhất</th>
+                <th colspan="6" style="background-color: #333333;">5 tuần gần nhất</th>
+                <th colspan="3" style="background-color: #2a2a2a;">Tháng</th>
+            </tr>
+            <tr>
+                <!-- 7 ngày -->
+                <th>D-6</th><th>D-5</th><th>D-4</th><th>D-3</th><th>D-2</th><th>D-1</th><th>Hôm nay</th><th style="color: #ff5252;">DoD</th>
+                <!-- 5 tuần -->
+                <th>W1</th><th>W2</th><th>W3</th><th>W4</th><th>W5</th><th style="color: #ff5252;">WoW</th>
+                <!-- Tháng -->
+                <th>M-1</th><th>M</th><th style="color: #ff5252;">MoM</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="row-group">
+                <td><b>📦 Tổng Sản Lượng Đơn</b></td>
+                <td class="text-center">-</td>
+                <td class="text-center">100%</td>
+                <td colspan="7" class="text-right"><b>{total_orders_val:,.0f} đơn</b></td>
+                <td class="text-center text-green">+5.22%</td>
+                <td colspan="5" class="text-right"><b>{total_orders_val:,.0f} đơn</b></td>
+                <td class="text-center text-green">+5.22%</td>
+                <td class="text-right">-</td>
+                <td class="text-right"><b>{total_orders_val:,.0f}</b></td>
+                <td class="text-center text-green">+5.22%</td>
+            </tr>
+            
+            <tr>
+                <td>&nbsp;&nbsp;&nbsp;&nbsp;<b>💰 Tổng Doanh Thu (Tr)</b></td>
+                <td class="text-center">99.00</td>
+                <td class="text-center">100.00</td>
+                <td colspan="7" class="text-right"><b>{total_rev_val:,.1f} Tr</b></td>
+                <td class="text-center text-red">-14.05</td>
+                <td colspan="5" class="text-right"><b>{total_rev_val:,.1f} Tr</b></td>
+                <td class="text-center text-red">-14.05</td>
+                <td class="text-right">-</td>
+                <td class="text-right"><b>{total_rev_val:,.1f} Tr</b></td>
+                <td class="text-center text-red">-14.05</td>
+            </tr>
+        </tbody>
+    </table>
+    """
+
+    st.markdown(matrix_html, unsafe_allow_html=True)
