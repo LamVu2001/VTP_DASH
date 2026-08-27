@@ -218,7 +218,7 @@ with tab_odr:
 
     st.divider()
     
-    # --- 1. HAI BẢNG TƯƠNG TÁC BAN ĐẦU (TỈNH PHÁT TOP 5 & BƯU CỤC) ---
+    # --- 1. HAI BẢNG TƯƠNG TÁC BAN ĐẦU (TỈNH PHÁT TOP 5 & BƯU CỤC TOP 5) ---
     st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC CHỌN DÒNG)")
     st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
     
@@ -248,19 +248,21 @@ with tab_odr:
 
     with tbl_col2:
         if selected_tinh:
-            st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span>**", unsafe_allow_html=True)
+            st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span> (Top 5)**", unsafe_allow_html=True)
+            # Thêm LIMIT 5 ở đây để bảng bưu cục lọc theo tỉnh chỉ hiện Top 5
             df_bc_filtered = con.execute(f"""
                 SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
                 FROM orders WHERE {where_sql_odr} AND tinh_phat = '{selected_tinh}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
+                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC LIMIT 5
             """).fetchdf()
             st.dataframe(df_bc_filtered, use_container_width=True, hide_index=True)
         else:
-            st.markdown("**Bảng Bưu Cục (Hoặc bấm chọn Tỉnh bên trái)**")
+            st.markdown("**Bảng Bưu Cục (Top 5 - Hoặc bấm chọn Tỉnh bên trái)**")
+            # Thêm LIMIT 5 cho bảng bưu cục mặc định
             df_bc_all = con.execute(f"""
                 SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
                 FROM orders WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
-                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC LIMIT 10
+                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC LIMIT 5
             """).fetchdf()
             st.dataframe(df_bc_all, use_container_width=True, hide_index=True)
 
@@ -281,14 +283,12 @@ with tab_odr:
     if "expanded_tinhs" not in st.session_state:
         st.session_state.expanded_tinhs = {}
 
-    # Bọc toàn bộ các dòng vào chung một "Table Container" để nhìn thành một bảng hệ thống duy nhất
     with st.container():
         st.markdown('<div class="table-container">', unsafe_allow_html=True)
         
         for tinh, tong_don, doanh_thu in df_tins:
             is_expanded = st.session_state.expanded_tinhs.get(tinh, False)
             
-            # Dựng các hàng thẳng tắp y hệt cấu trúc cột của một bảng dữ liệu lớn
             col_b, col_t, col_d, col_s = st.columns([1, 2.5, 1.5, 1.5])
             
             with col_b:
@@ -303,19 +303,19 @@ with tab_odr:
             with col_s:
                 st.markdown(f"💰 Doanh thu: **{doanh_thu:,.1f} Tr**")
 
-            # Nếu bấm mở rộng, bảng bưu cục con sẽ chạy ngay dưới dòng Tỉnh với hiệu ứng lề thụt vào
             if is_expanded:
                 st.markdown(f"""
                     <div style="margin-left: 20px; border-left: 3px solid #c62828; padding-left: 15px; margin-top: 8px; margin-bottom: 12px; background-color: #fdfdfd; padding-top: 5px; padding-bottom: 5px; border-radius: 4px;">
                 """, unsafe_allow_html=True)
-                st.markdown(f"↳ **Danh sách Bưu cục trực thuộc {tinh}:**")
+                st.markdown(f"↳ **Top 5 Bưu cục trực thuộc {tinh}:**")
                 
+                # Giới hạn Top 5 bưu cục con trong bảng phân cấp
                 df_bc_sub = con.execute(f"""
                     SELECT ma_buucuc_phat AS "Mã bưu cục", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
                     FROM orders 
                     WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND ma_buucuc_phat IS NOT NULL
                     GROUP BY ma_buucuc_phat 
-                    ORDER BY "Sản lượng đơn" DESC
+                    ORDER BY "Sản lượng đơn" DESC LIMIT 5
                 """).fetchdf()
                 
                 st.dataframe(df_bc_sub, use_container_width=True, hide_index=True)
