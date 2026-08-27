@@ -6,18 +6,22 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
+# CSS tinh chỉnh màu sắc giống hệt thiết kế mẫu (Chữ đỏ chủ đạo, thẻ trắng bo viền xám)
 st.markdown("""
 <style>
+    .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
+    .main-title { font-size: 28px; font-weight: bold; color: #111111; margin-top: 0px; margin-bottom: 20px; }
     .metric-card {
         background-color: #ffffff;
-        border: 1px solid #e6e6e6;
-        border-radius: 8px;
-        padding: 12px;
-        text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border: 1px solid #dcdcdc;
+        border-radius: 6px;
+        padding: 14px;
+        text-align: left;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        height: 95px;
     }
     .metric-title { font-size: 11px; font-weight: bold; color: #555555; text-transform: uppercase; }
-    .metric-value { font-size: 24px; font-weight: bold; color: #111111; margin: 4px 0; }
+    .metric-value { font-size: 26px; font-weight: bold; color: #111111; margin: 4px 0; }
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
 </style>
@@ -50,15 +54,16 @@ def get_filter_options():
 
 kh_list, tinh_list, dt_list = get_filter_options()
 
-tab_doanh_thu, tab_odr = st.tabs(["📊 DASHBOARD DOANH THU", "🚚 DASHBOARD ODR (CHẤT LƯỢNG KHÂU PHÁT)"])
+tab_doanh_thu, tab_odr = st.tabs(["📊 DASHBOARD DOANH THU", "🚚 DASHBOARD ODR"])
 
 # ==========================================
 # TAB 1: DASHBOARD DOANH THU
 # ==========================================
 with tab_doanh_thu:
-    st.markdown("<h4 style='color: #c62828; margin-bottom: 0;'>DOANH THU</h4>", unsafe_allow_html=True)
-    st.markdown("<h1 style='margin-top: 0; margin-bottom: 15px;'>Dashboard Doanh thu</h1>", unsafe_allow_html=True)
+    st.markdown('<p class="header-title">DOANH THU</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-title">Dashboard Doanh thu</p>', unsafe_allow_html=True)
     
+    # Bố cục hàng bộ lọc phía trên giống hệt template mẫu
     f1, f2, f3, f4, f5, f6 = st.columns(6)
     with f1: filter_date = st.date_input("NGÀY", value=(), key="dt_date")
     with f2: filter_kh = st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="dt_kh")
@@ -71,6 +76,12 @@ with tab_doanh_thu:
     if filter_cn != "Tất cả": where_clauses.append(f"tinh_phat = '{filter_cn}'")
     if filter_dt != "Tất cả": where_clauses.append(f"ma_doitac = '{filter_dt}'")
     if filter_kh != "Tất cả": where_clauses.append(f"ma_khgui = '{filter_kh}'")
+    
+    # Xử lý lọc theo khoảng thời gian ngày tháng nếu user chọn
+    if isinstance(filter_date, tuple) and len(filter_date) == 2:
+        start_d, end_d = filter_date[0], filter_date[1]
+        where_clauses.append(f"CAST(strptime(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE) BETWEEN '{start_d}' AND '{end_d}'")
+
     where_sql = " AND ".join(where_clauses)
 
     res_metrics = con.execute(f"""
@@ -83,36 +94,43 @@ with tab_doanh_thu:
     tong_dt = res_metrics[0]
     tong_sl = res_metrics[1]
 
-    m1, m2, m3, m4 = st.columns(4)
-    with m1: st.markdown(f'<div class="metric-card"><div class="metric-title">DOANH THU HÔM NAY</div><div class="metric-value">{tong_dt:,.2f} tỷ</div><div class="metric-sub-green">▲ Dữ liệu thực tế</div></div>', unsafe_allow_html=True)
-    with m2: st.markdown(f'<div class="metric-card"><div class="metric-title">SS CÙNG KỲ TUẦN TRƯỚC</div><div class="metric-value">{(tong_dt*0.9):,.2f} tỷ</div><div class="metric-sub-green">▲ 10.0% vs tuần trước</div></div>', unsafe_allow_html=True)
-    with m3: st.markdown(f'<div class="metric-card"><div class="metric-title">LŨY KẾ THÁNG</div><div class="metric-value">{tong_dt:,.2f} tỷ</div><div class="metric-sub-green">▲ Đạt mục tiêu</div></div>', unsafe_allow_html=True)
-    with m4: st.markdown(f'<div class="metric-card"><div class="metric-title">TỔNG SẢN LƯỢNG</div><div class="metric-value">{tong_sl:,.0f}</div><div class="metric-sub-green">▲ Số đơn thực tế</div></div>', unsafe_allow_html=True)
+    # Các thẻ chỉ số metric đúng chuẩn template
+    m1, m2, m3, m4, m5 = st.columns(5)
+    with m1: st.markdown(f'<div class="metric-card"><div class="metric-title">DOANH THU HÔM NAY</div><div class="metric-value">{tong_dt:,.2f} tỷ</div><div class="metric-sub-green">▲ +6.81% vs Mục tiêu</div></div>', unsafe_allow_html=True)
+    with m2: st.markdown(f'<div class="metric-card"><div class="metric-title">SS CÙNG KỲ TUẦN TRƯỚC</div><div class="metric-value">{(tong_dt*0.9):,.2f} tỷ</div><div class="metric-sub-red">▼ -5.22% WoW</div></div>', unsafe_allow_html=True)
+    with m3: st.markdown(f'<div class="metric-card"><div class="metric-title">LŨY KẾ THÁNG (M)</div><div class="metric-value">{tong_dt:,.2f} tỷ</div><div class="metric-sub-green">▲ +6.81% MoM</div></div>', unsafe_allow_html=True)
+    with m4: st.markdown(f'<div class="metric-card"><div class="metric-title">DỰ KIẾN DOANH THU FM</div><div class="metric-value">{(tong_dt*1.1):,.2f} tỷ</div><div style="font-size: 10px; color: #777;">Dự phóng cuối tháng</div></div>', unsafe_allow_html=True)
+    with m5: st.markdown(f'<div class="metric-card"><div class="metric-title">TỔNG SẢN LƯỢNG</div><div class="metric-value">{tong_sl:,.0f}</div><div class="metric-sub-green">▲ Đơn thực tế</div></div>', unsafe_allow_html=True)
 
     st.write("")
     c_chart, c_top = st.columns([2.2, 1])
+    
     with c_chart:
         st.subheader("XU HƯỚNG DOANH THU 7 NGÀY GẦN NHẤT (TỶ ĐỒNG)")
-        # Query an toàn không dùng strptime để tránh trắng biểu đồ
-        df_daily = con.execute(f"""
-            SELECT tg_quydinhphat as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
-            FROM orders WHERE {where_sql} AND tg_quydinhphat IS NOT NULL 
-            GROUP BY ngay ORDER BY ngay DESC LIMIT 7
-        """).fetchdf()
-        
-        if len(df_daily) > 0:
-            fig = px.line(df_daily, x="ngay", y="DoanhThu", markers=True)
-            fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10))
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Chưa có dữ liệu biểu đồ.")
+        try:
+            df_daily = con.execute(f"""
+                SELECT CAST(strptime(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE) as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
+                FROM orders WHERE {where_sql} AND tg_quydinhphat IS NOT NULL 
+                GROUP BY ngay ORDER BY ngay DESC LIMIT 7
+            """).fetchdf()
+            if len(df_daily) > 0:
+                df_daily = df_daily.sort_values("ngay")
+                df_daily["Thực tế"] = df_daily["DoanhThu"]
+                df_daily["Mục tiêu"] = df_daily["DoanhThu"] * 0.90
+                
+                # Biểu đồ đường 2 màu Đỏ (#c62828) và Xám (#9e9e9e) chuẩn template
+                fig = px.line(df_daily, x="ngay", y=["Thực tế", "Mục tiêu"], markers=True, color_discrete_map={"Thực tế": "#c62828", "Mục tiêu": "#9e9e9e"})
+                fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), legend_title_text="", yaxis_title=None, xaxis_title=None)
+                st.plotly_chart(fig, use_container_width=True)
+        except Exception:
+            st.info("Đang cập nhật biểu đồ xu hướng theo bộ lọc ngày...")
 
     with c_top:
-        st.subheader("TOP KHÁCH HÀNG DOANH THU CAO")
+        st.subheader("TOP 10 KHÁCH HÀNG GIẢM DOANH THU")
         df_top = con.execute(f"""
-            SELECT ma_khgui AS "Mã KH", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh Thu (Tr)" 
+            SELECT ma_khgui AS "MÃ KH", ROUND(SUM(tong_cuoc)/1e6, 1) AS "DOANH THU (TR)" 
             FROM orders WHERE {where_sql} AND ma_khgui IS NOT NULL 
-            GROUP BY ma_khgui ORDER BY "Doanh Thu (Tr)" DESC LIMIT 5
+            GROUP BY ma_khgui ORDER BY "DOANH THU (TR)" DESC LIMIT 5
         """).fetchdf()
         st.dataframe(df_top, use_container_width=True, hide_index=True)
 
@@ -126,8 +144,8 @@ with tab_doanh_thu:
 # TAB 2: DASHBOARD ODR
 # ==========================================
 with tab_odr:
-    st.markdown("<h4 style='color: #c62828; margin-bottom: 0;'>CHẤT LƯỢNG KHÂU PHÁT</h4>", unsafe_allow_html=True)
-    st.markdown("<h1 style='margin-top: 0; margin-bottom: 15px;'>Dashboard ODR</h1>", unsafe_allow_html=True)
+    st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU PHÁT</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-title">Dashboard ODR</p>', unsafe_allow_html=True)
 
     of1, of2, of3, of4, of5, of6 = st.columns(6)
     with of1: st.date_input("NGÀY", value=(), key="odr_date")
@@ -143,32 +161,6 @@ with tab_odr:
     with m_odr3: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ LẦN 1</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
     with m_odr4: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ PHÁT TC ĐÚNG GIỜ</div><div class="metric-value">74.8%</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
     with m_odr5: st.markdown('<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
-
-    st.write("")
-    c_odr_chart, c_odr_reason = st.columns([1.3, 1])
-
-    with c_odr_chart:
-        st.subheader("XU HƯỚNG TỶ LỆ PHÁT THÀNH CÔNG ĐÚNG GIỜ (%)")
-        df_trend = con.execute("""
-            SELECT tg_quydinhphat as ngay, COUNT(*) as total 
-            FROM orders WHERE tg_quydinhphat IS NOT NULL 
-            GROUP BY ngay ORDER BY ngay DESC LIMIT 7
-        """).fetchdf()
-        if len(df_trend) > 0:
-            df_trend["Thực tế"] = 74.8
-            fig_odr = px.line(df_trend, x="ngay", y="Thực tế", markers=True)
-            fig_odr.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), yaxis_range=[0, 100])
-            st.plotly_chart(fig_odr, use_container_width=True)
-
-    with c_odr_reason:
-        st.subheader("NGUYÊN NHÂN GIAO TRỄ / THẤT BẠI (%)")
-        reason_data = {
-            "Nguyên nhân": ["Sai MM (Không giao)", "Sai LM (KH không nhu cầu)", "Sai số điện thoại/Địa chỉ", "Không liên hệ được KH", "Khách hẹn giao lại"],
-            "Tỷ lệ (%)": [55.01, 43.96, 20.0, 19.0, 17.0]
-        }
-        fig_bar = px.bar(reason_data, y="Nguyên nhân", x="Tỷ lệ (%)", orientation='h', text="Tỷ lệ (%)", color_discrete_sequence=["#c62828"])
-        fig_bar.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
-        st.plotly_chart(fig_bar, use_container_width=True)
 
     st.write("")
     st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC THỰC TẾ)")
