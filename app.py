@@ -218,7 +218,7 @@ with tab_odr:
 
     st.divider()
     
-    # --- 1. HAI BẢNG TƯƠNG TÁC BAN ĐẦU (TỈNH PHÁT TOP 5 & BƯU CỤC TOP 5) ---
+    # --- 1. HAI BẢNG TƯƠNG TÁC BAN ĐẦU (HIỂN THỊ ĐẦY ĐỦ TOÀN BỘ BƯU CỤC) ---
     st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC CHỌN DÒNG)")
     st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
     
@@ -248,23 +248,23 @@ with tab_odr:
 
     with tbl_col2:
         if selected_tinh:
-            st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span> (Top 5)**", unsafe_allow_html=True)
-            # Thêm LIMIT 5 ở đây để bảng bưu cục lọc theo tỉnh chỉ hiện Top 5
+            st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span> (Đầy đủ)**", unsafe_allow_html=True)
+            # Bỏ LIMIT để show đầy đủ bưu cục khi bấm chọn tỉnh
             df_bc_filtered = con.execute(f"""
                 SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
                 FROM orders WHERE {where_sql_odr} AND tinh_phat = '{selected_tinh}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC LIMIT 5
+                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
             """).fetchdf()
-            st.dataframe(df_bc_filtered, use_container_width=True, hide_index=True)
+            st.dataframe(df_bc_filtered, use_container_width=True, hide_index=True, height=350)
         else:
-            st.markdown("**Bảng Bưu Cục (Top 5 - Hoặc bấm chọn Tỉnh bên trái)**")
-            # Thêm LIMIT 5 cho bảng bưu cục mặc định
+            st.markdown("**Bảng Bưu Cục (Đầy đủ - Hoặc bấm chọn Tỉnh bên trái)**")
+            # Bỏ LIMIT để show đầy đủ toàn bộ bưu cục
             df_bc_all = con.execute(f"""
                 SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
                 FROM orders WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
-                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC LIMIT 5
+                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
             """).fetchdf()
-            st.dataframe(df_bc_all, use_container_width=True, hide_index=True)
+            st.dataframe(df_bc_all, use_container_width=True, hide_index=True, height=350)
 
     # --- 2. BẢNG PHÂN CẤP ĐƯỢC XẾP GỌN GÀNG NHƯ MỘT BẢNG HỆ THỐNG LỚN DUY NHẤT ---
     st.markdown("<br>", unsafe_allow_html=True)
@@ -307,15 +307,15 @@ with tab_odr:
                 st.markdown(f"""
                     <div style="margin-left: 20px; border-left: 3px solid #c62828; padding-left: 15px; margin-top: 8px; margin-bottom: 12px; background-color: #fdfdfd; padding-top: 5px; padding-bottom: 5px; border-radius: 4px;">
                 """, unsafe_allow_html=True)
-                st.markdown(f"↳ **Top 5 Bưu cục trực thuộc {tinh}:**")
+                st.markdown(f"↳ **Toàn bộ Bưu cục trực thuộc {tinh}:**")
                 
-                # Giới hạn Top 5 bưu cục con trong bảng phân cấp
+                # Bỏ LIMIT ở bảng phân cấp mở rộng để show đầy đủ tất cả bưu cục con của tỉnh đó
                 df_bc_sub = con.execute(f"""
                     SELECT ma_buucuc_phat AS "Mã bưu cục", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
                     FROM orders 
                     WHERE {where_sql_odr} AND tinh_phat = '{tinh}' AND ma_buucuc_phat IS NOT NULL
                     GROUP BY ma_buucuc_phat 
-                    ORDER BY "Sản lượng đơn" DESC LIMIT 5
+                    ORDER BY "Sản lượng đơn" DESC
                 """).fetchdf()
                 
                 st.dataframe(df_bc_sub, use_container_width=True, hide_index=True)
