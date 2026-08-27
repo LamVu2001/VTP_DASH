@@ -6,7 +6,6 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS màu sắc và giao diện chuẩn template
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -41,17 +40,15 @@ def get_db_connection():
     file_path = str(local_file if local_file.exists() else win_path)
     con = duckdb.connect(database=':memory:')
     
-    # Tự động quét và gom mọi định dạng ngày tháng lẫn lộn (dấu gạch, dấu xẹt, có/không giờ) về clean_date chuẩn
     con.execute(f"""
         CREATE VIEW orders AS 
         SELECT *, 
                COALESCE(
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d/%m/%Y %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d/%m/%Y') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%Y-%m-%d %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%Y-%m-%d') AS DATE)
+                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%d-%m-%Y %H:%M:%S') AS DATE),
+                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%d-%m-%Y %H:%M') AS DATE),
+                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%d-%m-%Y') AS DATE),
+                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%Y-%m-%d %H:%M:%S') AS DATE),
+                   TRY_CAST(STRPTIME(REPLACE(tg_quydinhphat, '/', '-'), '%Y-%m-%d') AS DATE)
                ) as clean_date
         FROM read_parquet('{file_path}')
     """)
