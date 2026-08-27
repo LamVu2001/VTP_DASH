@@ -152,18 +152,30 @@ with tab_odr:
     st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU PHÁT</p>', unsafe_allow_html=True)
     st.markdown('<p class="main-title">Dashboard ODR</p>', unsafe_allow_html=True)
 
+    # Bộ lọc chuẩn có liên kết bưu cục theo từng tỉnh
     of1, of2, of3, of4, of5, of6 = st.columns(6)
     with of1: filter_date_odr = st.date_input("NGÀY", value=(), key="odr_date")
     with of2: filter_kh_odr = st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="odr_kh")
     with of3: filter_dt_odr = st.selectbox("MÃ ĐỐI TÁC", dt_list, key="odr_dt")
-    with of4: filter_kh2_odr = st.selectbox("MÃ KHÁCH HÀNG (2)", kh_list, key="odr_kh2")
-    with of5: filter_ld_odr = st.selectbox("LOẠI ĐƠN", ["Tất cả"], key="odr_ld")
+    
+    # Lọc Tỉnh phát trước để lọc Bưu cục trực thuộc
+    with of4: filter_cn_odr = st.selectbox("TỈNH PHÁT", tinh_list, key="odr_cn")
+    
+    # Dynamic Bưu cục dựa trên Tỉnh đã chọn
+    if filter_cn_odr != "Tất cả":
+        bc_query = f"SELECT DISTINCT ma_buucuc_phat FROM orders WHERE tinh_phat = '{filter_cn_odr}' AND ma_buucuc_phat IS NOT NULL ORDER BY 1"
+    else:
+        bc_query = "SELECT DISTINCT ma_buucuc_phat FROM orders WHERE ma_buucuc_phat IS NOT NULL ORDER BY 1"
+    bc_list = ["Tất cả"] + [row[0] for row in con.execute(bc_query).fetchall()]
+    
+    with of5: filter_bc_odr = st.selectbox("MÃ BƯU CỤC", bc_list, key="odr_bc")
     with of6: filter_tl_odr = st.selectbox("TRỌNG LƯỢNG", ["Tất cả", "< 500g", "500g - 2kg", "> 2kg"], key="odr_tl")
 
     where_clauses_odr = ["1=1"]
     if filter_kh_odr != "Tất cả": where_clauses_odr.append(f"ma_khgui = '{filter_kh_odr}'")
     if filter_dt_odr != "Tất cả": where_clauses_odr.append(f"ma_doitac = '{filter_dt_odr}'")
-    if filter_kh2_odr != "Tất cả": where_clauses_odr.append(f"ma_khgui = '{filter_kh2_odr}'")
+    if filter_cn_odr != "Tất cả": where_clauses_odr.append(f"tinh_phat = '{filter_cn_odr}'")
+    if filter_bc_odr != "Tất cả": where_clauses_odr.append(f"ma_buucuc_phat = '{filter_bc_odr}'")
     
     if isinstance(filter_date_odr, tuple) and len(filter_date_odr) == 2:
         start_d, end_d = filter_date_odr[0], filter_date_odr[1]
@@ -359,7 +371,7 @@ with tab_odr:
     st.write("")
     st.markdown("---")
     
-    # 3. Trả lại 2 bảng Top 5 Chi nhánh và Bưu cục thực hiện kém nhất
+    # 3. Trả lại 2 bảng Top 5 Chi nhánh và Bưu cục thực hiện kém nhất (Đã đổi lại đúng vị trí chuẩn)
     top_col1, top_col2 = st.columns(2)
 
     with top_col1:
