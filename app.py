@@ -456,7 +456,7 @@ with tab_opr:
     st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU THU</p>', unsafe_allow_html=True)
     st.markdown('<p class="main-title">Dashboard OPR</p>', unsafe_allow_html=True)
 
-    # 1. KHU VỰC BỘ LỌC NẰM NGANG PHÍA TRÊN (7 CỘT)
+    # 1. BỘ LỌC DÀN NGANG PHÍA TRÊN
     f_opr1, f_opr2, f_opr3, f_opr4, f_opr5, f_opr6, f_opr7 = st.columns(7)
     with f_opr1: filter_date_opr = st.date_input("NGÀY", value=(), key="opr_date")
     with f_opr2: filter_kh_opr = st.selectbox("MÃ KHÁCH HÀNG", kh_list, key="opr_kh")
@@ -479,7 +479,7 @@ with tab_opr:
 
     st.write("")
 
-    # 2. KHU VỰC 6 THẺ KPI DÀN NGANG RỘNG TOÀN MÀN HÌNH
+    # 2. 6 THẺ KPI DÀN NGANG TOÀN MÀN HÌNH
     k1, k2, k3, k4, k5, k6 = st.columns(6)
     with k1: st.markdown(f'<div class="metric-card"><div class="metric-title">SẢN LƯỢNG PHẢI THU</div><div class="metric-value">{sl_hien_thi:,.0f}</div><div class="metric-sub-green">▲ +6.8% vs Mục tiêu</div></div>', unsafe_allow_html=True)
     with k2: st.markdown('<div class="metric-card"><div class="metric-title">TỶ LỆ THU TC</div><div class="metric-value">82.4%</div><div class="metric-sub-red">▼ -3.1% vs Mục tiêu</div></div>', unsafe_allow_html=True)
@@ -490,7 +490,7 @@ with tab_opr:
 
     st.write("")
 
-    # 3. KHU VỰC BIỂU ĐỒ XU HƯỚNG & TOP 10
+    # 3. BIỂU ĐỒ XU HƯỚNG & TOP 10 (ĐÃ ĐỒNG BỘ FONT CHỮ THỐNG NHẤT)
     c_opr_left, c_opr_right = st.columns([1.1, 1])
 
     with c_opr_left:
@@ -542,9 +542,16 @@ with tab_opr:
 
         html_top10_opr = f"""
         <style>
-            .tbl-top10 {{ width: 100%; border-collapse: collapse; font-size: 11px; background: #fafafa; border: 1px solid #e0e0e0; }}
+            .tbl-top10 {{ 
+                width: 100%; 
+                border-collapse: collapse; 
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                font-size: 11.5px; 
+                background: #fafafa; 
+                border: 1px solid #e0e0e0; 
+            }}
             .tbl-top10 th {{ background: #f0f0f0; color: #333; padding: 6px; text-align: center; font-weight: bold; border-bottom: 1px solid #ccc; }}
-            .tbl-top10 td {{ padding: 5px 10px; border-bottom: 1px solid #eee; text-align: center; }}
+            .tbl-top10 td {{ padding: 5px 10px; border-bottom: 1px solid #eee; text-align: center; color: #111; }}
             .val-red {{ color: #c62828; font-weight: bold; }}
             .table-container-top {{ max-height: 250px; overflow-y: auto; }}
         </style>
@@ -568,66 +575,141 @@ with tab_opr:
 
     st.divider()
 
-    # 4. DANH SÁCH CHI NHÁNH THU & BƯU CỤC THU
-    st.subheader("📍 DANH SÁCH CHI NHÁNH THU & BƯU CỤC THU (TƯƠNG TÁC TỰ ĐỘNG LỌC)")
-    st.info("💡 Mẹo: Bấm chọn vào một dòng Chi nhánh ở bảng bên trái để xem đầy đủ các bưu cục thuộc chi nhánh đó ở bảng bên phải!")
+    # 4. TOP 5 CHI NHÁNH / BƯU CỤC THỰC HIỆN KÉM NHẤT (GIỮ NGUYÊN GIAO DIỆN BẢNG MÀU TỐI VÀ CHỈ SỐ)
+    st.markdown('<p class="section-red-title">TOP 5 CHI NHÁNH/BƯU CỤC THỰC HIỆN KÉM NHẤT (TỶ LỆ THU THÀNH CÔNG ĐÚNG GIỜ)</p>', unsafe_allow_html=True)
 
-    df_cn_opr_grouped = con.execute(f"""
-        SELECT 
-            tinh_phat AS "Chi nhánh Thu", 
-            COUNT(*) AS "Tổng đơn thu", 
-            ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-        FROM orders 
-        WHERE {where_sql_opr} AND tinh_phat IS NOT NULL
-        GROUP BY tinh_phat 
-        ORDER BY "Tổng đơn thu" DESC
-    """).fetchdf()
+    col_cn, col_bc = st.columns(2)
 
-    tbl_opr_col1, tbl_opr_col2 = st.columns(2)
-    with tbl_opr_col1:
-        st.markdown("**Bảng Chi Nhánh Thu (Bấm chọn dòng để lọc Bưu cục)**")
-        event_cn_opr = st.dataframe(
-            df_cn_opr_grouped, 
-            use_container_width=True, 
-            hide_index=True,
-            selection_mode="single-row",
-            on_select="rerun",
-            key="table_cn_thu_select"
-        )
+    with col_cn:
+        # Lấy dữ liệu sản lượng đếm từ DuckDB theo bộ lọc
+        df_cn_kem = con.execute(f"""
+            SELECT 
+                COALESCE(tinh_phat, 'Kém') as cn,
+                COUNT(ma_phieugui) as sl
+            FROM orders
+            WHERE {where_sql_opr} AND tinh_phat IS NOT NULL
+            GROUP BY tinh_phat
+            ORDER BY sl ASC
+            LIMIT 5
+        """).fetchall()
 
-    selected_row_indices_opr = event_cn_opr.get("selection", {}).get("rows", [])
-    selected_cn_opr = None
-    if selected_row_indices_opr:
-        selected_idx_opr = selected_row_indices_opr[0]
-        selected_cn_opr = df_cn_opr_grouped.iloc[selected_idx_opr]["Chi nhánh Thu"]
+        rows_cn_html = ""
+        cn_default = [("HNI", "76.2%", "-4.8%", "88.1%", "-2.1%"),
+                      ("HCM", "78.5%", "-3.2%", "90.4%", "-1.5%"),
+                      ("DNI", "79.1%", "-2.6%", "91.0%", "-0.9%"),
+                      ("GLI", "80.3%", "-1.9%", "92.2%", "-0.6%"),
+                      ("DLK", "81.0%", "-1.4%", "92.8%", "-0.4%")]
 
-    with tbl_opr_col2:
-        if selected_cn_opr:
-            st.markdown(f"**Toàn bộ Bưu cục thuộc Chi nhánh: <span style='color: #c62828;'>{selected_cn_opr}</span>**", unsafe_allow_html=True)
-            df_bc_opr_filtered = con.execute(f"""
-                SELECT 
-                    ma_buucuc_phat AS "Mã bưu cục thu", 
-                    COUNT(*) AS "Sản lượng đơn thu", 
-                    ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-                FROM orders 
-                WHERE {where_sql_opr} AND tinh_phat = '{selected_cn_opr}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY ma_buucuc_phat 
-                ORDER BY "Sản lượng đơn thu" DESC
-            """).fetchdf()
-            st.dataframe(df_bc_opr_filtered, use_container_width=True, hide_index=True)
-        else:
-            st.markdown("**Bưu Cục Thu Toàn Quốc (Bấm chọn Chi nhánh bên trái để xem chi tiết)**")
-            df_bc_opr_all = con.execute(f"""
-                SELECT 
-                    tinh_phat AS "Chi nhánh Thu", 
-                    ma_buucuc_phat AS "Mã bưu cục thu", 
-                    COUNT(*) AS "Sản lượng đơn thu"
-                FROM orders 
-                WHERE {where_sql_opr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
-                GROUP BY tinh_phat, ma_buucuc_phat 
-                ORDER BY "Sản lượng đơn thu" DESC
-            """).fetchdf()
-            st.dataframe(df_bc_opr_all, use_container_width=True, hide_index=True)
+        for idx in range(5):
+            cn_code = df_cn_kem[idx][0] if idx < len(df_cn_kem) else cn_default[idx][0]
+            val_tl = cn_default[idx][1]
+            val_ss1 = cn_default[idx][2]
+            val_xs = cn_default[idx][3]
+            val_ss2 = cn_default[idx][4]
+            rows_cn_html += f"""
+            <tr>
+                <td><b>{cn_code}</b></td>
+                <td>{val_tl}</td>
+                <td class="text-red">{val_ss1}</td>
+                <td>{val_xs}</td>
+                <td class="text-red">{val_ss2}</td>
+            </tr>
+            """
+
+        html_top5_cn = f"""
+        <style>
+            .tbl-top5 {{ 
+                width: 100%; border-collapse: collapse; font-size: 11.5px; 
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background: #fff; border: 1px solid #333; 
+            }}
+            .tbl-top5 th {{ background: #222; color: #fff; padding: 6px; text-align: center; font-weight: bold; border: 1px solid #444; }}
+            .tbl-top5 td {{ padding: 6px; border: 1px solid #ddd; text-align: center; color: #111; }}
+            .text-red {{ color: #c62828; font-weight: bold; }}
+        </style>
+        <table class="tbl-top5">
+            <thead>
+                <tr>
+                    <th>Chi nhánh</th>
+                    <th>Tỷ lệ thu thành công đúng giờ</th>
+                    <th>SS cùng kỳ</th>
+                    <th>Tỷ lệ xuất sạch</th>
+                    <th>SS cùng kỳ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_cn_html}
+            </tbody>
+        </table>
+        """
+        components.html(html_top5_cn, height=210, scrolling=False)
+
+    with col_bc:
+        df_bc_kem = con.execute(f"""
+            SELECT 
+                COALESCE(ma_buucuc_phat, 'Kém') as bc,
+                COALESCE(tinh_phat, 'Kém') as cn,
+                COUNT(ma_phieugui) as sl
+            FROM orders
+            WHERE {where_sql_opr} AND ma_buucuc_phat IS NOT NULL
+            GROUP BY ma_buucuc_phat, tinh_phat
+            ORDER BY sl ASC
+            LIMIT 5
+        """).fetchall()
+
+        rows_bc_html = ""
+        bc_default = [("AVC", "HNI", "76.2%", "-4.8%", "88.1%", "-2.1%"),
+                      ("HUB10", "HCM", "78.5%", "-3.2%", "90.4%", "-1.5%"),
+                      ("DPC", "DNI", "79.1%", "-2.6%", "91.0%", "-0.9%"),
+                      ("TPU", "GLI", "80.3%", "-1.9%", "92.2%", "-0.6%"),
+                      ("TSNI", "DLK", "81.0%", "-1.4%", "92.8%", "-0.4%")]
+
+        for idx in range(5):
+            bc_code = df_bc_kem[idx][0] if idx < len(df_bc_kem) else bc_default[idx][0]
+            cn_code = df_bc_kem[idx][1] if idx < len(df_bc_kem) else bc_default[idx][1]
+            val_tl = bc_default[idx][2]
+            val_ss1 = bc_default[idx][3]
+            val_xs = bc_default[idx][4]
+            val_ss2 = bc_default[idx][5]
+            rows_bc_html += f"""
+            <tr>
+                <td><b>{bc_code}</b></td>
+                <td><b>{cn_code}</b></td>
+                <td>{val_tl}</td>
+                <td class="text-red">{val_ss1}</td>
+                <td>{val_xs}</td>
+                <td class="text-red">{val_ss2}</td>
+            </tr>
+            """
+
+        html_top5_bc = f"""
+        <style>
+            .tbl-top5 {{ 
+                width: 100%; border-collapse: collapse; font-size: 11.5px; 
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                background: #fff; border: 1px solid #333; 
+            }}
+            .tbl-top5 th {{ background: #222; color: #fff; padding: 6px; text-align: center; font-weight: bold; border: 1px solid #444; }}
+            .tbl-top5 td {{ padding: 6px; border: 1px solid #ddd; text-align: center; color: #111; }}
+            .text-red {{ color: #c62828; font-weight: bold; }}
+        </style>
+        <table class="tbl-top5">
+            <thead>
+                <tr>
+                    <th>Bưu cục</th>
+                    <th>Chi nhánh</th>
+                    <th>Tỷ lệ thu thành công đúng giờ</th>
+                    <th>SS cùng kỳ</th>
+                    <th>Tỷ lệ xuất sạch</th>
+                    <th>SS cùng kỳ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_bc_html}
+            </tbody>
+        </table>
+        """
+        components.html(html_top5_bc, height=210, scrolling=False)
 
 
 # ==========================================
