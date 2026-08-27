@@ -6,7 +6,6 @@ import gdown
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS màu sắc & giao diện chuẩn template
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -41,7 +40,6 @@ def get_db_connection():
     file_path = str(local_file if local_file.exists() else win_path)
     con = duckdb.connect(database=':memory:')
     
-    # Chuẩn hóa toàn bộ ngày tháng về dạng DATE thuần túy, loại bỏ hoàn toàn giờ phút
     con.execute(f"""
         CREATE VIEW orders AS 
         SELECT *, 
@@ -111,7 +109,6 @@ with tab_doanh_thu:
     with m5: st.markdown(f'<div class="metric-card"><div class="metric-title">TỔNG SẢN LƯỢNG</div><div class="metric-value">{tong_sl:,.0f}</div><div class="metric-sub-green">▲ Đơn thực tế</div></div>', unsafe_allow_html=True)
 
     st.write("")
-    # Điều chỉnh tỉ lệ hiển thị cân đối [2, 1.3] để bảng top 10 hiển thị rộng và đủ 10 dòng
     c_chart, c_top = st.columns([2, 1.3])
     
     with c_chart:
@@ -133,7 +130,6 @@ with tab_doanh_thu:
 
     with c_top:
         st.subheader("TOP 10 KHÁCH HÀNG GIẢM DOANH THU")
-        # Đặt LIMIT 10 và chiều cao 380 để hiển thị trọn vẹn đủ 10 dòng
         df_top = con.execute(f"""
             SELECT ma_khgui AS "MÃ KH", ROUND(SUM(tong_cuoc)/1e6, 1) AS "DOANH THU (TR)" 
             FROM orders WHERE {where_sql_dt} AND ma_khgui IS NOT NULL 
@@ -210,47 +206,20 @@ with tab_odr:
         st.info("Biểu đồ bên trái thể hiện sản lượng đơn hàng thực tế cần phát trong 7 ngày gần nhất dựa trên bộ lọc hiện tại của bạn.")
 
     st.divider()
-    st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC THỰC TẾ)")
-    st.info("💡 Mẹo: Bấm chọn vào dòng của một Tỉnh ở bảng bên trái để xem riêng các bưu cục thuộc tỉnh đó ở bảng bên phải!")
-    
-    df_cn_grouped = con.execute(f"""
-        SELECT tinh_phat AS "Tỉnh phát", COUNT(*) AS "Tổng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-        FROM orders WHERE {where_sql_odr} AND tinh_phat IS NOT NULL
-        GROUP BY tinh_phat ORDER BY "Tổng đơn" DESC LIMIT 15
+    st.subheader("📍 BẢNG TỔNG HỢP TỈNH PHÁT & BƯU CỤC CHI TIẾT")
+    st.info("💡 Bảng dưới đây gom nhóm đầy đủ Tỉnh phát và Mã bưu cục tương ứng giúp bạn dễ dàng theo dõi toàn bộ số liệu.")
+
+    # Gộp chung thành 1 bảng lớn duy nhất hiển thị cả Tỉnh phát, Bưu cục, Tổng đơn và Doanh thu
+    df_combined = con.execute(f"""
+        SELECT 
+            tinh_phat AS "Tỉnh phát", 
+            ma_buucuc_phat AS "Mã bưu cục phát", 
+            COUNT(*) AS "Tổng đơn", 
+            ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+        FROM orders 
+        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
+        GROUP BY tinh_phat, ma_buucuc_phat 
+        ORDER BY "Tổng đơn" DESC
     """).fetchdf()
 
-    tbl_col1, tbl_col2 = st.columns(2)
-    with tbl_col1:
-        st.markdown("**Bảng Tỉnh Phạt (Bấm chọn dòng để lọc)**")
-        event_cn = st.dataframe(
-            df_cn_grouped, 
-            use_container_width=True, 
-            hide_index=True,
-            selection_mode="single-row",
-            on_select="rerun",
-            key="table_tinh_phat_select"
-        )
-
-    selected_row_indices = event_cn.get("selection", {}).get("rows", [])
-    selected_tinh = None
-    if selected_row_indices:
-        selected_idx = selected_row_indices[0]
-        selected_tinh = df_cn_grouped.iloc[selected_idx]["Tỉnh phát"]
-
-    with tbl_col2:
-        if selected_tinh:
-            st.markdown(f"**Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span>**", unsafe_allow_html=True)
-            df_bc_filtered = con.execute(f"""
-                SELECT ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn", ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-                FROM orders WHERE {where_sql_odr} AND tinh_phat = '{selected_tinh}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC
-            """).fetchdf()
-            st.dataframe(df_bc_filtered, use_container_width=True, hide_index=True)
-        else:
-            st.markdown("**Bảng Bưu Cục (Hoặc bấm chọn Tỉnh bên trái)**")
-            df_bc_all = con.execute(f"""
-                SELECT tinh_phat AS "Tỉnh phát", ma_buucuc_phat AS "Mã bưu cục phát", COUNT(*) AS "Sản lượng đơn"
-                FROM orders WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
-                GROUP BY tinh_phat, ma_buucuc_phat ORDER BY "Sản lượng đơn" DESC LIMIT 10
-            """).fetchdf()
-            st.dataframe(df_bc_all, use_container_width=True, hide_index=True)
+    st.dataframe(df_combined, use_container_width=True, hide_index=True, height=450)
