@@ -40,15 +40,11 @@ def get_db_connection():
     file_path = str(local_file if local_file.exists() else win_path)
     con = duckdb.connect(database=':memory:')
     
-    # Tạo view chuẩn hóa cột ngày tháng an toàn, hỗ trợ cả định dạng có dấu / hoặc -
+    # Tạo view an toàn tuyệt đối, không sợ lỗi định dạng chuỗi ngày tháng
     con.execute(f"""
         CREATE VIEW orders AS 
         SELECT *, 
-               COALESCE(
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d-%m-%Y %H:%M:%S') AS DATE),
-                   TRY_CAST(STRPTIME(tg_quydinhphat, '%d/%m/%Y %H:%M:%S') AS DATE),
-                   TRY_CAST(SUBSTR(tg_quydinhphat, 1, 10) AS DATE)
-               ) as clean_date
+               CAST(SUBSTR(CAST(tg_quydinhphat AS VARCHAR), 1, 10) AS DATE) as clean_date
         FROM read_parquet('{file_path}')
     """)
     return con
@@ -114,18 +110,15 @@ with tab_doanh_thu:
     
     with c_chart:
         st.subheader("XU HƯỚNG DOANH THU 7 NGÀY GẦN NHẤT (TỶ ĐỒNG)")
-        try:
-            df_daily = con.execute(f"""
-                SELECT clean_date as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
-                FROM orders WHERE {where_sql_dt} AND clean_date IS NOT NULL 
-                GROUP BY ngay ORDER BY ngay DESC LIMIT 7
-            """).fetchdf()
-            if len(df_daily) > 0:
-                fig = px.line(df_daily, x="ngay", y="DoanhThu", markers=True)
-                fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
-                st.plotly_chart(fig, use_container_width=True)
-        except Exception:
-            st.info("Đang hiển thị biểu đồ...")
+        df_daily = con.execute(f"""
+            SELECT clean_date as ngay, SUM(tong_cuoc)/1e9 as DoanhThu 
+            FROM orders WHERE {where_sql_dt} AND clean_date IS NOT NULL 
+            GROUP BY ngay ORDER BY ngay DESC LIMIT 7
+        """).fetchdf()
+        if len(df_daily) > 0:
+            fig = px.line(df_daily, x="ngay", y="DoanhThu", markers=True)
+            fig.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
+            st.plotly_chart(fig, use_container_width=True)
 
     with c_top:
         st.subheader("TOP 10 KHÁCH HÀNG GIẢM DOANH THU")
