@@ -1,5 +1,5 @@
 streamlit
-polars
+duckdb
 plotly
 pyarrow
 gdown
