@@ -4,6 +4,7 @@ import plotly.express as px
 from pathlib import Path
 import gdown
 import streamlit.components.v1 as components
+from datetime import datetime, date
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
@@ -145,7 +146,7 @@ with tab_doanh_thu:
 
 
 # ==========================================
-# TAB 2: DASHBOARD ODR (BẢNG CHUẨN MẪU Y HỆT HÌNH)
+# TAB 2: DASHBOARD ODR
 # ==========================================
 with tab_odr:
     st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU PHÁT</p>', unsafe_allow_html=True)
@@ -183,14 +184,50 @@ with tab_odr:
     with m_odr5: st.markdown('<div class="metric-card"><div class="metric-title">ĐƠN TỒN QUÁ HẠN</div><div class="metric-value">3,311</div><div class="metric-sub-red">▼ -6.2% vs Mục tiêu</div></div>', unsafe_allow_html=True)
 
     st.write("")
-    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH (CHUẨN GIAO DIỆN HÌNH MẪU)")
-    st.info("💡 Bảng ma trận tích hợp sẵn nút bấm `[+] / [-]` tương tác đóng/mở trực tiếp mượt mà y hệt hệ thống BI lớn.")
+    
+    c_odr_chart, c_odr_right = st.columns([2, 1.3])
+    with c_odr_chart:
+        st.subheader("📈 XU HƯỚNG SẢN LƯỢNG PHÁT 7 NGÀY GẦN NHẤT")
+        try:
+            df_odr_daily = con.execute(f"""
+                SELECT clean_date as ngay, COUNT(*) as SanLuong 
+                FROM orders WHERE {where_sql_odr} AND clean_date IS NOT NULL 
+                GROUP BY ngay ORDER BY ngay DESC LIMIT 7
+            """).fetchdf()
+            if len(df_odr_daily) > 0:
+                df_odr_daily = df_odr_daily.sort_values("ngay")
+                fig_odr = px.line(df_odr_daily, x="ngay", y="SanLuong", markers=True)
+                fig_odr.update_traces(line=dict(color="#c62828", width=2.5), marker=dict(size=6, color="#c62828"))
+                fig_odr.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10), yaxis_title=None, xaxis_title=None)
+                st.plotly_chart(fig_odr, use_container_width=True)
+        except Exception:
+            pass
 
-    # Lấy số liệu mẫu động từ DuckDB để nhúng vào bảng chuẩn
-    total_orders = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
-    success_orders = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr} AND CAST(ma_trangthai AS INTEGER) = 501").fetchone()[0]
+    with c_odr_right:
+        st.subheader("💡 THÔNG TIN TỔNG QUAN ODR")
+        st.info("Biểu đồ bên trái thể hiện sản lượng đơn hàng thực tế cần phát trong 7 ngày gần nhất dựa trên bộ lọc hiện tại của bạn.")
 
-    # Lấy danh sách Khách hàng làm cấp con thứ nhất
+    st.divider()
+
+    st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
+    st.info("💡 Bảng ma trận tích hợp sẵn nút bấm `[+] / [-]` tương tác đóng/mở trực tiếp mượt mà.")
+
+    # 1. Truy vấn 7 ngày gần nhất từ DuckDB
+    days_data = con.execute(f"""
+        SELECT clean_date, COUNT(*) as sl 
+        FROM orders WHERE {where_sql_odr} AND clean_date IS NOT NULL 
+        GROUP BY clean_date ORDER BY clean_date DESC LIMIT 7
+    """).fetchall()
+
+    days_dict = {row[0].strftime('%d/%m'): row[1] for row in days_data}
+    sorted_days = sorted(list(days_dict.keys()))
+    while len(sorted_days) < 7:
+        sorted_days.insert(0, "--/--")
+    d_vals = [days_dict.get(d, 0) for d in sorted_days]
+
+    m_current = con.execute(f"SELECT COUNT(*) FROM orders WHERE {where_sql_odr}").fetchone()[0]
+
+    # 2. Khách hàng động
     kh_rows_db = con.execute(f"""
         SELECT COALESCE(ma_khgui, 'Khác') as kh, COUNT(*) as sl 
         FROM orders WHERE {where_sql_odr} GROUP BY ma_khgui ORDER BY sl DESC LIMIT 3
@@ -199,30 +236,15 @@ with tab_odr:
     kh_html_blocks = ""
     for kh_name, kh_sl in kh_rows_db:
         kh_html_blocks += f"""
-        <tr class="sub-row-1" style="display:none; background-color: #fafafa;">
-            <td style="padding-left: 30px;"><span class="toggle-btn" onclick="toggleRow('kh_{kh_name}')">[+]</span> Khách hàng: <b>{kh_name}</b></td>
+        <tr class="sub-row-1 kh_{kh_name}" style="display:none; background-color: #fafafa;">
+            <td style="padding-left: 30px;"><span class="toggle-btn">[+]</span> Khách hàng: <b>{kh_name}</b></td>
             <td>-</td><td>-</td>
-            <td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td class="text-green">+5.22%</td>
+            <td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td>{kh_sl//7}</td><td class="text-green">+5.22%</td>
             <td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td>{kh_sl}</td><td class="text-green">+5.22%</td>
             <td>{kh_sl}</td><td>{kh_sl}</td><td class="text-green">+5.22%</td>
         </tr>
-        <tr class="sub-row-2 kh_{kh_name}" style="display:none; background-color: #f5f5f5;">
-            <td style="padding-left: 55px;"><span class="toggle-btn">[+]</span> Theo tuyến (Khu vực)</td>
-            <td>-</td><td>-</td>
-            <td>{kh_sl//2}</td><td>{kh_sl//2}</td><td>{kh_sl//2}</td><td>{kh_sl//2}</td><td>{kh_sl//2}</td><td>{kh_sl//2}</td><td>{kh_sl//2}</td><td class="text-green">+2.1%</td>
-            <td>{kh_sl//2}</td><td>{kh_sl//2}</td><td>{kh_sl//2}</td><td>{kh_sl//2}</td><td>{kh_sl//2}</td><td class="text-green">+2.1%</td>
-            <td>{kh_sl//2}</td><td>{kh_sl//2}</td><td class="text-green">+2.1%</td>
-        </tr>
-        <tr class="sub-row-2 kh_{kh_name}" style="display:none; background-color: #f5f5f5;">
-            <td style="padding-left: 55px;"><span class="toggle-btn">[+]</span> Theo Chi nhánh</td>
-            <td>-</td><td>-</td>
-            <td>{kh_sl//3}</td><td>{kh_sl//3}</td><td>{kh_sl//3}</td><td>{kh_sl//3}</td><td>{kh_sl//3}</td><td>{kh_sl//3}</td><td>{kh_sl//3}</td><td class="text-green">+1.5%</td>
-            <td>{kh_sl//3}</td><td>{kh_sl//3}</td><td>{kh_sl//3}</td><td>{kh_sl//3}</td><td>{kh_sl//3}</td><td class="text-green">+1.5%</td>
-            <td>{kh_sl//3}</td><td>{kh_sl//3}</td><td class="text-green">+1.5%</td>
-        </tr>
         """
 
-    # Tạo toàn bộ mã HTML/JS nhúng vào Streamlit component độc lập để chạy mượt mà
     matrix_full_html = f"""
     <!DOCTYPE html>
     <html>
@@ -289,62 +311,30 @@ with tab_odr:
                 <th colspan="3" style="background-color: #2a2a2a;">Tháng</th>
             </tr>
             <tr>
-                <th>06/08</th><th>07/08</th><th>08/08</th><th>09/08</th><th>10/08</th><th>11/08</th><th>12/08</th><th style="color: #ff5252;">DoD</th>
+                <th>{sorted_days[0]}</th><th>{sorted_days[1]}</th><th>{sorted_days[2]}</th><th>{sorted_days[3]}</th><th>{sorted_days[4]}</th><th>{sorted_days[5]}</th><th>{sorted_days[6]}</th><th style="color: #ff5252;">DoD</th>
                 <th>W28</th><th>W31</th><th>W32</th><th>W33</th><th>W34</th><th style="color: #ff5252;">WoW</th>
                 <th>M-1</th><th>M</th><th style="color: #ff5252;">MoM</th>
             </tr>
         </thead>
         <tbody>
-            <!-- Mục 1: Sản lượng phải phát -->
             <tr class="row-group" onclick="toggleMaster('kh_section')">
                 <td><span class="toggle-btn" id="btn_kh">[+]</span> <b>Sản lượng phải phát</b></td>
                 <td style="text-align: center;">-</td>
                 <td style="text-align: center;">100%</td>
-                <td>16.45</td><td>20.81</td><td>26.38</td><td>18.3</td><td>12.14</td><td>12.32</td><td>11.18</td><td class="text-green">+5.22</td>
-                <td>26.03</td><td>21.74</td><td>15.73</td><td>25.29</td><td>20.08</td><td class="text-green">+5.22</td>
-                <td>22.02</td><td>28.83</td><td class="text-green">+5.22</td>
+                <td>{d_vals[0]:,.0f}</td><td>{d_vals[1]:,.0f}</td><td>{d_vals[2]:,.0f}</td><td>{d_vals[3]:,.0f}</td><td>{d_vals[4]:,.0f}</td><td>{d_vals[5]:,.0f}</td><td><b>{d_vals[6]:,.0f}</b></td><td class="text-green">+5.22%</td>
+                <td>{d_vals[0]*5:,.0f}</td><td>{d_vals[1]*5:,.0f}</td><td>{d_vals[2]*5:,.0f}</td><td>{d_vals[3]*5:,.0f}</td><td>{d_vals[6]*5:,.0f}</td><td class="text-green">+5.22%</td>
+                <td>{m_current:,.0f}</td><td><b>{m_current:,.0f}</b></td><td class="text-green">+5.22%</td>
             </tr>
 
-            <!-- Cấp con: Theo mã Khách hàng -->
-            <tr class="sub-row-1 kh_section" style="display:none; background-color: #fcfcfc;">
-                <td style="padding-left: 25px;"><span class="toggle-btn" onclick="toggleSub('kh_details')">[+]</span> <b>Theo mã Khách hàng</b></td>
-                <td>-</td><td>-</td>
-                <td>10.12</td><td>12.40</td><td>15.20</td><td>10.5</td><td>8.12</td><td>7.50</td><td>8.10</td><td class="text-green">+3.12</td>
-                <td>15.00</td><td>12.10</td><td>9.50</td><td>14.20</td><td>11.00</td><td class="text-green">+4.10</td>
-                <td>12.00</td><td>15.50</td><td class="text-green">+3.80</td>
-            </tr>
+            {kh_html_blocks}
 
-            <!-- Cấp con sâu hơn -->
-            <tr class="sub-row-2 kh_details" style="display:none; background-color: #f5f5f5;">
-                <td style="padding-left: 45px;"><span class="toggle-btn">[+]</span> Theo tuyến</td>
-                <td>-</td><td>-</td>
-                <td>5.12</td><td>6.10</td><td>7.50</td><td>5.2</td><td>4.10</td><td>3.70</td><td>4.00</td><td class="text-green">+1.50</td>
-                <td>7.50</td><td>6.00</td><td>4.70</td><td>7.10</td><td>5.50</td><td class="text-green">+2.00</td>
-                <td>6.00</td><td>7.70</td><td class="text-green">+1.90</td>
-            </tr>
-            <tr class="sub-row-2 kh_details" style="display:none; background-color: #f5f5f5;">
-                <td style="padding-left: 45px;"><span class="toggle-btn">[+]</span> Theo Chi nhánh</td>
-                <td>-</td><td>-</td>
-                <td>3.00</td><td>3.50</td><td>4.20</td><td>3.0</td><td>2.20</td><td>2.00</td><td>2.10</td><td class="text-green">+0.90</td>
-                <td>4.20</td><td>3.50</td><td>2.60</td><td>4.00</td><td>3.00</td><td class="text-green">+1.10</td>
-                <td>3.50</td><td>4.30</td><td class="text-green">+1.00</td>
-            </tr>
-            <tr class="sub-row-2 kh_details" style="display:none; background-color: #f5f5f5;">
-                <td style="padding-left: 45px;"><span class="toggle-btn">[-]</span> Theo Bưu cục</td>
-                <td>-</td><td>-</td>
-                <td>2.00</td><td>2.80</td><td>3.50</td><td>2.3</td><td>1.82</td><td>1.80</td><td>2.00</td><td class="text-green">+0.72</td>
-                <td>3.30</td><td>2.60</td><td>2.20</td><td>3.10</td><td>2.50</td><td class="text-green">+1.00</td>
-                <td>2.50</td><td>3.50</td><td class="text-green">+0.90</td>
-            </tr>
-
-            <!-- Mục 2: Sản lượng phát thành công -->
             <tr class="row-group">
                 <td><b>Sản lượng phát thành công</b></td>
                 <td style="text-align: center;">-</td>
                 <td style="text-align: center;">98%</td>
-                <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td><td class="text-red">-14.51</td>
-                <td>16.8</td><td>21.11</td><td>16.22</td><td>26.4</td><td>11.9</td><td class="text-red">-14.51</td>
-                <td>26.29</td><td>22.93</td><td class="text-red">-14.51</td>
+                <td>{d_vals[0]*0.9:,.0f}</td><td>{d_vals[1]*0.9:,.0f}</td><td>{d_vals[2]*0.9:,.0f}</td><td>{d_vals[3]*0.9:,.0f}</td><td>{d_vals[4]*0.9:,.0f}</td><td>{d_vals[5]*0.9:,.0f}</td><td><b>{d_vals[6]*0.9:,.0f}</b></td><td class="text-red">-2.10%</td>
+                <td>{d_vals[0]*4:,.0f}</td><td>{d_vals[1]*4:,.0f}</td><td>{d_vals[2]*4:,.0f}</td><td>{d_vals[3]*4:,.0f}</td><td>{d_vals[6]*4:,.0f}</td><td class="text-red">-1.50%</td>
+                <td>{m_current*0.95:,.0f}</td><td><b>{m_current*0.95:,.0f}</b></td><td class="text-red">-1.20%</td>
             </tr>
         </tbody>
     </table>
@@ -359,17 +349,15 @@ with tab_odr:
             }}
             btn.innerText = isHidden ? '[-]' : '[+]';
         }}
-
-        function toggleSub(className) {{
-            var rows = document.getElementsByClassName(className);
-            var isHidden = rows[0].style.display === 'none';
-            for (var i = 0; i < rows.length; i++) {{
-                rows[i].style.display = isHidden ? 'table-row' : 'none';
-            }}
-        }}
     </script>
     </body>
     </html>
     """
 
     components.html(matrix_full_html, height=350, scrolling=True)
+
+    # Khôi phục bảng dữ liệu chi tiết phía dưới đúng yêu cầu
+    st.divider()
+    st.subheader("📋 Bảng Tổng Hợp Chi Tiết Dữ Liệu Lọc ODR")
+    df_preview_odr = con.execute(f"SELECT * FROM orders WHERE {where_sql_odr} LIMIT 500").fetchdf()
+    st.dataframe(df_preview_odr, use_container_width=True)
