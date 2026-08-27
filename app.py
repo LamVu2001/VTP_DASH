@@ -8,7 +8,7 @@ from datetime import datetime, date
 
 st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
 
-# CSS tùy biến giao diện chung & khoảng cách hợp lý
+# CSS tùy biến giao diện chung
 st.markdown("""
 <style>
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
@@ -27,64 +27,6 @@ st.markdown("""
     .metric-value { font-size: 24px; font-weight: bold; color: #111111; margin: 2px 0; }
     .metric-sub-green { font-size: 11px; color: #2e7d32; font-weight: bold; }
     .metric-sub-red { font-size: 11px; color: #c62828; font-weight: bold; }
-    
-    /* CSS tinh chỉnh khoảng cách gọn gàng cho 3 Bảng Tồn Khâu */
-    .ton-container { margin-bottom: 25px; }
-    .ton-section-title {
-        font-size: 14px;
-        font-weight: bold;
-        color: #111111;
-        border-left: 4px solid #c62828;
-        padding-left: 8px;
-        margin-top: 15px;
-        margin-bottom: 8px;
-        text-transform: uppercase;
-    }
-    .ton-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 12px;
-        background-color: #ffffff;
-        border: 1px solid #d3d3d3;
-    }
-    .ton-table th {
-        background-color: #c62828;
-        color: #ffffff;
-        text-align: center;
-        padding: 7px 6px;
-        border: 1px solid #b71c1c;
-        font-weight: bold;
-    }
-    .ton-table td {
-        padding: 5px 8px;
-        border: 1px solid #e0e0e0;
-        text-align: center;
-    }
-    .ton-table td.col-branch {
-        text-align: left;
-        padding-left: 12px;
-    }
-    .ton-table tr.total-row {
-        background-color: #f5f5f5;
-        font-weight: bold;
-    }
-    .ton-btn {
-        display: inline-block;
-        width: 15px;
-        height: 15px;
-        line-height: 13px;
-        text-align: center;
-        border: 1px solid #666;
-        background: #fff;
-        color: #333;
-        font-weight: bold;
-        font-size: 10px;
-        cursor: pointer;
-        margin-right: 6px;
-        border-radius: 2px;
-    }
-    .ton-highlight-red { color: #c62828; font-weight: bold; }
-    .ton-highlight-orange { color: #e65100; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -373,7 +315,7 @@ with tab_odr:
         tinh_rows_db = con.execute(f"""
             SELECT COALESCE(tinh_phat, 'Khác') as tinh, COUNT(*) as sl 
             FROM orders WHERE {where_sql_odr} AND ma_doitac = '{dt_name}' 
-            GROUP BY tinh_phat ORDER BY sl DESC LIMIT 3
+            GROUP BY tinh_phat ORDER BY sl DESC LIMIT 5
         """).fetchall()
 
         for idx_tinh, tinh_row in enumerate(tinh_rows_db):
@@ -391,10 +333,11 @@ with tab_odr:
             </tr>
             """
 
+            # ĐÃ BỎ LIMIT BƯU CỤC ĐỂ BUNG HẾT
             bc_rows_db = con.execute(f"""
                 SELECT COALESCE(ma_buucuc_phat, 'Khác') as bc, COUNT(*) as sl 
                 FROM orders WHERE {where_sql_odr} AND ma_doitac = '{dt_name}' AND tinh_phat = '{tinh_name}'
-                GROUP BY ma_buucuc_phat ORDER BY sl DESC LIMIT 3
+                GROUP BY ma_buucuc_phat ORDER BY sl DESC
             """).fetchall()
 
             for bc_row in bc_rows_db:
@@ -614,20 +557,18 @@ with tab_odr:
     st.divider()
 
     # =========================================================================
-    # 3. BA BẢNG TỒN KHÂU (DỮ LIỆU ĐỘNG THEO TỈNH PHÁT VÀ BƯU CỤC)
+    # 3. BA BẢNG TỒN KHÂU (TRẢI DÀI TRANG WEB, BUNG TOÀN BỘ BƯU CỤC)
     # =========================================================================
 
-    # Lấy danh sách Tỉnh & Bưu cục thực tế từ DuckDB cho Bảng FM & LM
     tinh_rows = con.execute(f"""
         SELECT tinh_phat, COUNT(*) as sl 
         FROM orders 
         WHERE {where_sql_odr} AND tinh_phat IS NOT NULL 
         GROUP BY tinh_phat 
         ORDER BY sl DESC 
-        LIMIT 6
+        LIMIT 10
     """).fetchall()
 
-    # Xây dựng các hàng HTML động cho Bảng 1 (FM)
     fm_rows_html = ""
     for idx_t, (t_name, t_sl) in enumerate(tinh_rows):
         t_id = f"fm_tinh_{idx_t}"
@@ -637,18 +578,18 @@ with tab_odr:
             <td>{t_sl:,.0f}</td>
             <td>{int(t_sl*0.03):,.0f}</td>
             <td>3.0%</td>
-            <td class="ton-highlight-red">{int(t_sl*0.005)}</td>
-            <td class="ton-highlight-orange">{int(t_sl*0.002)}</td>
+            <td class="ton-highlight-red">{int(t_sl*0.005):,.0f}</td>
+            <td class="ton-highlight-orange">{int(t_sl*0.002):,.0f}</td>
             <td class="ton-highlight-red">1.50%</td>
             <td class="ton-highlight-orange">0.65%</td>
         </tr>
         """
-        # Bưu cục thuộc tỉnh đó
+        # ĐÃ BỎ LIMIT BƯU CỤC ĐỂ BUNG HẾT TOÀN BỘ BƯU CỤC
         bc_sub_rows = con.execute(f"""
             SELECT ma_buucuc_phat, COUNT(*) as sl 
             FROM orders 
             WHERE {where_sql_odr} AND tinh_phat = '{t_name}' AND ma_buucuc_phat IS NOT NULL 
-            GROUP BY ma_buucuc_phat ORDER BY sl DESC LIMIT 3
+            GROUP BY ma_buucuc_phat ORDER BY sl DESC
         """).fetchall()
 
         for b_name, b_sl in bc_sub_rows:
@@ -658,14 +599,13 @@ with tab_odr:
                 <td>{b_sl:,.0f}</td>
                 <td>{int(b_sl*0.03):,.0f}</td>
                 <td>3.0%</td>
-                <td class="ton-highlight-red">{int(b_sl*0.005)}</td>
-                <td class="ton-highlight-orange">{int(b_sl*0.002)}</td>
+                <td class="ton-highlight-red">{int(b_sl*0.005):,.0f}</td>
+                <td class="ton-highlight-orange">{int(b_sl*0.002):,.0f}</td>
                 <td class="ton-highlight-red">1.50%</td>
                 <td class="ton-highlight-orange">0.65%</td>
             </tr>
             """
 
-    # Xây dựng các hàng HTML động cho Bảng 3 (LM)
     lm_rows_html = ""
     for idx_t, (t_name, t_sl) in enumerate(tinh_rows):
         t_id = f"lm_tinh_{idx_t}"
@@ -675,17 +615,18 @@ with tab_odr:
             <td>{t_sl:,.0f}</td>
             <td>{int(t_sl*0.04):,.0f}</td>
             <td>4.0%</td>
-            <td class="ton-highlight-red">{int(t_sl*0.008)}</td>
-            <td class="ton-highlight-orange">{int(t_sl*0.003)}</td>
+            <td class="ton-highlight-red">{int(t_sl*0.008):,.0f}</td>
+            <td class="ton-highlight-orange">{int(t_sl*0.003):,.0f}</td>
             <td class="ton-highlight-orange">0.80%</td>
             <td class="ton-highlight-orange">0.30%</td>
         </tr>
         """
+        # ĐÃ BỎ LIMIT BƯU CỤC ĐỂ BUNG HẾT TOÀN BỘ BƯU CỤC
         bc_sub_rows = con.execute(f"""
             SELECT ma_buucuc_phat, COUNT(*) as sl 
             FROM orders 
             WHERE {where_sql_odr} AND tinh_phat = '{t_name}' AND ma_buucuc_phat IS NOT NULL 
-            GROUP BY ma_buucuc_phat ORDER BY sl DESC LIMIT 3
+            GROUP BY ma_buucuc_phat ORDER BY sl DESC
         """).fetchall()
 
         for b_name, b_sl in bc_sub_rows:
@@ -695,8 +636,8 @@ with tab_odr:
                 <td>{b_sl:,.0f}</td>
                 <td>{int(b_sl*0.04):,.0f}</td>
                 <td>4.0%</td>
-                <td class="ton-highlight-red">{int(b_sl*0.008)}</td>
-                <td class="ton-highlight-orange">{int(b_sl*0.003)}</td>
+                <td class="ton-highlight-red">{int(b_sl*0.008):,.0f}</td>
+                <td class="ton-highlight-orange">{int(b_sl*0.003):,.0f}</td>
                 <td class="ton-highlight-orange">0.80%</td>
                 <td class="ton-highlight-orange">0.30%</td>
             </tr>
@@ -708,15 +649,15 @@ with tab_odr:
     <head>
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; }}
-        .ton-container {{ margin-bottom: 20px; }}
+        .ton-container {{ margin-bottom: 25px; }}
         .ton-section-title {{
             font-size: 13px;
             font-weight: bold;
             color: #111111;
             border-left: 4px solid #c62828;
             padding-left: 8px;
-            margin-top: 10px;
-            margin-bottom: 6px;
+            margin-top: 15px;
+            margin-bottom: 8px;
             text-transform: uppercase;
         }}
         .ton-table {{
@@ -884,4 +825,5 @@ with tab_odr:
     </html>
     """
 
-    components.html(html_3_tables, height=750, scrolling=True)
+    # TĂNG HEIGHT LÊN 1200 ĐỂ HIỂN THỊ DÀI TỰ NHIÊN, KHÔNG BỊ KHUNG CUỘN NHỎ
+    components.html(html_3_tables, height=1200, scrolling=False)
