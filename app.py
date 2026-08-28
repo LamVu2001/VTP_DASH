@@ -1475,8 +1475,35 @@ with tab_odr:
 
     st.divider()
 
-    st.subheader("📍 DANH SÁCH TỈNH PHÁT & BƯU CỤC (TƯƠNG TÁC TỰ ĐỘNG LỌC)")
-    st.info("💡 Mẹo: Bấm chọn vào một dòng Tỉnh ở bảng bên trái để xem đầy đủ các bưu cục thuộc tỉnh đó ở bảng bên phải!")
+    # ==========================================
+    # PHẦN 2 BẢNG DỮ LIỆU TỈNH PHÁT & BƯU CỤC (ĐÃ ĐỊNH DẠNG THEO TAB OPR)
+    # ==========================================
+    
+    # CSS Custom chỉnh màu bảng Streamlit Dataframe theo Theme Đen - Đỏ của OPR
+    st.markdown("""
+    <style>
+        /* Format tiêu đề bảng theo style OPR */
+        .opr-table-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #111111;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .opr-table-subtitle {
+            font-size: 11px;
+            font-weight: 400;
+            color: #666666;
+            text-transform: none;
+        }
+        /* Style khung Dataframe */
+        [data-testid="stDataFrame"] {
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
     df_cn_grouped = con.execute(f"""
         SELECT 
@@ -1490,26 +1517,34 @@ with tab_odr:
     """).fetchdf()
 
     tbl_col1, tbl_col2 = st.columns(2)
+
+    # 1. BẢNG TỈNH PHÁT (BÊN TRÁI)
     with tbl_col1:
-        st.markdown("**Bảng Tỉnh Phát (Bấm chọn dòng để lọc Bưu cục)**")
+        st.markdown('<div class="opr-table-title">Bảng Tỉnh Phát <span class="opr-table-subtitle">(Bấm chọn dòng để lọc Bưu cục)</span></div>', unsafe_allow_html=True)
         event_cn = st.dataframe(
             df_cn_grouped, 
             use_container_width=True, 
             hide_index=True,
             selection_mode="single-row",
             on_select="rerun",
-            key="table_tinh_phat_select"
+            key="table_tinh_phat_select",
+            column_config={
+                "Tổng đơn": st.column_config.NumberColumn("Tổng đơn", format="%'d"),
+                "Doanh thu (Tr)": st.column_config.NumberColumn("Doanh thu (Tr)", format="%.1f")
+            }
         )
 
+    # Logic chọn dòng (Giữ nguyên gốc)
     selected_row_indices = event_cn.get("selection", {}).get("rows", [])
     selected_tinh = None
     if selected_row_indices:
         selected_idx = selected_row_indices[0]
         selected_tinh = df_cn_grouped.iloc[selected_idx]["Tỉnh phát"]
 
+    # 2. BẢNG BƯU CỤC (BÊN PHẢI)
     with tbl_col2:
         if selected_tinh:
-            st.markdown(f"**Toàn bộ Bưu cục thuộc Tỉnh: <span style='color: #c62828;'>{selected_tinh}</span>**", unsafe_allow_html=True)
+            st.markdown(f'<div class="opr-table-title">Toàn bộ Bưu cục thuộc Tỉnh: <span style="color: #c62828;">{selected_tinh}</span></div>', unsafe_allow_html=True)
             df_bc_filtered = con.execute(f"""
                 SELECT 
                     ma_buucuc_phat AS "Mã bưu cục phát", 
@@ -1520,9 +1555,18 @@ with tab_odr:
                 GROUP BY ma_buucuc_phat 
                 ORDER BY "Sản lượng đơn" DESC
             """).fetchdf()
-            st.dataframe(df_bc_filtered, use_container_width=True, hide_index=True)
+            
+            st.dataframe(
+                df_bc_filtered, 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={
+                    "Sản lượng đơn": st.column_config.NumberColumn("Sản lượng đơn", format="%'d"),
+                    "Doanh thu (Tr)": st.column_config.NumberColumn("Doanh thu (Tr)", format="%.1f")
+                }
+            )
         else:
-            st.markdown("**Bưu Cục Toàn Quốc (Bấm chọn Tỉnh bên trái để xem chi tiết)**")
+            st.markdown('<div class="opr-table-title">Bưu Cục Toàn Quốc <span class="opr-table-subtitle">(Bấm chọn Tỉnh bên trái để xem chi tiết)</span></div>', unsafe_allow_html=True)
             df_bc_all = con.execute(f"""
                 SELECT 
                     tinh_phat AS "Tỉnh phát", 
@@ -1533,7 +1577,15 @@ with tab_odr:
                 GROUP BY tinh_phat, ma_buucuc_phat 
                 ORDER BY "Sản lượng đơn" DESC
             """).fetchdf()
-            st.dataframe(df_bc_all, use_container_width=True, hide_index=True)
+            
+            st.dataframe(
+                df_bc_all, 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={
+                    "Sản lượng đơn": st.column_config.NumberColumn("Sản lượng đơn", format="%'d")
+                }
+            )
 
     st.write("")
     st.divider()
