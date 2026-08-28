@@ -2482,7 +2482,7 @@ with tab_sla:
 
     components.html(interactive_sla_tables_html, height=410, scrolling=False)
 
-# 1. Query lấy đúng quan hệ Khách hàng -> Tỉnh -> Bưu cục
+# 1. Query dữ liệu cây
     try:
         raw_data = con.execute(f"""
             SELECT ma_doitac, tinh_phat, ma_buucuc_phat
@@ -2497,42 +2497,43 @@ with tab_sla:
     except Exception:
         raw_data = []
 
-    # 2. Re-structure chuẩn 100%: Dict { ma_doitac: { tinh_phat: [danh_sach_bc] } }
+    # 2. Re-structure Dict
     tree_dict = {}
-    global_tinh_dict = {} # Dành riêng cho Bảng 2 (Cảnh báo)
+    global_tinh_dict = {}
 
     for dt, tinh, bc in raw_data:
-        # Gom cho Bảng 1
         if dt not in tree_dict:
             tree_dict[dt] = {}
         if tinh not in tree_dict[dt]:
             tree_dict[dt][tinh] = set()
         tree_dict[dt][tinh].add(bc)
 
-        # Gom cho Bảng 2
         if tinh not in global_tinh_dict:
             global_tinh_dict[tinh] = set()
         global_tinh_dict[tinh].add(bc)
 
-    # Mockup đúng cấu trúc như ảnh bạn gửi nếu DB chưa có data
+    # Data fallback
     if not tree_dict:
         tree_dict = {
             'VTPVN': {
-                'AGG': ['ABC', 'ADN', 'AGG'] # 1 Tỉnh AGG chứa 3 bưu cục
+                'AGG': ['HBKGGR', 'HBAGCM', 'HBAGPT', 'HBAGAP']
             }
         }
         global_tinh_dict = {
-            'AGG': ['ABC', 'ADN', 'AGG']
+            'AGG': ['HBKGGR', 'HBAGCM', 'HBAGPT', 'HBAGAP']
         }
 
-    # 3. Render HTML Bảng 1: Mỗi Tỉnh CHỈ xuất hiện 1 lần duy nhất
+    # 3. Render HTML Bảng 1
     dt_rows_html = ""
-    for dt_code, tinh_map in tree_dict.items():
-        # Dòng Cấp 1: Mã Khách Hàng
+    for dt_idx, (dt_code, tinh_map) in enumerate(tree_dict.items()):
+        dt_group_id = f"dt-{dt_idx}"
+        
+        # Dòng Đối Tác
         dt_rows_html += f"""
         <tr class="kh-group hidden-row row-even">
             <td class="text-left indent-1">
-                <span class="btn-toggle" onclick="toggleRows('tinh-of-{dt_code}', this)">+</span>{dt_code}
+                <span class="box-toggle" onclick="toggleTree('{dt_group_id}', this)">[+]</span>
+                <strong>Đối tác: {dt_code}</strong>
             </td>
             <td></td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td>
             <td class="text-green">+ 1.20</td>
@@ -2542,16 +2543,17 @@ with tab_sla:
             <td class="text-green">+ 1.20</td>
         </tr>
         """
-        # Dòng Cấp 2: Tỉnh (Chạy 1 lần duy nhất cho 1 Tỉnh)
-        for tinh_code, bc_set in tinh_map.items():
-            tinh_class = f"tinh-of-{dt_code}"
-            bc_group_class = f"bc-of-{dt_code}-{tinh_code}"
+        
+        for tinh_idx, (tinh_code, bc_set) in enumerate(tinh_map.items()):
+            tinh_group_id = f"{dt_group_id}-tinh-{tinh_idx}"
             bc_list = sorted(list(bc_set))
             
+            # Dòng Tỉnh
             dt_rows_html += f"""
-            <tr class="{tinh_class} hidden-row">
+            <tr class="child-of-{dt_group_id} hidden-row">
                 <td class="text-left indent-2">
-                    <span class="btn-toggle" onclick="toggleRows('{bc_group_class}', this)">+</span>{tinh_code}
+                    <span class="box-toggle" onclick="toggleTree('{tinh_group_id}', this)">[+]</span>
+                    <strong>{tinh_code}</strong>
                 </td>
                 <td></td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td>
                 <td class="text-green">+ 0.40</td>
@@ -2561,11 +2563,14 @@ with tab_sla:
                 <td class="text-green">+ 0.40</td>
             </tr>
             """
-            # Dòng Cấp 3: Danh sách toàn bộ bưu cục con nằm gọn bên trong Tỉnh
+            
+            # Dòng Bưu Cục (Chuẩn Format • Bưu cục: [MÃ])
             for bc_code in bc_list:
                 dt_rows_html += f"""
-                <tr class="{bc_group_class} hidden-row row-even">
-                    <td class="text-left" style="padding-left: 55px !important;">-- {bc_code}</td>
+                <tr class="child-of-{tinh_group_id} child-of-{dt_group_id} hidden-row row-even">
+                    <td class="text-left indent-3">
+                        <span class="bullet-dot">•</span> Bưu cục: {bc_code}
+                    </td>
                     <td></td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
                     <td class="text-green">+ 0.20</td>
                     <td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
@@ -2575,15 +2580,17 @@ with tab_sla:
                 </tr>
                 """
 
-    # 4. Render HTML Bảng 2: Tỉnh duy nhất -> Các Bưu cục trực thuộc
+    # 4. Render HTML Bảng 2 (Cảnh báo)
     tinh_warning_html = ""
-    for tinh_code, bc_set in global_tinh_dict.items():
-        bc_warn_class = f"bc-warning-{tinh_code}"
+    for tinh_idx, (tinh_code, bc_set) in enumerate(global_tinh_dict.items()):
+        warn_group_id = f"warn-tinh-{tinh_idx}"
         bc_list = sorted(list(bc_set))
+        
         tinh_warning_html += f"""
         <tr class="row-even">
             <td class="text-left indent-1">
-                <span class="btn-toggle" onclick="toggleRows('{bc_warn_class}', this)">+</span>{tinh_code}
+                <span class="box-toggle" onclick="toggleTree('{warn_group_id}', this)">[+]</span>
+                <strong>{tinh_code}</strong>
             </td>
             <td class="text-right" style="padding-right: 25px;">12,981</td>
             <td class="text-right" style="padding-right: 25px;">381</td>
@@ -2591,8 +2598,10 @@ with tab_sla:
         """
         for bc_code in bc_list:
             tinh_warning_html += f"""
-            <tr class="{bc_warn_class} hidden-row">
-                <td class="text-left indent-2">-- {bc_code}</td>
+            <tr class="child-of-{warn_group_id} hidden-row">
+                <td class="text-left indent-3">
+                    <span class="bullet-dot">•</span> Bưu cục: {bc_code}
+                </td>
                 <td class="text-right" style="padding-right: 25px;">4,326</td>
                 <td class="text-right" style="padding-right: 25px;">127</td>
             </tr>
@@ -2652,23 +2661,25 @@ with tab_sla:
         .text-green {{ color: #2e7d32; font-weight: bold; }}
         .text-red {{ color: #c62828; font-weight: bold; }}
         
-        .btn-toggle {{
+        /* Box UI dạng [+] [-] */
+        .box-toggle {{
             display: inline-block;
-            width: 13px;
-            height: 13px;
-            line-height: 11px;
-            text-align: center;
-            border: 1px solid #c62828;
-            color: #c62828;
-            font-size: 10px;
+            font-family: monospace;
             font-weight: bold;
+            font-size: 12px;
             cursor: pointer;
-            margin-right: 5px;
-            background: #fff;
+            margin-right: 6px;
+            color: #333;
+            user-select: none;
+        }}
+        .bullet-dot {{
+            color: #666;
+            margin-right: 4px;
         }}
         .indent-1 {{ padding-left: 15px !important; }}
-        .indent-2 {{ padding-left: 32px !important; }}
-        .hidden-row {{ display: none; }}
+        .indent-2 {{ padding-left: 35px !important; }}
+        .indent-3 {{ padding-left: 55px !important; }}
+        .hidden-row {{ display: none !important; }}
     </style>
     </head>
     <body>
@@ -2678,7 +2689,7 @@ with tab_sla:
         <table class="sla-grid">
             <thead>
                 <tr>
-                    <th rowspan="2" style="min-width: 220px;">Chỉ tiêu</th>
+                    <th rowspan="2" style="min-width: 240px;">Chỉ tiêu</th>
                     <th rowspan="2" style="min-width: 60px;">Mục tiêu</th>
                     <th colspan="8">7 ngày gần nhất</th>
                     <th colspan="7">5 tuần gần nhất</th>
@@ -2707,7 +2718,8 @@ with tab_sla:
 
                 <tr>
                     <td class="text-left indent-1">
-                        <span class="btn-toggle" onclick="toggleRows('kh-group', this)">+</span>Theo mã Khách hàng (ma_doitac)
+                        <span class="box-toggle" onclick="toggleTree('kh-group', this)">[+]</span>
+                        <strong>Theo mã Khách hàng (ma_doitac)</strong>
                     </td>
                     <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
                     <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
@@ -2781,20 +2793,25 @@ with tab_sla:
         </table>
     </div>
 
+    <!-- JS ĐÃ TỐI ƯU CỰC MƯỢT KHÔNG BỊ LAG -->
     <script>
-        function toggleRows(className, btnElem) {{
-            var rows = document.getElementsByClassName(className);
-            var isHidden = false;
-            for (var i = 0; i < rows.length; i++) {{
-                if (rows[i].classList.contains('hidden-row')) {{
-                    rows[i].classList.remove('hidden-row');
-                    isHidden = true;
+        function toggleTree(groupId, btnElem) {{
+            var targets = document.querySelectorAll('.child-of-' + groupId);
+            var isExpanding = (btnElem.innerText === '[+]');
+
+            btnElem.innerText = isExpanding ? '[-]' : '[+]';
+
+            for (var i = 0; i < targets.length; i++) {{
+                var row = targets[i];
+                if (isExpanding) {{
+                    // Mở cấp trực tiếp
+                    row.classList.remove('hidden-row');
                 }} else {{
-                    rows[i].classList.add('hidden-row');
+                    // Thu gọn toàn bộ cháu chắt bên trong
+                    row.classList.add('hidden-row');
+                    var childBtn = row.querySelector('.box-toggle');
+                    if (childBtn) childBtn.innerText = '[+]';
                 }}
-            }}
-            if (btnElem) {{
-                btnElem.innerText = isHidden ? '-' : '+';
             }}
         }}
     </script>
