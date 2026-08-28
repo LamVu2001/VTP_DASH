@@ -2482,100 +2482,192 @@ with tab_sla:
 
     components.html(interactive_sla_tables_html, height=410, scrolling=False)
 
-    html_sla_full_tables = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <style>
-            body { 
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-                margin: 0; padding: 0; background: transparent; color: #111;
-            }
-            .section-red-bar {
-                border-left: 4px solid #c62828;
-                padding-left: 8px;
-                font-weight: bold;
-                font-size: 13px;
-                color: #111;
-                margin-top: 20px;
-                margin-bottom: 10px;
-                text-transform: uppercase;
-            }
-            .table-scroll {
-                max-height: 420px;
-                overflow: auto;
-                border: 1px solid #ccc;
-                background: #fff;
-                margin-bottom: 25px;
-            }
-            table.sla-grid {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 11px;
-                white-space: nowrap;
-            }
-            table.sla-grid th {
-                position: sticky; top: 0; z-index: 10;
-                background-color: #222222;
-                color: #ffffff;
-                text-align: center;
-                padding: 6px 8px;
-                border: 1px solid #444;
-                font-weight: bold;
-            }
-            table.sla-grid td {
-                padding: 5px 8px;
-                border: 1px solid #e0e0e0;
-                text-align: center;
-            }
-            tr.row-even { background-color: #fafafa; }
-            tr.row-group { background-color: #f5f5f5; font-weight: bold; }
-            
-            .text-left { text-align: left !important; }
-            .text-right { text-align: right !important; }
-            .text-green { color: #2e7d32; font-weight: bold; }
-            .text-red { color: #c62828; font-weight: bold; }
-            
-            .btn-toggle {
-                display: inline-block;
-                width: 13px;
-                height: 13px;
-                line-height: 11px;
-                text-align: center;
-                border: 1px solid #c62828;
-                color: #c62828;
-                font-size: 10px;
-                font-weight: bold;
-                cursor: pointer;
-                margin-right: 5px;
-                background: #fff;
-            }
-            .indent-1 { padding-left: 20px !important; }
-            .indent-2 { padding-left: 35px !important; }
-            .hidden-row { display: none; }
-        </style>
-        </head>
-        <body>
+    # 1. Query dữ liệu thật từ DuckDB cho Bảng 1: Mã đối tác -> Tỉnh phát -> Bưu cục phát
+    try:
+        dt_real = con.execute(f"""
+            SELECT DISTINCT ma_doitac 
+            FROM orders 
+            WHERE {where_sql_odr} AND ma_doitac IS NOT NULL AND ma_doitac != ''
+            LIMIT 5
+        """).fetchall()
+        dt_list = [r[0] for r in dt_real]
+    except Exception:
+        dt_list = ['DTI_01', 'DTI_02']
 
-    <!-- BẢNG 1: CHI TIẾT CHỈ TIÊU SLA -->
+    # Lấy phân cấp Tỉnh & Bưu cục thuộc Khách hàng / Tỉnh
+    try:
+        hierarchy_real = con.execute(f"""
+            SELECT DISTINCT tinh_phat, ma_buucuc_phat 
+            FROM orders 
+            WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND tinh_phat != '' AND ma_buucuc_phat IS NOT NULL AND ma_buucuc_phat != ''
+            ORDER BY tinh_phat, ma_buucuc_phat
+            LIMIT 15
+        """).fetchall()
+    except Exception:
+        hierarchy_real = [('HNI', 'HNI01'), ('HNI', 'HNI02'), ('HCM', 'HCM01'), ('DLK', 'DLK01')]
+
+    # Gom nhóm bưu cục theo tỉnh cho Bảng 2
+    tinh_bc_dict = {}
+    for tinh, bc in hierarchy_real:
+        if tinh not in tinh_bc_dict:
+            tinh_bc_dict[tinh] = []
+        if bc not in tinh_bc_dict[tinh]:
+            tinh_bc_dict[tinh].append(bc)
+
+    # Render HTML động cho Bảng 1 (Mã đối tác -> Tỉnh -> Bưu cục)
+    dt_rows_html = ""
+    for dt_code in dt_list:
+        dt_rows_html += f"""
+        <tr class="kh-group hidden-row row-even">
+            <td class="text-left indent-1">
+                <span class="btn-toggle" onclick="toggleRows('tinh-of-{dt_code}', this)">+</span>{dt_code}
+            </td>
+            <td></td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td>
+            <td class="text-green">+ 1.20</td>
+            <td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td>
+            <td class="text-green">+ 1.20</td>
+            <td>12,400</td><td>12,400</td>
+            <td class="text-green">+ 1.20</td>
+        </tr>
+        """
+        for tinh, bc in hierarchy_real[:3]:
+            dt_rows_html += f"""
+            <tr class="tinh-of-{dt_code} hidden-row">
+                <td class="text-left indent-2">
+                    <span class="btn-toggle" onclick="toggleRows('bc-of-{dt_code}-{tinh}', this)">+</span>{tinh}
+                </td>
+                <td></td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td>
+                <td class="text-green">+ 0.40</td>
+                <td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td>
+                <td class="text-green">+ 0.40</td>
+                <td>4,100</td><td>4,100</td>
+                <td class="text-green">+ 0.40</td>
+            </tr>
+            <tr class="bc-of-{dt_code}-{tinh} hidden-row row-even">
+                <td class="text-left" style="padding-left: 50px !important;">-- {bc}</td>
+                <td></td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
+                <td class="text-green">+ 0.20</td>
+                <td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
+                <td class="text-green">+ 0.20</td>
+                <td>2,050</td><td>2,050</td>
+                <td class="text-green">+ 0.20</td>
+            </tr>
+            """
+
+    # Render HTML động cho Bảng 2 (Tỉnh -> Bưu cục thuộc Tỉnh)
+    tinh_warning_html = ""
+    for tinh, bc_list_in_tinh in tinh_bc_dict.items():
+        # Dòng Tỉnh
+        tinh_warning_html += f"""
+        <tr class="row-even">
+            <td class="text-left indent-1">
+                <span class="btn-toggle" onclick="toggleRows('bc-warning-{tinh}', this)">+</span>{tinh}
+            </td>
+            <td class="text-right" style="padding-right: 25px;">12,981</td>
+            <td class="text-right" style="padding-right: 25px;">381</td>
+        </tr>
+        """
+        # Dòng Bưu cục con trong Tỉnh
+        for bc in bc_list_in_tinh:
+            tinh_warning_html += f"""
+            <tr class="bc-warning-{tinh} hidden-row">
+                <td class="text-left indent-2">-- {bc}</td>
+                <td class="text-right" style="padding-right: 25px;">4,326</td>
+                <td class="text-right" style="padding-right: 25px;">127</td>
+            </tr>
+            """
+
+    html_sla_full_tables = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{ 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; padding: 0; background: transparent; color: #111;
+        }}
+        .section-red-bar {{
+            border-left: 4px solid #c62828;
+            padding-left: 8px;
+            font-weight: bold;
+            font-size: 13px;
+            color: #111;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }}
+        .table-scroll {{
+            max-height: 420px;
+            overflow: auto;
+            border: 1px solid #ccc;
+            background: #fff;
+            margin-bottom: 25px;
+        }}
+        table.sla-grid {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            white-space: nowrap;
+        }}
+        table.sla-grid th {{
+            position: sticky; top: 0; z-index: 10;
+            background-color: #222222;
+            color: #ffffff;
+            text-align: center;
+            padding: 6px 8px;
+            border: 1px solid #444;
+            font-weight: bold;
+        }}
+        table.sla-grid td {{
+            padding: 5px 8px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
+        }}
+        tr.row-even {{ background-color: #fafafa; }}
+        tr.row-group {{ background-color: #f5f5f5; font-weight: bold; }}
+        
+        .text-left {{ text-align: left !important; }}
+        .text-right {{ text-align: right !important; }}
+        .text-green {{ color: #2e7d32; font-weight: bold; }}
+        .text-red {{ color: #c62828; font-weight: bold; }}
+        
+        .btn-toggle {{
+            display: inline-block;
+            width: 13px;
+            height: 13px;
+            line-height: 11px;
+            text-align: center;
+            border: 1px solid #c62828;
+            color: #c62828;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-right: 5px;
+            background: #fff;
+        }}
+        .indent-1 {{ padding-left: 15px !important; }}
+        .indent-2 {{ padding-left: 32px !important; }}
+        .hidden-row {{ display: none; }}
+    </style>
+    </head>
+    <body>
+
+    <!-- BẢNG 1: CHI TIẾT CHỈ TIÊU SLA (MÃ ĐỐI TÁC -> TỈNH -> BƯU CỤC) -->
     <div class="table-scroll">
         <table class="sla-grid">
             <thead>
                 <tr>
-                    <th rowspan="2" style="min-width: 180px;">Chỉ tiêu</th>
+                    <th rowspan="2" style="min-width: 220px;">Chỉ tiêu</th>
                     <th rowspan="2" style="min-width: 60px;">Mục tiêu</th>
                     <th colspan="8">7 ngày gần nhất</th>
                     <th colspan="7">5 tuần gần nhất</th>
                     <th colspan="3">Tháng</th>
                 </tr>
                 <tr>
-                    <!-- 7 ngày -->
                     <th>06/08</th><th>07/08</th><th>08/08</th><th>09/08</th><th>10/08</th><th>11/08</th><th>12/08</th>
                     <th style="color: #ffcdd2;">DoD</th>
-                    <!-- 5 tuần -->
                     <th>W30</th><th>W31</th><th>W32</th><th>W33</th><th>W34</th>
                     <th style="color: #ffcdd2;">WoW</th>
-                    <!-- Tháng -->
                     <th>M-1</th><th>M</th>
                     <th style="color: #ffcdd2;">MoM</th>
                 </tr>
@@ -2593,50 +2685,16 @@ with tab_sla:
                     <td class="text-green">+ 5.22</td>
                 </tr>
 
-                <!-- Dòng con 1: Theo mã Khách hàng -->
+                <!-- Theo mã Khách hàng (Bung ra Tỉnh -> Bưu cục) -->
                 <tr>
                     <td class="text-left indent-1">
-                        <span class="btn-toggle" onclick="toggleRows('kh-group', this)">+</span>Theo mã Khách hàng
+                        <span class="btn-toggle" onclick="toggleRows('kh-group', this)">+</span>Theo mã Khách hàng (ma_doitac)
                     </td>
                     <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
                     <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
                 </tr>
-                <tr class="kh-group hidden-row row-even">
-                    <td class="text-left indent-2">KH_VIP_01</td>
-                    <td></td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td>
-                    <td class="text-green">+ 1.20</td>
-                    <td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td>
-                    <td class="text-green">+ 1.20</td>
-                    <td>12,400</td><td>12,400</td>
-                    <td class="text-green">+ 1.20</td>
-                </tr>
-
-                <!-- Dòng con 2: Theo tuyến -->
-                <tr>
-                    <td class="text-left indent-1">
-                        <span class="btn-toggle" onclick="toggleRows('tuyen-group', this)">+</span>Theo tuyến
-                    </td>
-                    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                </tr>
-
-                <!-- Dòng con 3: Theo Chi nhánh -->
-                <tr>
-                    <td class="text-left indent-1">
-                        <span class="btn-toggle" onclick="toggleRows('cn-group', this)">+</span>Theo Chi nhánh
-                    </td>
-                    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                </tr>
-
-                <!-- Dòng con 4: Theo Bưu cục -->
-                <tr>
-                    <td class="text-left indent-1">
-                        <span class="btn-toggle" onclick="toggleRows('bc-group', this)">-</span>Theo Bưu cục
-                    </td>
-                    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                </tr>
+                
+                {dt_rows_html}
 
                 <!-- Các chỉ số con bên dưới -->
                 <tr>
@@ -2683,13 +2741,13 @@ with tab_sla:
         </table>
     </div>
 
-    <!-- BẢNG 2: CẢNH BÁO ĐƠN SẮP QUÁ HẠN -->
+    <!-- BẢNG 2: CẢNH BÁO ĐƠN SẮP QUÁ HẠN (TỈNH -> BƯU CỤC) -->
     <div class="section-red-bar">CẢNH BÁO ĐƠN SẮP QUÁ HẠN – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
-    <div class="table-scroll" style="max-height: 250px;">
+    <div class="table-scroll" style="max-height: 280px;">
         <table class="sla-grid">
             <thead>
                 <tr>
-                    <th style="width: 35%; text-align: left; padding-left: 15px;">Chi Nhánh</th>
+                    <th style="width: 35%; text-align: left; padding-left: 15px;">Chi Nhánh (Tỉnh)</th>
                     <th style="width: 32.5%;">Tồn còn 1 ngày quá hạn</th>
                     <th style="width: 32.5%;">Tồn còn 2 ngày quá hạn</th>
                 </tr>
@@ -2700,67 +2758,30 @@ with tab_sla:
                     <td class="text-right" style="padding-right: 25px;">312,981</td>
                     <td class="text-right" style="padding-right: 25px;">1,381</td>
                 </tr>
-                <tr>
-                    <td class="text-left" style="padding-left: 15px;">
-                        <span class="btn-toggle" onclick="toggleRows('bc-warning-group', this)">+</span>Bưu cục
-                    </td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <td class="text-left indent-1">HNI</td>
-                    <td class="text-right" style="padding-right: 25px;">12,981</td>
-                    <td class="text-right" style="padding-right: 25px;">381</td>
-                </tr>
-                <tr class="bc-warning-group hidden-row row-even">
-                    <td class="text-left indent-2">-- HNI01 (Bưu cục Nam Từ Liêm)</td>
-                    <td class="text-right" style="padding-right: 25px;">4,500</td>
-                    <td class="text-right" style="padding-right: 25px;">120</td>
-                </tr>
-                <tr class="bc-warning-group hidden-row row-even">
-                    <td class="text-left indent-2">-- HNI02 (Bưu cục Cầu Giấy)</td>
-                    <td class="text-right" style="padding-right: 25px;">8,481</td>
-                    <td class="text-right" style="padding-right: 25px;">261</td>
-                </tr>
-                <tr class="row-even">
-                    <td class="text-left indent-1">HCM</td>
-                    <td class="text-right" style="padding-right: 25px;">12,981</td>
-                    <td class="text-right" style="padding-right: 25px;">381</td>
-                </tr>
-                <tr>
-                    <td class="text-left indent-1">DLK</td>
-                    <td class="text-right" style="padding-right: 25px;">12,981</td>
-                    <td class="text-right" style="padding-right: 25px;">381</td>
-                </tr>
-                <tr class="row-even">
-                    <td class="text-left indent-1">GLI</td>
-                    <td class="text-right" style="padding-right: 25px;">12,981</td>
-                    <td class="text-right" style="padding-right: 25px;">381</td>
-                </tr>
+                {tinh_warning_html}
             </tbody>
         </table>
     </div>
 
     <script>
-        function toggleRows(className, btnElem) {
+        function toggleRows(className, btnElem) {{
             var rows = document.getElementsByClassName(className);
             var isHidden = false;
-            for (var i = 0; i < rows.length; i++) {
-                if (rows[i].classList.contains('hidden-row')) {
+            for (var i = 0; i < rows.length; i++) {{
+                if (rows[i].classList.contains('hidden-row')) {{
                     rows[i].classList.remove('hidden-row');
                     isHidden = true;
-                } else {
+                }} else {{
                     rows[i].classList.add('hidden-row');
-                }
-            }
-            if (btnElem) {
+                }}
+            }}
+            if (btnElem) {{
                 btnElem.innerText = isHidden ? '-' : '+';
-            }
-        }
+            }}
+        }}
     </script>
     </body>
     </html>
     """
 
-    components.html(html_sla_full_tables, height=720, scrolling=True)
-    
+    components.html(html_sla_full_tables, height=750, scrolling=True)
