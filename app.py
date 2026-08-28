@@ -2482,61 +2482,53 @@ with tab_sla:
 
     components.html(interactive_sla_tables_html, height=410, scrolling=False)
 
-# Query cây cấu trúc chuẩn: Khách hàng -> Tỉnh -> Bưu cục thuộc Tỉnh đó
+# 1. Query lấy đúng quan hệ Khách hàng -> Tỉnh -> Bưu cục
     try:
-        tree_data = con.execute(f"""
-            SELECT DISTINCT ma_doitac, tinh_phat, ma_buucuc_phat
+        raw_data = con.execute(f"""
+            SELECT ma_doitac, tinh_phat, ma_buucuc_phat
             FROM orders 
             WHERE {where_sql_odr} 
               AND ma_doitac IS NOT NULL AND ma_doitac != ''
               AND tinh_phat IS NOT NULL AND tinh_phat != ''
               AND ma_buucuc_phat IS NOT NULL AND ma_buucuc_phat != ''
+            GROUP BY ma_doitac, tinh_phat, ma_buucuc_phat
             ORDER BY ma_doitac, tinh_phat, ma_buucuc_phat
         """).fetchall()
     except Exception:
-        tree_data = []
+        raw_data = []
 
-    # Gom nhóm theo đúng phân cấp CSDL: { ma_doitac: { tinh_phat: [ma_buucuc_phat] } }
-    customer_tree = {}
-    tinh_bc_global = {} # Dùng riêng cho Bảng 2
+    # 2. Re-structure chuẩn 100%: Dict { ma_doitac: { tinh_phat: [danh_sach_bc] } }
+    tree_dict = {}
+    global_tinh_dict = {} # Dành riêng cho Bảng 2 (Cảnh báo)
 
-    for dt, tinh, bc in tree_data:
-        # Gom cho cây Bảng 1
-        if dt not in customer_tree:
-            customer_tree[dt] = {}
-        if tinh not in customer_tree[dt]:
-            customer_tree[dt][tinh] = []
-        if bc not in customer_tree[dt][tinh]:
-            customer_tree[dt][tinh].append(bc)
-            
-        # Gom cho Bảng 2 (Tỉnh -> Bưu cục)
-        if tinh not in tinh_bc_global:
-            tinh_bc_global[tinh] = []
-        if bc not in tinh_bc_global[tinh]:
-            tinh_bc_global[tinh].append(bc)
+    for dt, tinh, bc in raw_data:
+        # Gom cho Bảng 1
+        if dt not in tree_dict:
+            tree_dict[dt] = {}
+        if tinh not in tree_dict[dt]:
+            tree_dict[dt][tinh] = set()
+        tree_dict[dt][tinh].add(bc)
 
-    # Fallback dữ liệu mẫu đúng chuẩn nếu DB chưa có data
-    if not customer_tree:
-        customer_tree = {
+        # Gom cho Bảng 2
+        if tinh not in global_tinh_dict:
+            global_tinh_dict[tinh] = set()
+        global_tinh_dict[tinh].add(bc)
+
+    # Mockup đúng cấu trúc như ảnh bạn gửi nếu DB chưa có data
+    if not tree_dict:
+        tree_dict = {
             'VTPVN': {
-                'HNI': ['HNI01', 'HNI02'],
-                'HCM': ['HCM01', 'HCM02']
-            },
-            'DTI_01': {
-                'AGG': ['ABC', 'ADN'],
-                'DLK': ['DLK01']
+                'AGG': ['ABC', 'ADN', 'AGG'] # 1 Tỉnh AGG chứa 3 bưu cục
             }
         }
-        tinh_bc_global = {
-            'HNI': ['HNI01', 'HNI02'],
-            'HCM': ['HCM01', 'HCM02'],
-            'AGG': ['ABC', 'ADN'],
-            'DLK': ['DLK01']
+        global_tinh_dict = {
+            'AGG': ['ABC', 'ADN', 'AGG']
         }
 
-    # Render HTML Bảng 1 (Chuẩn cấu trúc Khách hàng -> Tỉnh -> Bưu cục của Tỉnh)
+    # 3. Render HTML Bảng 1: Mỗi Tỉnh CHỈ xuất hiện 1 lần duy nhất
     dt_rows_html = ""
-    for dt_idx, (dt_code, tinh_map) in enumerate(customer_tree.items()):
+    for dt_code, tinh_map in tree_dict.items():
+        # Dòng Cấp 1: Mã Khách Hàng
         dt_rows_html += f"""
         <tr class="kh-group hidden-row row-even">
             <td class="text-left indent-1">
@@ -2550,9 +2542,11 @@ with tab_sla:
             <td class="text-green">+ 1.20</td>
         </tr>
         """
-        for tinh_code, bc_list in tinh_map.items():
+        # Dòng Cấp 2: Tỉnh (Chạy 1 lần duy nhất cho 1 Tỉnh)
+        for tinh_code, bc_set in tinh_map.items():
             tinh_class = f"tinh-of-{dt_code}"
             bc_group_class = f"bc-of-{dt_code}-{tinh_code}"
+            bc_list = sorted(list(bc_set))
             
             dt_rows_html += f"""
             <tr class="{tinh_class} hidden-row">
@@ -2567,10 +2561,11 @@ with tab_sla:
                 <td class="text-green">+ 0.40</td>
             </tr>
             """
+            # Dòng Cấp 3: Danh sách toàn bộ bưu cục con nằm gọn bên trong Tỉnh
             for bc_code in bc_list:
                 dt_rows_html += f"""
                 <tr class="{bc_group_class} hidden-row row-even">
-                    <td class="text-left" style="padding-left: 50px !important;">-- {bc_code}</td>
+                    <td class="text-left" style="padding-left: 55px !important;">-- {bc_code}</td>
                     <td></td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
                     <td class="text-green">+ 0.20</td>
                     <td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
@@ -2580,10 +2575,11 @@ with tab_sla:
                 </tr>
                 """
 
-    # Render HTML Bảng 2 (Bưu cục nào thuộc tỉnh đó)
+    # 4. Render HTML Bảng 2: Tỉnh duy nhất -> Các Bưu cục trực thuộc
     tinh_warning_html = ""
-    for tinh_code, bc_list in tinh_bc_global.items():
+    for tinh_code, bc_set in global_tinh_dict.items():
         bc_warn_class = f"bc-warning-{tinh_code}"
+        bc_list = sorted(list(bc_set))
         tinh_warning_html += f"""
         <tr class="row-even">
             <td class="text-left indent-1">
@@ -2677,7 +2673,7 @@ with tab_sla:
     </head>
     <body>
 
-    <!-- BẢNG 1: CHI TIẾT CHỈ TIÊU SLA (MÃ ĐỐI TÁC -> TỈNH -> BƯU CỤC THUỘC TỈNH) -->
+    <!-- BẢNG 1: CHI TIẾT CHỈ TIÊU SLA -->
     <div class="table-scroll">
         <table class="sla-grid">
             <thead>
