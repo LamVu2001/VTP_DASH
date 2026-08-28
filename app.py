@@ -2171,7 +2171,7 @@ with tab_odr:
 # TAB 4: DASHBOARD QUÁ HẠN SLA
 # ==============================================================================================================================
 with tab_sla:
-st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
 
     # 1. METRIC CARDS
     m_sla1, m_sla2, m_sla3 = st.columns(3)
