@@ -2839,261 +2839,261 @@ with tab_sla:
 =============================================================================
 TAB 5: FD DASHBOARD
 =============================================================================
-with tab_fd:
-
-st.markdown("""
-<style>
-    /* Metric Cards */
-    .fd-card {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
-        padding: 12px;
-        text-align: center;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .fd-card-title {
-        font-size: 11px;
-        font-weight: bold;
-        color: #666666;
-        text-transform: uppercase;
-        margin-bottom: 4px;
-    }
-    .fd-card-value {
-        font-size: 24px;
-        font-weight: 800;
-        color: #111111;
-        margin-bottom: 2px;
-    }
-    .fd-card-sub {
-        font-size: 11px;
-        font-weight: bold;
-    }
-    .sub-green { color: #2e7d32; }
-    .sub-red { color: #c62828; }
-    .sub-gray { color: #666666; }
-
-    /* Section Header */
-    .fd-section-title {
-        border-left: 4px solid #b71c1c;
-        padding-left: 8px;
-        font-size: 13px;
-        font-weight: bold;
-        color: #111111;
-        margin-top: 15px;
-        margin-bottom: 10px;
-        text-transform: uppercase;
-    }
-
-    /* Tables */
-    table.fd-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 11px;
-    }
-    table.fd-table th {
-        background-color: #222222;
-        color: #ffffff;
-        padding: 6px 4px;
-        text-align: center;
-        font-weight: bold;
-        border: 1px solid #444;
-    }
-    table.fd-table td {
-        padding: 6px 4px;
-        text-align: center;
-        border: 1px solid #e0e0e0;
-    }
-    table.fd-table tr:nth-child(even) {
-        background-color: #fafafa;
-    }
-    .text-red { color: #c62828; font-weight: bold; }
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------------------------------------------------
-# 1. BỘ LỌC HEADER (RIGHT FILTERS) & METRIC CARDS
-# ---------------------------------------------------------
-m_col1, m_col2, m_col3, m_col4, f_col = st.columns([1.5, 1.5, 1.5, 1.5, 2])
-
-with m_col1:
-    st.markdown("""
-    <div class="fd-card">
-        <div class="fd-card-title">Sản lượng phải phát</div>
-        <div class="fd-card-value">91,281</div>
-        <div class="fd-card-sub sub-green">▲ +6,913 vs MT</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with m_col2:
-    st.markdown("""
-    <div class="fd-card">
-        <div class="fd-card-title">Sản lượng hoàn</div>
-        <div class="fd-card-value">8,940</div>
-        <div class="fd-card-sub sub-red">▲ +14.5% WoW</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with m_col3:
-    st.markdown("""
-    <div class="fd-card">
-        <div class="fd-card-title">Tỷ lệ hoàn</div>
-        <div class="fd-card-value">9.8%</div>
-        <div class="fd-card-sub sub-red">▲ +2.1% vs Mục tiêu</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with m_col4:
-    st.markdown("""
-    <div class="fd-card">
-        <div class="fd-card-title">Nỗ lực giao L1 thành công</div>
-        <div class="fd-card-value">93.0%</div>
-        <div class="fd-card-sub sub-gray">━ Ngang cùng kỳ</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with f_col:
-    # 6 Filter Selectboxes nhỏ góc phải
-    fc1, fc2 = st.columns(2)
-    with fc1:
-        st.selectbox("NGÀY", ["Tất cả"], key="fd_filter_date", label_visibility="collapsed")
-        st.selectbox("MÃ ĐỐI TÁC", ["Tất cả"], key="fd_filter_dt", label_visibility="collapsed")
-        st.selectbox("LOẠI ĐƠN", ["Tất cả"], key="fd_filter_type", label_visibility="collapsed")
-    with fc2:
-        st.selectbox("MÃ KHÁCH HÀNG 1", ["Tất cả"], key="fd_filter_kh1", label_visibility="collapsed")
-        st.selectbox("MÃ KHÁCH HÀNG 2", ["Tất cả"], key="fd_filter_kh2", label_visibility="collapsed")
-        st.selectbox("TRỌNG LƯỢNG", ["Tất cả"], key="fd_filter_weight", label_visibility="collapsed")
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# ---------------------------------------------------------
-# 2. BẢNG BIỂU ĐỒ (LINE CHART + 2 BAR CHARTS)
-# ---------------------------------------------------------
-c_chart1, c_chart2, c_chart3 = st.columns([2.2, 1.4, 1.4])
-
-# Biểu đồ 1: Xu hướng tỷ lệ hoàn (%)
-with c_chart1:
-    st.markdown('<div class="fd-section-title">Xu hướng tỷ lệ hoàn (%)</div>', unsafe_allow_html=True)
-    
-    dates = ['06/08', '07/08', '08/08', '09/08', '10/08', '11/08', '12/08']
-    thuc_te = [6.2, 6.8, 7.5, 8.1, 8.5, 9.2, 9.8]
-    muc_tieu = [7.0, 7.0, 7.0, 7.0, 7.0, 7.0, 7.0]
-
-    fig1 = go.Figure()
-    fig1.add_trace(go.Scatter(x=dates, y=thuc_te, mode='lines+markers', name='Thực tế', line=dict(color='#b71c1c', width=3)))
-    fig1.add_trace(go.Scatter(x=dates, y=muc_tieu, mode='lines+markers', name='Mục tiêu', line=dict(color='#888888', width=2)))
-    
-    fig1.update_layout(
-        height=220,
-        margin=dict(l=20, r=20, t=10, b=10),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
-        yaxis=dict(range=[0, 12], dtick=2),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
-    )
-    fig1.update_xaxes(showgrid=False)
-    fig1.update_yaxes(showgrid=True, gridcolor='#e0e0e0')
-    st.plotly_chart(fig1, use_container_width=True)
-
-# Biểu đồ 2: % Nỗ lực giao thành công
-with c_chart2:
-    st.markdown('<div class="fd-section-title">% Nỗ lực giao thành công</div>', unsafe_allow_html=True)
-    
-    y_nl = ['Nỗ lực lần 5', 'Nỗ lực lần 4', 'Nỗ lực lần 3', 'Nỗ lực lần 2', 'Nỗ lực lần 1']
-    x_nl = [1, 1, 2, 5, 91]
-
-    fig2 = go.Figure(go.Bar(
-        x=x_nl, y=y_nl, orientation='h',
-        text=x_nl, textposition='outside',
-        marker_color='#b71c1c'
-    ))
-    fig2.update_layout(
-        height=220,
-        margin=dict(l=10, r=20, t=10, b=10),
-        xaxis=dict(showgrid=False, visible=False, range=[0, 105]),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
-    )
-    st.plotly_chart(fig2, use_container_width=True)
-
-# Biểu đồ 3: Nguyên nhân hoàn (%)
-with c_chart3:
-    st.markdown('<div class="fd-section-title">Nguyên nhân hoàn (%)</div>', unsafe_allow_html=True)
-    
-    y_nn = [
-        'Sai sản phẩm / chất lượng',
-        'SĐT không hợp lệ',
-        'Sai thông tin / địa chỉ',
-        'Không liên lạc được KH',
-        'Khách hàng từ chối nhận'
-    ]
-    x_nn = [6, 11, 20, 29, 34]
-
-    fig3 = go.Figure(go.Bar(
-        x=x_nn, y=y_nn, orientation='h',
-        text=x_nn, textposition='outside',
-        marker_color='#b71c1c'
-    ))
-    fig3.update_layout(
-        height=220,
-        margin=dict(l=10, r=20, t=10, b=10),
-        xaxis=dict(showgrid=False, visible=False, range=[0, 42]),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)'
-    )
-    st.plotly_chart(fig3, use_container_width=True)
-
-# ---------------------------------------------------------
-# 3. TOP 5 CHI NHÁNH / BƯU CỤC THỰC HIỆN KÉM NHẤT
-# ---------------------------------------------------------
-st.markdown('<div class="fd-section-title">TOP 5 CHI NHÁNH/BƯU CỤC THỰC HIỆN KÉM NHẤT</div>', unsafe_allow_html=True)
-
-t_col1, t_col2 = st.columns(2)
-
-with t_col1:
-    st.markdown("""
-    <table class="fd-table">
-        <thead>
-            <tr>
-                <th>Chi nhánh</th>
-                <th>Tỷ lệ hoàn</th>
-                <th>SS cùng kỳ</th>
-                <th>Tỷ lệ nỗ lực giao lần 1</th>
-                <th>SS cùng kỳ</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td>HNI</td><td>70.1%</td><td class="text-red">-8.4%</td><td>412 đơn</td><td style="color:#2e7d32; font-weight:bold;">+180</td></tr>
-            <tr><td>HCM</td><td>71.8%</td><td class="text-red">-7.1%</td><td>388 đơn</td><td style="color:#2e7d32; font-weight:bold;">+150</td></tr>
-            <tr><td>DNI</td><td>73.0%</td><td class="text-red">-5.9%</td><td>301 đơn</td><td style="color:#2e7d32; font-weight:bold;">+95</td></tr>
-            <tr><td>GLI</td><td>74.4%</td><td class="text-red">-4.2%</td><td>266 đơn</td><td style="color:#2e7d32; font-weight:bold;">+62</td></tr>
-            <tr><td>DLK</td><td>75.6%</td><td class="text-red">-3.5%</td><td>220 đơn</td><td style="color:#2e7d32; font-weight:bold;">+40</td></tr>
-        </tbody>
-    </table>
-    """, unsafe_allow_html=True)
-
-with t_col2:
-    st.markdown("""
-    <table class="fd-table">
-        <thead>
-            <tr>
-                <th>BƯU CỤC</th>
-                <th>CHI NHÁNH</th>
-                <th>Tỷ lệ hoàn</th>
-                <th>SS cùng kỳ</th>
-                <th>Tỷ lệ nỗ lực giao lần 1</th>
-                <th>SS cùng kỳ</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td>AVC</td><td>HNI</td><td>76.2%</td><td class="text-red">-4.8%</td><td>88.1%</td><td class="text-red">-2.1%</td></tr>
-            <tr><td>HUB10</td><td>HCM</td><td>78.5%</td><td class="text-red">-3.2%</td><td>90.4%</td><td class="text-red">-1.5%</td></tr>
-            <tr><td>DPC</td><td>DNI</td><td>79.1%</td><td class="text-red">-2.6%</td><td>91.0%</td><td class="text-red">-0.9%</td></tr>
-            <tr><td>TPU</td><td>GLI</td><td>80.3%</td><td class="text-red">-1.9%</td><td>92.2%</td><td class="text-red">-0.6%</td></tr>
-            <tr><td>TSNI</td><td>DLK</td><td>81.0%</td><td class="text-red">-1.4%</td><td>92.8%</td><td class="text-red">-0.4%</td></tr>
-        </tbody>
-    </table>
-    """, unsafe_allow_html=True)
+    with tab_fd:
+        
+        st.markdown("""
+        <style>
+            /* Metric Cards */
+            .fd-card {
+                background-color: #ffffff;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                padding: 12px;
+                text-align: center;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            }
+            .fd-card-title {
+                font-size: 11px;
+                font-weight: bold;
+                color: #666666;
+                text-transform: uppercase;
+                margin-bottom: 4px;
+            }
+            .fd-card-value {
+                font-size: 24px;
+                font-weight: 800;
+                color: #111111;
+                margin-bottom: 2px;
+            }
+            .fd-card-sub {
+                font-size: 11px;
+                font-weight: bold;
+            }
+            .sub-green { color: #2e7d32; }
+            .sub-red { color: #c62828; }
+            .sub-gray { color: #666666; }
+        
+            /* Section Header */
+            .fd-section-title {
+                border-left: 4px solid #b71c1c;
+                padding-left: 8px;
+                font-size: 13px;
+                font-weight: bold;
+                color: #111111;
+                margin-top: 15px;
+                margin-bottom: 10px;
+                text-transform: uppercase;
+            }
+        
+            /* Tables */
+            table.fd-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 11px;
+            }
+            table.fd-table th {
+                background-color: #222222;
+                color: #ffffff;
+                padding: 6px 4px;
+                text-align: center;
+                font-weight: bold;
+                border: 1px solid #444;
+            }
+            table.fd-table td {
+                padding: 6px 4px;
+                text-align: center;
+                border: 1px solid #e0e0e0;
+            }
+            table.fd-table tr:nth-child(even) {
+                background-color: #fafafa;
+            }
+            .text-red { color: #c62828; font-weight: bold; }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # ---------------------------------------------------------
+        # 1. BỘ LỌC HEADER (RIGHT FILTERS) & METRIC CARDS
+        # ---------------------------------------------------------
+        m_col1, m_col2, m_col3, m_col4, f_col = st.columns([1.5, 1.5, 1.5, 1.5, 2])
+        
+        with m_col1:
+            st.markdown("""
+            <div class="fd-card">
+                <div class="fd-card-title">Sản lượng phải phát</div>
+                <div class="fd-card-value">91,281</div>
+                <div class="fd-card-sub sub-green">▲ +6,913 vs MT</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with m_col2:
+            st.markdown("""
+            <div class="fd-card">
+                <div class="fd-card-title">Sản lượng hoàn</div>
+                <div class="fd-card-value">8,940</div>
+                <div class="fd-card-sub sub-red">▲ +14.5% WoW</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with m_col3:
+            st.markdown("""
+            <div class="fd-card">
+                <div class="fd-card-title">Tỷ lệ hoàn</div>
+                <div class="fd-card-value">9.8%</div>
+                <div class="fd-card-sub sub-red">▲ +2.1% vs Mục tiêu</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with m_col4:
+            st.markdown("""
+            <div class="fd-card">
+                <div class="fd-card-title">Nỗ lực giao L1 thành công</div>
+                <div class="fd-card-value">93.0%</div>
+                <div class="fd-card-sub sub-gray">━ Ngang cùng kỳ</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with f_col:
+            # 6 Filter Selectboxes nhỏ góc phải
+            fc1, fc2 = st.columns(2)
+            with fc1:
+                st.selectbox("NGÀY", ["Tất cả"], key="fd_filter_date", label_visibility="collapsed")
+                st.selectbox("MÃ ĐỐI TÁC", ["Tất cả"], key="fd_filter_dt", label_visibility="collapsed")
+                st.selectbox("LOẠI ĐƠN", ["Tất cả"], key="fd_filter_type", label_visibility="collapsed")
+            with fc2:
+                st.selectbox("MÃ KHÁCH HÀNG 1", ["Tất cả"], key="fd_filter_kh1", label_visibility="collapsed")
+                st.selectbox("MÃ KHÁCH HÀNG 2", ["Tất cả"], key="fd_filter_kh2", label_visibility="collapsed")
+                st.selectbox("TRỌNG LƯỢNG", ["Tất cả"], key="fd_filter_weight", label_visibility="collapsed")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # ---------------------------------------------------------
+        # 2. BẢNG BIỂU ĐỒ (LINE CHART + 2 BAR CHARTS)
+        # ---------------------------------------------------------
+        c_chart1, c_chart2, c_chart3 = st.columns([2.2, 1.4, 1.4])
+        
+        # Biểu đồ 1: Xu hướng tỷ lệ hoàn (%)
+        with c_chart1:
+            st.markdown('<div class="fd-section-title">Xu hướng tỷ lệ hoàn (%)</div>', unsafe_allow_html=True)
+            
+            dates = ['06/08', '07/08', '08/08', '09/08', '10/08', '11/08', '12/08']
+            thuc_te = [6.2, 6.8, 7.5, 8.1, 8.5, 9.2, 9.8]
+            muc_tieu = [7.0, 7.0, 7.0, 7.0, 7.0, 7.0, 7.0]
+        
+            fig1 = go.Figure()
+            fig1.add_trace(go.Scatter(x=dates, y=thuc_te, mode='lines+markers', name='Thực tế', line=dict(color='#b71c1c', width=3)))
+            fig1.add_trace(go.Scatter(x=dates, y=muc_tieu, mode='lines+markers', name='Mục tiêu', line=dict(color='#888888', width=2)))
+            
+            fig1.update_layout(
+                height=220,
+                margin=dict(l=20, r=20, t=10, b=10),
+                legend=dict(orientation="h", yanchor="bottom", y=-0.3, xanchor="center", x=0.5),
+                yaxis=dict(range=[0, 12], dtick=2),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            fig1.update_xaxes(showgrid=False)
+            fig1.update_yaxes(showgrid=True, gridcolor='#e0e0e0')
+            st.plotly_chart(fig1, use_container_width=True)
+        
+        # Biểu đồ 2: % Nỗ lực giao thành công
+        with c_chart2:
+            st.markdown('<div class="fd-section-title">% Nỗ lực giao thành công</div>', unsafe_allow_html=True)
+            
+            y_nl = ['Nỗ lực lần 5', 'Nỗ lực lần 4', 'Nỗ lực lần 3', 'Nỗ lực lần 2', 'Nỗ lực lần 1']
+            x_nl = [1, 1, 2, 5, 91]
+        
+            fig2 = go.Figure(go.Bar(
+                x=x_nl, y=y_nl, orientation='h',
+                text=x_nl, textposition='outside',
+                marker_color='#b71c1c'
+            ))
+            fig2.update_layout(
+                height=220,
+                margin=dict(l=10, r=20, t=10, b=10),
+                xaxis=dict(showgrid=False, visible=False, range=[0, 105]),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            st.plotly_chart(fig2, use_container_width=True)
+        
+        # Biểu đồ 3: Nguyên nhân hoàn (%)
+        with c_chart3:
+            st.markdown('<div class="fd-section-title">Nguyên nhân hoàn (%)</div>', unsafe_allow_html=True)
+            
+            y_nn = [
+                'Sai sản phẩm / chất lượng',
+                'SĐT không hợp lệ',
+                'Sai thông tin / địa chỉ',
+                'Không liên lạc được KH',
+                'Khách hàng từ chối nhận'
+            ]
+            x_nn = [6, 11, 20, 29, 34]
+        
+            fig3 = go.Figure(go.Bar(
+                x=x_nn, y=y_nn, orientation='h',
+                text=x_nn, textposition='outside',
+                marker_color='#b71c1c'
+            ))
+            fig3.update_layout(
+                height=220,
+                margin=dict(l=10, r=20, t=10, b=10),
+                xaxis=dict(showgrid=False, visible=False, range=[0, 42]),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)'
+            )
+            st.plotly_chart(fig3, use_container_width=True)
+        
+        # ---------------------------------------------------------
+        # 3. TOP 5 CHI NHÁNH / BƯU CỤC THỰC HIỆN KÉM NHẤT
+        # ---------------------------------------------------------
+        st.markdown('<div class="fd-section-title">TOP 5 CHI NHÁNH/BƯU CỤC THỰC HIỆN KÉM NHẤT</div>', unsafe_allow_html=True)
+        
+        t_col1, t_col2 = st.columns(2)
+        
+        with t_col1:
+            st.markdown("""
+            <table class="fd-table">
+                <thead>
+                    <tr>
+                        <th>Chi nhánh</th>
+                        <th>Tỷ lệ hoàn</th>
+                        <th>SS cùng kỳ</th>
+                        <th>Tỷ lệ nỗ lực giao lần 1</th>
+                        <th>SS cùng kỳ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>HNI</td><td>70.1%</td><td class="text-red">-8.4%</td><td>412 đơn</td><td style="color:#2e7d32; font-weight:bold;">+180</td></tr>
+                    <tr><td>HCM</td><td>71.8%</td><td class="text-red">-7.1%</td><td>388 đơn</td><td style="color:#2e7d32; font-weight:bold;">+150</td></tr>
+                    <tr><td>DNI</td><td>73.0%</td><td class="text-red">-5.9%</td><td>301 đơn</td><td style="color:#2e7d32; font-weight:bold;">+95</td></tr>
+                    <tr><td>GLI</td><td>74.4%</td><td class="text-red">-4.2%</td><td>266 đơn</td><td style="color:#2e7d32; font-weight:bold;">+62</td></tr>
+                    <tr><td>DLK</td><td>75.6%</td><td class="text-red">-3.5%</td><td>220 đơn</td><td style="color:#2e7d32; font-weight:bold;">+40</td></tr>
+                </tbody>
+            </table>
+            """, unsafe_allow_html=True)
+        
+        with t_col2:
+            st.markdown("""
+            <table class="fd-table">
+                <thead>
+                    <tr>
+                        <th>BƯU CỤC</th>
+                        <th>CHI NHÁNH</th>
+                        <th>Tỷ lệ hoàn</th>
+                        <th>SS cùng kỳ</th>
+                        <th>Tỷ lệ nỗ lực giao lần 1</th>
+                        <th>SS cùng kỳ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>AVC</td><td>HNI</td><td>76.2%</td><td class="text-red">-4.8%</td><td>88.1%</td><td class="text-red">-2.1%</td></tr>
+                    <tr><td>HUB10</td><td>HCM</td><td>78.5%</td><td class="text-red">-3.2%</td><td>90.4%</td><td class="text-red">-1.5%</td></tr>
+                    <tr><td>DPC</td><td>DNI</td><td>79.1%</td><td class="text-red">-2.6%</td><td>91.0%</td><td class="text-red">-0.9%</td></tr>
+                    <tr><td>TPU</td><td>GLI</td><td>80.3%</td><td class="text-red">-1.9%</td><td>92.2%</td><td class="text-red">-0.6%</td></tr>
+                    <tr><td>TSNI</td><td>DLK</td><td>81.0%</td><td class="text-red">-1.4%</td><td>92.8%</td><td class="text-red">-0.4%</td></tr>
+                </tbody>
+            </table>
+            """, unsafe_allow_html=True)
 
 
 
