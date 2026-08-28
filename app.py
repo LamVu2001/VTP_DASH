@@ -2482,47 +2482,61 @@ with tab_sla:
 
     components.html(interactive_sla_tables_html, height=410, scrolling=False)
 
-# 1. Query danh sách Mã Khách hàng thật (Bỏ LIMIT)
+# Query cây cấu trúc chuẩn: Khách hàng -> Tỉnh -> Bưu cục thuộc Tỉnh đó
     try:
-        dt_real = con.execute(f"""
-            SELECT DISTINCT ma_doitac 
+        tree_data = con.execute(f"""
+            SELECT DISTINCT ma_doitac, tinh_phat, ma_buucuc_phat
             FROM orders 
-            WHERE {where_sql_odr} AND ma_doitac IS NOT NULL AND ma_doitac != ''
-            ORDER BY ma_doitac
-        """).fetchall()
-        dt_list = [r[0] for r in dt_real]
-    except Exception:
-        dt_list = []
-
-    if not dt_list:
-        dt_list = ['VTPVN', 'KHACH_HANG_01']
-
-    # 2. Query danh sách Tỉnh & Bưu cục thật (Bỏ LIMIT)
-    try:
-        hierarchy_real = con.execute(f"""
-            SELECT DISTINCT tinh_phat, ma_buucuc_phat 
-            FROM orders 
-            WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND tinh_phat != '' AND ma_buucuc_phat IS NOT NULL AND ma_buucuc_phat != ''
-            ORDER BY tinh_phat, ma_buucuc_phat
+            WHERE {where_sql_odr} 
+              AND ma_doitac IS NOT NULL AND ma_doitac != ''
+              AND tinh_phat IS NOT NULL AND tinh_phat != ''
+              AND ma_buucuc_phat IS NOT NULL AND ma_buucuc_phat != ''
+            ORDER BY ma_doitac, tinh_phat, ma_buucuc_phat
         """).fetchall()
     except Exception:
-        hierarchy_real = []
+        tree_data = []
 
-    if not hierarchy_real:
-        hierarchy_real = [('AGG', 'ABC'), ('AGG', 'ADN'), ('AGG', 'AGG'), ('HNI', 'HNI01'), ('HCM', 'HCM01')]
+    # Gom nhóm theo đúng phân cấp CSDL: { ma_doitac: { tinh_phat: [ma_buucuc_phat] } }
+    customer_tree = {}
+    tinh_bc_global = {} # Dùng riêng cho Bảng 2
 
-    # Gom nhóm theo Tỉnh -> Danh sách Bưu cục (Đảm bảo mỗi Tỉnh chỉ xuất hiện 1 lần)
-    tinh_to_bc_map = {}
-    for tinh, bc in hierarchy_real:
-        if tinh not in tinh_to_bc_map:
-            tinh_to_bc_map[tinh] = []
-        if bc not in tinh_to_bc_map[tinh]:
-            tinh_to_bc_map[tinh].append(bc)
+    for dt, tinh, bc in tree_data:
+        # Gom cho cây Bảng 1
+        if dt not in customer_tree:
+            customer_tree[dt] = {}
+        if tinh not in customer_tree[dt]:
+            customer_tree[dt][tinh] = []
+        if bc not in customer_tree[dt][tinh]:
+            customer_tree[dt][tinh].append(bc)
+            
+        # Gom cho Bảng 2 (Tỉnh -> Bưu cục)
+        if tinh not in tinh_bc_global:
+            tinh_bc_global[tinh] = []
+        if bc not in tinh_bc_global[tinh]:
+            tinh_bc_global[tinh].append(bc)
 
-    # Render HTML Bảng 1: Gom nhóm chuẩn Mã Khách Hàng -> Tỉnh (Duy nhất) -> Tất cả Bưu cục
+    # Fallback dữ liệu mẫu đúng chuẩn nếu DB chưa có data
+    if not customer_tree:
+        customer_tree = {
+            'VTPVN': {
+                'HNI': ['HNI01', 'HNI02'],
+                'HCM': ['HCM01', 'HCM02']
+            },
+            'DTI_01': {
+                'AGG': ['ABC', 'ADN'],
+                'DLK': ['DLK01']
+            }
+        }
+        tinh_bc_global = {
+            'HNI': ['HNI01', 'HNI02'],
+            'HCM': ['HCM01', 'HCM02'],
+            'AGG': ['ABC', 'ADN'],
+            'DLK': ['DLK01']
+        }
+
+    # Render HTML Bảng 1 (Chuẩn cấu trúc Khách hàng -> Tỉnh -> Bưu cục của Tỉnh)
     dt_rows_html = ""
-    for dt_idx, dt_code in enumerate(dt_list):
-        # Dòng Khách Hàng
+    for dt_idx, (dt_code, tinh_map) in enumerate(customer_tree.items()):
         dt_rows_html += f"""
         <tr class="kh-group hidden-row row-even">
             <td class="text-left indent-1">
@@ -2536,15 +2550,14 @@ with tab_sla:
             <td class="text-green">+ 1.20</td>
         </tr>
         """
-        # Vòng lặp từng Tỉnh (Duy nhất) thuộc Khách hàng
-        for tinh, bc_list in tinh_to_bc_map.items():
+        for tinh_code, bc_list in tinh_map.items():
             tinh_class = f"tinh-of-{dt_code}"
-            bc_group_class = f"bc-of-{dt_code}-{tinh}"
+            bc_group_class = f"bc-of-{dt_code}-{tinh_code}"
             
             dt_rows_html += f"""
             <tr class="{tinh_class} hidden-row">
                 <td class="text-left indent-2">
-                    <span class="btn-toggle" onclick="toggleRows('{bc_group_class}', this)">+</span>{tinh}
+                    <span class="btn-toggle" onclick="toggleRows('{bc_group_class}', this)">+</span>{tinh_code}
                 </td>
                 <td></td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td>
                 <td class="text-green">+ 0.40</td>
@@ -2554,11 +2567,10 @@ with tab_sla:
                 <td class="text-green">+ 0.40</td>
             </tr>
             """
-            # Bung toàn bộ Bưu cục thuộc Tỉnh đó
-            for bc in bc_list:
+            for bc_code in bc_list:
                 dt_rows_html += f"""
                 <tr class="{bc_group_class} hidden-row row-even">
-                    <td class="text-left" style="padding-left: 50px !important;">-- {bc}</td>
+                    <td class="text-left" style="padding-left: 50px !important;">-- {bc_code}</td>
                     <td></td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
                     <td class="text-green">+ 0.20</td>
                     <td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
@@ -2568,23 +2580,23 @@ with tab_sla:
                 </tr>
                 """
 
-    # Render HTML Bảng 2: Cảnh báo Tỉnh -> Bung tất cả Bưu cục thuộc Tỉnh
+    # Render HTML Bảng 2 (Bưu cục nào thuộc tỉnh đó)
     tinh_warning_html = ""
-    for tinh, bc_list in tinh_to_bc_map.items():
-        bc_warn_class = f"bc-warning-{tinh}"
+    for tinh_code, bc_list in tinh_bc_global.items():
+        bc_warn_class = f"bc-warning-{tinh_code}"
         tinh_warning_html += f"""
         <tr class="row-even">
             <td class="text-left indent-1">
-                <span class="btn-toggle" onclick="toggleRows('{bc_warn_class}', this)">+</span>{tinh}
+                <span class="btn-toggle" onclick="toggleRows('{bc_warn_class}', this)">+</span>{tinh_code}
             </td>
             <td class="text-right" style="padding-right: 25px;">12,981</td>
             <td class="text-right" style="padding-right: 25px;">381</td>
         </tr>
         """
-        for bc in bc_list:
+        for bc_code in bc_list:
             tinh_warning_html += f"""
             <tr class="{bc_warn_class} hidden-row">
-                <td class="text-left indent-2">-- {bc}</td>
+                <td class="text-left indent-2">-- {bc_code}</td>
                 <td class="text-right" style="padding-right: 25px;">4,326</td>
                 <td class="text-right" style="padding-right: 25px;">127</td>
             </tr>
@@ -2665,7 +2677,7 @@ with tab_sla:
     </head>
     <body>
 
-    <!-- BẢNG 1: CHI TIẾT CHỈ TIÊU SLA (MÃ ĐỐI TÁC -> TỈNH -> TẤT CẢ BƯU CỤC) -->
+    <!-- BẢNG 1: CHI TIẾT CHỈ TIÊU SLA (MÃ ĐỐI TÁC -> TỈNH -> BƯU CỤC THUỘC TỈNH) -->
     <div class="table-scroll">
         <table class="sla-grid">
             <thead>
