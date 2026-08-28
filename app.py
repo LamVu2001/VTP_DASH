@@ -89,7 +89,7 @@ def get_filter_options():
 
 kh_list, tinh_list, dt_list = get_filter_options()
 
-tab_overview, tab_doanh_thu, tab_opr, tab_odr = st.tabs(["OVERVIEW", "📊 DOANH THU", "📦 OPR", "🚚 ODR"])
+tab_overview, tab_doanh_thu, tab_opr, tab_odr , tab_sla = st.tabs(["OVERVIEW", "📊 DOANH THU", "📦 OPR", "🚚 ODR", "SLA"])
 
 # =======================================================================================================================================
 # TAB 1: OVERVIEW
