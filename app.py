@@ -2482,41 +2482,47 @@ with tab_sla:
 
     components.html(interactive_sla_tables_html, height=410, scrolling=False)
 
-    # 1. Query dữ liệu thật từ DuckDB cho Bảng 1: Mã đối tác -> Tỉnh phát -> Bưu cục phát
+# 1. Query danh sách Mã Khách hàng thật (Bỏ LIMIT)
     try:
         dt_real = con.execute(f"""
             SELECT DISTINCT ma_doitac 
             FROM orders 
             WHERE {where_sql_odr} AND ma_doitac IS NOT NULL AND ma_doitac != ''
-            LIMIT 5
+            ORDER BY ma_doitac
         """).fetchall()
         dt_list = [r[0] for r in dt_real]
     except Exception:
-        dt_list = ['DTI_01', 'DTI_02']
+        dt_list = []
 
-    # Lấy phân cấp Tỉnh & Bưu cục thuộc Khách hàng / Tỉnh
+    if not dt_list:
+        dt_list = ['VTPVN', 'KHACH_HANG_01']
+
+    # 2. Query danh sách Tỉnh & Bưu cục thật (Bỏ LIMIT)
     try:
         hierarchy_real = con.execute(f"""
             SELECT DISTINCT tinh_phat, ma_buucuc_phat 
             FROM orders 
             WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND tinh_phat != '' AND ma_buucuc_phat IS NOT NULL AND ma_buucuc_phat != ''
             ORDER BY tinh_phat, ma_buucuc_phat
-            LIMIT 15
         """).fetchall()
     except Exception:
-        hierarchy_real = [('HNI', 'HNI01'), ('HNI', 'HNI02'), ('HCM', 'HCM01'), ('DLK', 'DLK01')]
+        hierarchy_real = []
 
-    # Gom nhóm bưu cục theo tỉnh cho Bảng 2
-    tinh_bc_dict = {}
+    if not hierarchy_real:
+        hierarchy_real = [('AGG', 'ABC'), ('AGG', 'ADN'), ('AGG', 'AGG'), ('HNI', 'HNI01'), ('HCM', 'HCM01')]
+
+    # Gom nhóm theo Tỉnh -> Danh sách Bưu cục (Đảm bảo mỗi Tỉnh chỉ xuất hiện 1 lần)
+    tinh_to_bc_map = {}
     for tinh, bc in hierarchy_real:
-        if tinh not in tinh_bc_dict:
-            tinh_bc_dict[tinh] = []
-        if bc not in tinh_bc_dict[tinh]:
-            tinh_bc_dict[tinh].append(bc)
+        if tinh not in tinh_to_bc_map:
+            tinh_to_bc_map[tinh] = []
+        if bc not in tinh_to_bc_map[tinh]:
+            tinh_to_bc_map[tinh].append(bc)
 
-    # Render HTML động cho Bảng 1 (Mã đối tác -> Tỉnh -> Bưu cục)
+    # Render HTML Bảng 1: Gom nhóm chuẩn Mã Khách Hàng -> Tỉnh (Duy nhất) -> Tất cả Bưu cục
     dt_rows_html = ""
-    for dt_code in dt_list:
+    for dt_idx, dt_code in enumerate(dt_list):
+        # Dòng Khách Hàng
         dt_rows_html += f"""
         <tr class="kh-group hidden-row row-even">
             <td class="text-left indent-1">
@@ -2530,11 +2536,15 @@ with tab_sla:
             <td class="text-green">+ 1.20</td>
         </tr>
         """
-        for tinh, bc in hierarchy_real[:3]:
+        # Vòng lặp từng Tỉnh (Duy nhất) thuộc Khách hàng
+        for tinh, bc_list in tinh_to_bc_map.items():
+            tinh_class = f"tinh-of-{dt_code}"
+            bc_group_class = f"bc-of-{dt_code}-{tinh}"
+            
             dt_rows_html += f"""
-            <tr class="tinh-of-{dt_code} hidden-row">
+            <tr class="{tinh_class} hidden-row">
                 <td class="text-left indent-2">
-                    <span class="btn-toggle" onclick="toggleRows('bc-of-{dt_code}-{tinh}', this)">+</span>{tinh}
+                    <span class="btn-toggle" onclick="toggleRows('{bc_group_class}', this)">+</span>{tinh}
                 </td>
                 <td></td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td>
                 <td class="text-green">+ 0.40</td>
@@ -2543,34 +2553,37 @@ with tab_sla:
                 <td>4,100</td><td>4,100</td>
                 <td class="text-green">+ 0.40</td>
             </tr>
-            <tr class="bc-of-{dt_code}-{tinh} hidden-row row-even">
-                <td class="text-left" style="padding-left: 50px !important;">-- {bc}</td>
-                <td></td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
-                <td class="text-green">+ 0.20</td>
-                <td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
-                <td class="text-green">+ 0.20</td>
-                <td>2,050</td><td>2,050</td>
-                <td class="text-green">+ 0.20</td>
-            </tr>
             """
+            # Bung toàn bộ Bưu cục thuộc Tỉnh đó
+            for bc in bc_list:
+                dt_rows_html += f"""
+                <tr class="{bc_group_class} hidden-row row-even">
+                    <td class="text-left" style="padding-left: 50px !important;">-- {bc}</td>
+                    <td></td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
+                    <td class="text-green">+ 0.20</td>
+                    <td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td><td>2,050</td>
+                    <td class="text-green">+ 0.20</td>
+                    <td>2,050</td><td>2,050</td>
+                    <td class="text-green">+ 0.20</td>
+                </tr>
+                """
 
-    # Render HTML động cho Bảng 2 (Tỉnh -> Bưu cục thuộc Tỉnh)
+    # Render HTML Bảng 2: Cảnh báo Tỉnh -> Bung tất cả Bưu cục thuộc Tỉnh
     tinh_warning_html = ""
-    for tinh, bc_list_in_tinh in tinh_bc_dict.items():
-        # Dòng Tỉnh
+    for tinh, bc_list in tinh_to_bc_map.items():
+        bc_warn_class = f"bc-warning-{tinh}"
         tinh_warning_html += f"""
         <tr class="row-even">
             <td class="text-left indent-1">
-                <span class="btn-toggle" onclick="toggleRows('bc-warning-{tinh}', this)">+</span>{tinh}
+                <span class="btn-toggle" onclick="toggleRows('{bc_warn_class}', this)">+</span>{tinh}
             </td>
             <td class="text-right" style="padding-right: 25px;">12,981</td>
             <td class="text-right" style="padding-right: 25px;">381</td>
         </tr>
         """
-        # Dòng Bưu cục con trong Tỉnh
-        for bc in bc_list_in_tinh:
+        for bc in bc_list:
             tinh_warning_html += f"""
-            <tr class="bc-warning-{tinh} hidden-row">
+            <tr class="{bc_warn_class} hidden-row">
                 <td class="text-left indent-2">-- {bc}</td>
                 <td class="text-right" style="padding-right: 25px;">4,326</td>
                 <td class="text-right" style="padding-right: 25px;">127</td>
@@ -2597,7 +2610,7 @@ with tab_sla:
             text-transform: uppercase;
         }}
         .table-scroll {{
-            max-height: 420px;
+            max-height: 440px;
             overflow: auto;
             border: 1px solid #ccc;
             background: #fff;
@@ -2652,7 +2665,7 @@ with tab_sla:
     </head>
     <body>
 
-    <!-- BẢNG 1: CHI TIẾT CHỈ TIÊU SLA (MÃ ĐỐI TÁC -> TỈNH -> BƯU CỤC) -->
+    <!-- BẢNG 1: CHI TIẾT CHỈ TIÊU SLA (MÃ ĐỐI TÁC -> TỈNH -> TẤT CẢ BƯU CỤC) -->
     <div class="table-scroll">
         <table class="sla-grid">
             <thead>
@@ -2673,7 +2686,6 @@ with tab_sla:
                 </tr>
             </thead>
             <tbody>
-                <!-- Dòng mẹ: Sản lượng phải phát -->
                 <tr class="row-group">
                     <td class="text-left">Sản lượng phải phát</td>
                     <td></td>
@@ -2685,7 +2697,6 @@ with tab_sla:
                     <td class="text-green">+ 5.22</td>
                 </tr>
 
-                <!-- Theo mã Khách hàng (Bung ra Tỉnh -> Bưu cục) -->
                 <tr>
                     <td class="text-left indent-1">
                         <span class="btn-toggle" onclick="toggleRows('kh-group', this)">+</span>Theo mã Khách hàng (ma_doitac)
@@ -2696,7 +2707,6 @@ with tab_sla:
                 
                 {dt_rows_html}
 
-                <!-- Các chỉ số con bên dưới -->
                 <tr>
                     <td class="text-left">Sản lượng Đơn quá hạn</td>
                     <td></td>
@@ -2741,7 +2751,7 @@ with tab_sla:
         </table>
     </div>
 
-    <!-- BẢNG 2: CẢNH BÁO ĐƠN SẮP QUÁ HẠN (TỈNH -> BƯU CỤC) -->
+    <!-- BẢNG 2: CẢNH BÁO ĐƠN SẮP QUÁ HẠN -->
     <div class="section-red-bar">CẢNH BÁO ĐƠN SẮP QUÁ HẠN – CÓ THỂ XUẤT CHI TIẾT THEO ĐƠN</div>
     <div class="table-scroll" style="max-height: 280px;">
         <table class="sla-grid">
@@ -2784,4 +2794,4 @@ with tab_sla:
     </html>
     """
 
-    components.html(html_sla_full_tables, height=750, scrolling=True)
+    components.html(html_sla_full_tables, height=780, scrolling=True)
