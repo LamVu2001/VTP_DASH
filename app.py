@@ -2170,9 +2170,9 @@ with tab_odr:
     """
     components.html(html_lm, height=390, scrolling=False)
 
-# ==========================================
+# ==============================================================================================================================
 # TAB 4: DASHBOARD QUÁ HẠN SLA
-# ==========================================
+# ==============================================================================================================================
 with tab_sla:
     st.markdown('<p class="main-title">Dashboard Quá hạn SLA</p>', unsafe_allow_html=True)
     st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
@@ -2208,48 +2208,57 @@ with tab_sla:
 
     st.write("")
 
-    # 2. BIỂU ĐỒ XU HƯỚNG TỶ LỆ ĐƠN QUÁ HẠN SLA (%)
+    # 2. BIỂU ĐỒ XU HƯỚNG TỶ LỆ ĐƠN QUÁ HẠN SLA (%) - QUERY TRỰC TIẾP TỪ DUCKDB
     st.markdown('<p class="section-red-title" style="border-left: 4px solid #c62828; padding-left: 8px; font-weight: bold;">XU HƯỚNG TỶ LỆ ĐƠN QUÁ HẠN SLA (%)</p>', unsafe_allow_html=True)
     
-    dates = ["06/08", "07/08", "08/08", "09/08", "10/08", "11/08", "12/08"]
-    thuc_te = [1.1, 1.4, 1.8, 2.2, 2.6, 3.0, 3.4]
-    muc_tieu = [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+    try:
+        df_sla_chart = con.execute(f"""
+            SELECT 
+                clean_date AS "Ngày",
+                ROUND(COUNT(CASE WHEN is_overdue = 1 THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS "Thực tế",
+                1.2 AS "Mục tiêu"
+            FROM orders
+            WHERE {where_sql_odr} AND clean_date IS NOT NULL
+            GROUP BY clean_date
+            ORDER BY clean_date DESC
+            LIMIT 7
+        """).fetchdf()
 
-    df_sla_chart = pd.DataFrame({
-        "Ngày": dates,
-        "Thực tế": thuc_te,
-        "Mục tiêu": muc_tieu
-    })
-
-    fig_sla = px.line(df_sla_chart, x="Ngày", y=["Thực tế", "Mục tiêu"], 
-                      markers=True,
-                      color_discrete_map={"Thực tế": "#c62828", "Mục tiêu": "#888888"})
-    
-    fig_sla.update_traces(line=dict(width=2.5), marker=dict(size=6))
-    fig_sla.update_layout(
-        height=300,
-        margin=dict(l=10, r=10, t=10, b=10),
-        yaxis=dict(title=None, range=[0, 4], gridcolor="#eee"),
-        xaxis=dict(title=None, showgrid=False),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=-0.25,
-            xanchor="center",
-            x=0.5,
-            title=None
-        ),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)"
-    )
-    st.plotly_chart(fig_sla, use_container_width=True)
+        if len(df_sla_chart) > 0:
+            df_sla_chart = df_sla_chart.sort_values("Ngày")
+            fig_sla = px.line(
+                df_sla_chart, 
+                x="Ngày", 
+                y=["Thực tế", "Mục tiêu"], 
+                markers=True,
+                color_discrete_map={"Thực tế": "#c62828", "Mục tiêu": "#888888"}
+            )
+            fig_sla.update_traces(line=dict(width=2.5), marker=dict(size=6))
+            fig_sla.update_layout(
+                height=300,
+                margin=dict(l=10, r=10, t=10, b=10),
+                yaxis=dict(title=None, gridcolor="#eee"),
+                xaxis=dict(title=None, showgrid=False),
+                legend=dict(
+                    orientation="h",
+                    yanchor="bottom",
+                    y=-0.25,
+                    xanchor="center",
+                    x=0.5,
+                    title=None
+                ),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)"
+            )
+            st.plotly_chart(fig_sla, use_container_width=True)
+    except Exception:
+        pass
 
     st.write("")
 
-    # 3. DANH SÁCH CHI NHÁNH & BƯU CỤC CÓ TỶ LỆ QUÁ HẠN SLA (INTERACTIVE TABLE - NO LIMIT)
+    # 3. DANH SÁCH CHI NHÁNH & BƯU CỤC CÓ TỶ LỆ QUÁ HẠN SLA (DUCKDB INTERACTIVE TABLE)
     st.markdown('<p class="section-red-title" style="border-left: 4px solid #c62828; padding-left: 8px; font-weight: bold;">DANH SÁCH CHI NHÁNH & BƯU CỤC CÓ TỶ LỆ QUÁ HẠN SLA (BẤM CHỌN DÒNG CHI NHÁNH BÊN TRÁI ĐỂ LỌC BƯU CỤC BÊN PHẢI)</p>', unsafe_allow_html=True)
 
-    # Truy vấn không giới hạn LIMIT
     cn_sla_raw = con.execute(f"""
         SELECT 
             tinh_phat AS cn,
@@ -2275,7 +2284,6 @@ with tab_sla:
         ORDER BY ty_le_qua_han DESC
     """).fetchall()
 
-    # Render dòng HTML Chi nhánh
     rows_cn_sla_html = ""
     for item in cn_sla_raw:
         cn_code = item[0]
@@ -2290,7 +2298,6 @@ with tab_sla:
         </tr>
         """
 
-    # Render dòng HTML Bưu cục
     rows_bc_sla_html = ""
     for item in bc_sla_raw:
         bc_code = item[0]
