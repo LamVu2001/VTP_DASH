@@ -6,7 +6,7 @@ from pathlib import Path
 import gdown
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Dashboard Tổng hợp", layout="wide")
+st.set_page_config(page_title="Dashboard Health Score", layout="wide")
 
 # CSS giao diện
 st.markdown("""
@@ -73,8 +73,7 @@ def get_filter_options():
 
 kh_list, tinh_list, dt_list = get_filter_options()
 
-st.markdown('<div class="sub-header">HEALTH SCORE DASHBOARD</div>', unsafe_allow_html=True)
-tab_doanh_thu, tab_opr, tab_odr = st.tabs(["📊 DASHBOARD DOANH THU", "📦 DASHBOARD OPR", "🚚 DASHBOARD ODR"])
+tab_overview, tab_doanh_thu, tab_opr, tab_odr = st.tabs(["OVERVIEW","📊 DOANH THU", "📦 OPR", "🚚 ODR"])
 
 # ==========================================
 # TAB 1: DASHBOARD DOANH THU
