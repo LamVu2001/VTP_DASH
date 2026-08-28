@@ -1475,119 +1475,194 @@ with tab_odr:
 
     st.divider()
 
-    # ==========================================
-    # PHẦN 2 BẢNG DỮ LIỆU TỈNH PHÁT & BƯU CỤC (ĐÃ ĐỊNH DẠNG THEO TAB OPR)
-    # ==========================================
-    
-    # CSS Custom chỉnh màu bảng Streamlit Dataframe theo Theme Đen - Đỏ của OPR
-    st.markdown("""
-    <style>
-        /* Format tiêu đề bảng theo style OPR */
-        .opr-table-title {
-            font-size: 13px;
-            font-weight: 700;
-            color: #111111;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        .opr-table-subtitle {
-            font-size: 11px;
-            font-weight: 400;
-            color: #666666;
-            text-transform: none;
-        }
-        /* Style khung Dataframe */
-        [data-testid="stDataFrame"] {
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-        }
-    </style>
-    """, unsafe_allow_html=True)
+    st.markdown('<p class="section-red-title">DANH SÁCH CHI NHÁNH & BƯU CỤC PHÁT (BẤM CHỌN DÒNG CHI NHÁNH BÊN TRÁI ĐỂ LỌC BƯU CỤC BÊN PHẢI)</p>', unsafe_allow_html=True)
 
-    df_cn_grouped = con.execute(f"""
+    cn_data_raw = con.execute(f"""
         SELECT 
-            tinh_phat AS "Tỉnh phát", 
-            COUNT(*) AS "Tổng đơn", 
-            ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
+            tinh_phat AS cn,
+            COUNT(*) AS tong_don,
+            ROUND(SUM(tong_cuoc)/1e6, 1) AS doanh_thu
         FROM orders 
         WHERE {where_sql_odr} AND tinh_phat IS NOT NULL
         GROUP BY tinh_phat 
-        ORDER BY "Tổng đơn" DESC
-    """).fetchdf()
+        ORDER BY tong_don DESC
+    """).fetchall()
 
-    tbl_col1, tbl_col2 = st.columns(2)
+    bc_data_raw = con.execute(f"""
+        SELECT 
+            ma_buucuc_phat AS bc, 
+            tinh_phat AS cn,
+            COUNT(*) AS tong_don,
+            ROUND(SUM(tong_cuoc)/1e6, 1) AS doanh_thu
+        FROM orders 
+        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
+        GROUP BY ma_buucuc_phat, tinh_phat 
+        ORDER BY tong_don DESC
+    """).fetchall()
 
-    # 1. BẢNG TỈNH PHÁT (BÊN TRÁI)
-    with tbl_col1:
-        st.markdown('<div class="opr-table-title">Bảng Tỉnh Phát <span class="opr-table-subtitle">(Bấm chọn dòng để lọc Bưu cục)</span></div>', unsafe_allow_html=True)
-        event_cn = st.dataframe(
-            df_cn_grouped, 
-            use_container_width=True, 
-            hide_index=True,
-            selection_mode="single-row",
-            on_select="rerun",
-            key="table_tinh_phat_select",
-            column_config={
-                "Tổng đơn": st.column_config.NumberColumn("Tổng đơn", format="%'d"),
-                "Doanh thu (Tr)": st.column_config.NumberColumn("Doanh thu (Tr)", format="%.1f")
-            }
-        )
+    rows_cn_html = ""
+    for item in cn_data_raw:
+        cn_code = item[0]
+        tong_don = f"{item[1]:,}" if item[1] else "0"
+        doanh_thu = f"{item[2]:,.1f}" if item[2] else "0.0"
+        rows_cn_html += f"""
+        <tr class="cn-row" data-cn="{cn_code}" onclick="filterBC('{cn_code}', this)">
+            <td style="font-weight: bold; cursor: pointer; text-align: left; padding-left: 10px;">{cn_code}</td>
+            <td style="text-align: right; padding-right: 10px;">{tong_don}</td>
+            <td style="text-align: right; padding-right: 10px;">{doanh_thu}</td>
+        </tr>
+        """
 
-    # Logic chọn dòng (Giữ nguyên gốc)
-    selected_row_indices = event_cn.get("selection", {}).get("rows", [])
-    selected_tinh = None
-    if selected_row_indices:
-        selected_idx = selected_row_indices[0]
-        selected_tinh = df_cn_grouped.iloc[selected_idx]["Tỉnh phát"]
+    rows_bc_html = ""
+    for item in bc_data_raw:
+        bc_code = item[0]
+        cn_code = item[1]
+        tong_don = f"{item[2]:,}" if item[2] else "0"
+        doanh_thu = f"{item[3]:,.1f}" if item[3] else "0.0"
+        rows_bc_html += f"""
+        <tr class="bc-row" data-cn="{cn_code}">
+            <td style="font-weight: bold; text-align: left; padding-left: 10px;">{bc_code}</td>
+            <td style="font-weight: bold; text-align: center;">{cn_code}</td>
+            <td style="text-align: right; padding-right: 10px;">{tong_don}</td>
+            <td style="text-align: right; padding-right: 10px;">{doanh_thu}</td>
+        </tr>
+        """
 
-    # 2. BẢNG BƯU CỤC (BÊN PHẢI)
-    with tbl_col2:
-        if selected_tinh:
-            st.markdown(f'<div class="opr-table-title">Toàn bộ Bưu cục thuộc Tỉnh: <span style="color: #c62828;">{selected_tinh}</span></div>', unsafe_allow_html=True)
-            df_bc_filtered = con.execute(f"""
-                SELECT 
-                    ma_buucuc_phat AS "Mã bưu cục phát", 
-                    COUNT(*) AS "Sản lượng đơn", 
-                    ROUND(SUM(tong_cuoc)/1e6, 1) AS "Doanh thu (Tr)"
-                FROM orders 
-                WHERE {where_sql_odr} AND tinh_phat = '{selected_tinh}' AND ma_buucuc_phat IS NOT NULL
-                GROUP BY ma_buucuc_phat 
-                ORDER BY "Sản lượng đơn" DESC
-            """).fetchdf()
-            
-            st.dataframe(
-                df_bc_filtered, 
-                use_container_width=True, 
-                hide_index=True,
-                column_config={
-                    "Sản lượng đơn": st.column_config.NumberColumn("Sản lượng đơn", format="%'d"),
-                    "Doanh thu (Tr)": st.column_config.NumberColumn("Doanh thu (Tr)", format="%.1f")
-                }
-            )
-        else:
-            st.markdown('<div class="opr-table-title">Bưu Cục Toàn Quốc <span class="opr-table-subtitle">(Bấm chọn Tỉnh bên trái để xem chi tiết)</span></div>', unsafe_allow_html=True)
-            df_bc_all = con.execute(f"""
-                SELECT 
-                    tinh_phat AS "Tỉnh phát", 
-                    ma_buucuc_phat AS "Mã bưu cục phát", 
-                    COUNT(*) AS "Sản lượng đơn"
-                FROM orders 
-                WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
-                GROUP BY tinh_phat, ma_buucuc_phat 
-                ORDER BY "Sản lượng đơn" DESC
-            """).fetchdf()
-            
-            st.dataframe(
-                df_bc_all, 
-                use_container_width=True, 
-                hide_index=True,
-                column_config={
-                    "Sản lượng đơn": st.column_config.NumberColumn("Sản lượng đơn", format="%'d")
-                }
-            )
+    interactive_tables_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{ 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; padding: 0; background: transparent; 
+        }}
+        .grid-container {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }}
+        .table-title {{
+            font-size: 12px; font-weight: bold; color: #333; margin-bottom: 6px;
+        }}
+        .table-scroll {{
+            max-height: 360px;
+            overflow-y: auto;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+            background: #fff;
+        }}
+        table {{
+            width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11.5px;
+        }}
+        th {{
+            position: sticky; top: 0; z-index: 10;
+            background-color: #222222; color: #ffffff;
+            text-align: center; padding: 7px 8px;
+            border-bottom: 1px solid #444; border-right: 1px solid #444;
+            font-weight: bold;
+        }}
+        td {{
+            padding: 6px 8px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;
+            color: #111;
+        }}
+        tr.cn-row:hover {{
+            background-color: #ffebee !important;
+            cursor: pointer;
+        }}
+        tr.selected-cn {{
+            background-color: #ffcdd2 !important;
+        }}
+        .btn-reset {{
+            display: inline-block; padding: 2px 8px; font-size: 11px;
+            background: #eee; border: 1px solid #ccc; border-radius: 3px;
+            cursor: pointer; margin-left: 8px; font-weight: normal;
+        }}
+    </style>
+    </head>
+    <body>
 
-    st.write("")
+    <div class="grid-container">
+        <div>
+            <div class="table-title">
+                Bảng Tỉnh Phát <span style="font-weight:normal; color:#666;">(Bấm chọn dòng để lọc Bưu cục)</span>
+                <span class="btn-reset" onclick="resetFilter()">Xóa lọc</span>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding-left: 10px;">Tỉnh phát</th>
+                            <th style="text-align: right; padding-right: 10px;">Tổng đơn</th>
+                            <th style="text-align: right; padding-right: 10px;">Doanh thu (Tr)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows_cn_html if rows_cn_html else "<tr><td colspan='3' style='text-align:center;'>Không có dữ liệu</td></tr>"}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <div class="table-title">
+                Bưu Cục Phát <span id="bc-title-status" style="color: #c62828; font-weight: bold;">(Toàn Quốc)</span>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding-left: 10px;">Mã bưu cục phát</th>
+                            <th>Tỉnh phát</th>
+                            <th style="text-align: right; padding-right: 10px;">Sản lượng đơn</th>
+                            <th style="text-align: right; padding-right: 10px;">Doanh thu (Tr)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bc-tbody">
+                        {rows_bc_html if rows_bc_html else "<tr><td colspan='4' style='text-align:center;'>Không có dữ liệu</td></tr>"}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function filterBC(cnCode, rowElem) {{
+            var cnRows = document.getElementsByClassName('cn-row');
+            for (var i = 0; i < cnRows.length; i++) {{
+                cnRows[i].classList.remove('selected-cn');
+            }}
+            if (rowElem) rowElem.classList.add('selected-cn');
+
+            var bcRows = document.getElementsByClassName('bc-row');
+            for (var j = 0; j < bcRows.length; j++) {{
+                if (bcRows[j].getAttribute('data-cn') === cnCode) {{
+                    bcRows[j].style.display = 'table-row';
+                }} else {{
+                    bcRows[j].style.display = 'none';
+                }}
+            }}
+            document.getElementById('bc-title-status').innerText = '(Tỉnh: ' + cnCode + ')';
+        }}
+
+        function resetFilter() {{
+            var cnRows = document.getElementsByClassName('cn-row');
+            for (var i = 0; i < cnRows.length; i++) {{
+                cnRows[i].classList.remove('selected-cn');
+            }}
+            var bcRows = document.getElementsByClassName('bc-row');
+            for (var j = 0; j < bcRows.length; j++) {{
+                bcRows[j].style.display = 'table-row';
+            }}
+            document.getElementById('bc-title-status').innerText = '(Toàn Quốc)';
+        }}
+    </script>
+    </body>
+    </html>
+    """
+
+    components.html(interactive_tables_html, height=410, scrolling=False)
+
     st.divider()
 
     st.subheader("📊 BÁO CÁO MA TRẬN CHẤT LƯỢNG VẬN HÀNH")
