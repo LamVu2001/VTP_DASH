@@ -2482,80 +2482,80 @@ with tab_sla:
 
     components.html(interactive_sla_tables_html, height=410, scrolling=False)
 
-html_sla_full_tables = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            margin: 0; padding: 0; background: transparent; color: #111;
-        }
-        .section-red-bar {
-            border-left: 4px solid #c62828;
-            padding-left: 8px;
-            font-weight: bold;
-            font-size: 13px;
-            color: #111;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
-        .table-scroll {
-            max-height: 420px;
-            overflow: auto;
-            border: 1px solid #ccc;
-            background: #fff;
-            margin-bottom: 25px;
-        }
-        table.sla-grid {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
-            white-space: nowrap;
-        }
-        table.sla-grid th {
-            position: sticky; top: 0; z-index: 10;
-            background-color: #222222;
-            color: #ffffff;
-            text-align: center;
-            padding: 6px 8px;
-            border: 1px solid #444;
-            font-weight: bold;
-        }
-        table.sla-grid td {
-            padding: 5px 8px;
-            border: 1px solid #e0e0e0;
-            text-align: center;
-        }
-        tr.row-even { background-color: #fafafa; }
-        tr.row-group { background-color: #f5f5f5; font-weight: bold; }
-        
-        .text-left { text-align: left !important; }
-        .text-right { text-align: right !important; }
-        .text-green { color: #2e7d32; font-weight: bold; }
-        .text-red { color: #c62828; font-weight: bold; }
-        
-        .btn-toggle {
-            display: inline-block;
-            width: 13px;
-            height: 13px;
-            line-height: 11px;
-            text-align: center;
-            border: 1px solid #c62828;
-            color: #c62828;
-            font-size: 10px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-right: 5px;
-            background: #fff;
-        }
-        .indent-1 { padding-left: 20px !important; }
-        .indent-2 { padding-left: 35px !important; }
-        .hidden-row { display: none; }
-    </style>
-    </head>
-    <body>
+    html_sla_full_tables = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+                margin: 0; padding: 0; background: transparent; color: #111;
+            }
+            .section-red-bar {
+                border-left: 4px solid #c62828;
+                padding-left: 8px;
+                font-weight: bold;
+                font-size: 13px;
+                color: #111;
+                margin-top: 20px;
+                margin-bottom: 10px;
+                text-transform: uppercase;
+            }
+            .table-scroll {
+                max-height: 420px;
+                overflow: auto;
+                border: 1px solid #ccc;
+                background: #fff;
+                margin-bottom: 25px;
+            }
+            table.sla-grid {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 11px;
+                white-space: nowrap;
+            }
+            table.sla-grid th {
+                position: sticky; top: 0; z-index: 10;
+                background-color: #222222;
+                color: #ffffff;
+                text-align: center;
+                padding: 6px 8px;
+                border: 1px solid #444;
+                font-weight: bold;
+            }
+            table.sla-grid td {
+                padding: 5px 8px;
+                border: 1px solid #e0e0e0;
+                text-align: center;
+            }
+            tr.row-even { background-color: #fafafa; }
+            tr.row-group { background-color: #f5f5f5; font-weight: bold; }
+            
+            .text-left { text-align: left !important; }
+            .text-right { text-align: right !important; }
+            .text-green { color: #2e7d32; font-weight: bold; }
+            .text-red { color: #c62828; font-weight: bold; }
+            
+            .btn-toggle {
+                display: inline-block;
+                width: 13px;
+                height: 13px;
+                line-height: 11px;
+                text-align: center;
+                border: 1px solid #c62828;
+                color: #c62828;
+                font-size: 10px;
+                font-weight: bold;
+                cursor: pointer;
+                margin-right: 5px;
+                background: #fff;
+            }
+            .indent-1 { padding-left: 20px !important; }
+            .indent-2 { padding-left: 35px !important; }
+            .hidden-row { display: none; }
+        </style>
+        </head>
+        <body>
 
     <!-- BẢNG 1: CHI TIẾT CHỈ TIÊU SLA -->
     <div class="table-scroll">
