@@ -2177,7 +2177,7 @@ with tab_sla:
     st.markdown('<p class="main-title">Dashboard Quá hạn SLA</p>', unsafe_allow_html=True)
     st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
 
-    # 1. BỘ THẺ METRIC CARDS
+    # 1. METRIC CARDS
     m_sla1, m_sla2, m_sla3 = st.columns(3)
     with m_sla1:
         st.markdown('''
@@ -2208,92 +2208,93 @@ with tab_sla:
 
     st.write("")
 
-    # 2. BIỂU ĐỒ XU HƯỚNG TỶ LỆ ĐƠN QUÁ HẠN SLA (%) - QUERY TRỰC TIẾP TỪ DUCKDB
+    # 2. BIỂU ĐỒ XU HƯỚNG TỶ LỆ ĐƠN QUÁ HẠN SLA (%) - DUCKDB MOCK DATA
     st.markdown('<p class="section-red-title" style="border-left: 4px solid #c62828; padding-left: 8px; font-weight: bold;">XU HƯỚNG TỶ LỆ ĐƠN QUÁ HẠN SLA (%)</p>', unsafe_allow_html=True)
     
-    try:
-        df_sla_chart = con.execute(f"""
-            SELECT 
-                clean_date AS "Ngày",
-                ROUND(COUNT(CASE WHEN is_overdue = 1 THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS "Thực tế",
-                1.2 AS "Mục tiêu"
-            FROM orders
-            WHERE {where_sql_odr} AND clean_date IS NOT NULL
-            GROUP BY clean_date
-            ORDER BY clean_date DESC
-            LIMIT 7
-        """).fetchdf()
+    # Fake dữ liệu xu hướng 7 ngày bằng DuckDB
+    df_sla_chart = con.execute("""
+        SELECT * FROM (VALUES 
+            ('06/08', 1.1, 1.2),
+            ('07/08', 1.4, 1.2),
+            ('08/08', 1.8, 1.2),
+            ('09/08', 2.2, 1.2),
+            ('10/08', 2.6, 1.2),
+            ('11/08', 3.0, 1.2),
+            ('12/08', 3.4, 1.2)
+        ) AS t("Ngày", "Thực tế", "Mục tiêu")
+    """).fetchdf()
 
-        if len(df_sla_chart) > 0:
-            df_sla_chart = df_sla_chart.sort_values("Ngày")
-            fig_sla = px.line(
-                df_sla_chart, 
-                x="Ngày", 
-                y=["Thực tế", "Mục tiêu"], 
-                markers=True,
-                color_discrete_map={"Thực tế": "#c62828", "Mục tiêu": "#888888"}
-            )
-            fig_sla.update_traces(line=dict(width=2.5), marker=dict(size=6))
-            fig_sla.update_layout(
-                height=300,
-                margin=dict(l=10, r=10, t=10, b=10),
-                yaxis=dict(title=None, gridcolor="#eee"),
-                xaxis=dict(title=None, showgrid=False),
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=-0.25,
-                    xanchor="center",
-                    x=0.5,
-                    title=None
-                ),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)"
-            )
-            st.plotly_chart(fig_sla, use_container_width=True)
-    except Exception:
-        pass
+    fig_sla = px.line(
+        df_sla_chart, 
+        x="Ngày", 
+        y=["Thực tế", "Mục tiêu"], 
+        markers=True,
+        color_discrete_map={"Thực tế": "#c62828", "Mục tiêu": "#888888"}
+    )
+    fig_sla.update_traces(line=dict(width=2.5), marker=dict(size=6))
+    fig_sla.update_layout(
+        height=300,
+        margin=dict(l=10, r=10, t=10, b=10),
+        yaxis=dict(title=None, gridcolor="#eee", range=[0, 4]),
+        xaxis=dict(title=None, showgrid=False),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.25,
+            xanchor="center",
+            x=0.5,
+            title=None
+        ),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
+    )
+    st.plotly_chart(fig_sla, use_container_width=True)
 
     st.write("")
 
-    # 3. DANH SÁCH CHI NHÁNH & BƯU CỤC CÓ TỶ LỆ QUÁ HẠN SLA (DUCKDB INTERACTIVE TABLE)
+    # 3. BẢNG CHI NHÁNH & BƯU CỤC INTERACTIVE - DUCKDB MOCK DATA
     st.markdown('<p class="section-red-title" style="border-left: 4px solid #c62828; padding-left: 8px; font-weight: bold;">DANH SÁCH CHI NHÁNH & BƯU CỤC CÓ TỶ LỆ QUÁ HẠN SLA (BẤM CHỌN DÒNG CHI NHÁNH BÊN TRÁI ĐỂ LỌC BƯU CỤC BÊN PHẢI)</p>', unsafe_allow_html=True)
 
-    cn_sla_raw = con.execute(f"""
-        SELECT 
-            tinh_phat AS cn,
-            COUNT(*) AS tong_don,
-            ROUND(COUNT(CASE WHEN is_overdue = 1 THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS ty_le_qua_han,
-            ROUND(SUM(tien_den_bu)/1e6, 1) AS den_bu
-        FROM orders 
-        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL
-        GROUP BY tinh_phat 
-        ORDER BY ty_le_qua_han DESC
+    # Fake dữ liệu Chi nhánh bằng DuckDB
+    cn_sla_raw = con.execute("""
+        SELECT * FROM (VALUES 
+            ('HNI', 5.8, '+2.4%', 42.0),
+            ('HCM', 5.1, '+1.9%', 36.0),
+            ('DNI', 4.6, '+1.5%', 29.0),
+            ('GLI', 4.0, '+1.1%', 22.0),
+            ('DLK', 3.7, '+0.8%', 18.0),
+            ('HPG', 3.2, '+0.5%', 15.0),
+            ('CTO', 2.9, '+0.2%', 12.0)
+        ) AS t(cn, ty_le, ss_cung_ky, den_bu)
     """).fetchall()
 
-    bc_sla_raw = con.execute(f"""
-        SELECT 
-            ma_buucuc_phat AS bc, 
-            tinh_phat AS cn,
-            COUNT(*) AS tong_don,
-            ROUND(COUNT(CASE WHEN is_overdue = 1 THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS ty_le_qua_han,
-            ROUND(SUM(tien_den_bu)/1e6, 1) AS den_bu
-        FROM orders 
-        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
-        GROUP BY ma_buucuc_phat, tinh_phat 
-        ORDER BY ty_le_qua_han DESC
+    # Fake dữ liệu Bưu cục tương ứng bằng DuckDB
+    bc_sla_raw = con.execute("""
+        SELECT * FROM (VALUES 
+            ('HNI01', 'HNI', 6.2, '+2.8%', 18.0),
+            ('HNI02', 'HNI', 5.4, '+2.0%', 24.0),
+            ('HCM01', 'HCM', 5.5, '+2.1%', 20.0),
+            ('HCM02', 'HCM', 4.7, '+1.7%', 16.0),
+            ('DNI01', 'DNI', 4.8, '+1.6%', 17.0),
+            ('DNI02', 'DNI', 4.4, '+1.4%', 12.0),
+            ('GLI01', 'GLI', 4.1, '+1.2%', 14.0),
+            ('GLI02', 'GLI', 3.9, '+1.0%', 8.0),
+            ('DLK01', 'DLK', 3.8, '+0.9%', 10.0),
+            ('DLK02', 'DLK', 3.6, '+0.7%', 8.0)
+        ) AS t(bc, cn, ty_le, ss_cung_ky, den_bu)
     """).fetchall()
 
     rows_cn_sla_html = ""
     for item in cn_sla_raw:
         cn_code = item[0]
-        ty_le = f"{item[2]:.1f}%" if item[2] is not None else "0.0%"
-        den_bu = f"{item[3]:.1f}" if item[3] is not None else "0"
+        ty_le = f"{item[1]:.1f}%"
+        ss_cung_ky = item[2]
+        den_bu = f"{item[3]:.1f}"
         rows_cn_sla_html += f"""
         <tr class="cn-row" data-cn="{cn_code}" onclick="filterBC('{cn_code}', this)">
             <td style="font-weight: bold; cursor: pointer; text-align: left; padding-left: 10px;">{cn_code}</td>
             <td style="text-align: center;">{ty_le}</td>
-            <td class="text-red-bold" style="text-align: center;">+1.5%</td>
+            <td class="text-red-bold" style="text-align: center;">{ss_cung_ky}</td>
             <td style="text-align: right; padding-right: 10px;">{den_bu}</td>
         </tr>
         """
@@ -2302,14 +2303,15 @@ with tab_sla:
     for item in bc_sla_raw:
         bc_code = item[0]
         cn_code = item[1]
-        ty_le = f"{item[3]:.1f}%" if item[3] is not None else "0.0%"
-        den_bu = f"{item[4]:.1f}" if item[4] is not None else "0"
+        ty_le = f"{item[2]:.1f}%"
+        ss_cung_ky = item[3]
+        den_bu = f"{item[4]:.1f}"
         rows_bc_sla_html += f"""
         <tr class="bc-row" data-cn="{cn_code}">
             <td style="font-weight: bold; text-align: left; padding-left: 10px;">{bc_code}</td>
             <td style="font-weight: bold; text-align: center;">{cn_code}</td>
             <td style="text-align: center;">{ty_le}</td>
-            <td class="text-green-bold" style="text-align: center;">-0.2%</td>
+            <td class="text-red-bold" style="text-align: center;">{ss_cung_ky}</td>
             <td style="text-align: right; padding-right: 10px;">{den_bu}</td>
         </tr>
         """
@@ -2360,7 +2362,6 @@ with tab_sla:
             background-color: #ffcdd2 !important;
         }}
         .text-red-bold {{ color: #c62828; font-weight: bold; background-color: #fff5f5; }}
-        .text-green-bold {{ color: #2e7d32; font-weight: bold; background-color: #f1f8e9; }}
         .btn-reset {{
             display: inline-block; padding: 2px 8px; font-size: 11px;
             background: #eee; border: 1px solid #ccc; border-radius: 3px;
@@ -2387,7 +2388,7 @@ with tab_sla:
                         </tr>
                     </thead>
                     <tbody>
-                        {rows_cn_sla_html if rows_cn_sla_html else "<tr><td colspan='4' style='text-align:center;'>Không có dữ liệu</td></tr>"}
+                        {rows_cn_sla_html}
                     </tbody>
                 </table>
             </div>
@@ -2409,7 +2410,7 @@ with tab_sla:
                         </tr>
                     </thead>
                     <tbody id="bc-tbody">
-                        {rows_bc_sla_html if rows_bc_sla_html else "<tr><td colspan='5' style='text-align:center;'>Không có dữ liệu</td></tr>"}
+                        {rows_bc_sla_html}
                     </tbody>
                 </table>
             </div>
