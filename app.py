@@ -6,11 +6,25 @@ from pathlib import Path
 import gdown
 import streamlit.components.v1 as components
 
+# =======================================================================================================================================
+# 1. CẤU HÌNH TRANG STREAMLIT
+# =======================================================================================================================================
 st.set_page_config(page_title="Dashboard Health Score", layout="wide")
 
-# CSS giao diện
 st.markdown("""
 <style>
+    /* Tiêu đề chính trên cùng (Full các tab) - TO NỔI BẬT */
+    .top-header-title {
+        font-size: 34px;
+        font-weight: 900;
+        color: #c62828;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-top: -15px;
+        margin-bottom: 15px;
+        padding-bottom: 5px;
+    }
+    
     .header-title { font-size: 14px; font-weight: bold; color: #c62828; text-transform: uppercase; margin-bottom: 0px; }
     .main-title { font-size: 26px; font-weight: bold; color: #111111; margin-top: 0px; margin-bottom: 15px; }
     
@@ -35,6 +49,8 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+st.markdown('<div class="top-header-title">HEALTH SCORE DASHBOARD</div>', unsafe_allow_html=True)
 
 @st.cache_resource
 def get_db_connection():
@@ -73,11 +89,11 @@ def get_filter_options():
 
 kh_list, tinh_list, dt_list = get_filter_options()
 
-tab_overview, tab_doanh_thu, tab_opr, tab_odr = st.tabs(["OVERVIEW","📊 DOANH THU", "📦 OPR", "🚚 ODR"])
+tab_overview, tab_doanh_thu, tab_opr, tab_odr = st.tabs(["OVERVIEW", "📊 DOANH THU", "📦 OPR", "🚚 ODR"])
 
-# ==========================================
-# TAB 1: DASHBOARD DOANH THU
-# ==========================================
+# =======================================================================================================================================
+# TAB 2: DASHBOARD DOANH THU
+# =======================================================================================================================================
 with tab_doanh_thu:
     st.markdown('<p class="header-title">DOANH THU</p>', unsafe_allow_html=True)
     st.markdown('<p class="main-title">Dashboard Doanh thu</p>', unsafe_allow_html=True)
