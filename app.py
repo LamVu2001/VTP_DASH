@@ -2252,67 +2252,99 @@ with tab_sla:
 
     st.write("")
 
-    # 3. BẢNG CHI NHÁNH & BƯU CỤC INTERACTIVE - DUCKDB MOCK DATA
-    st.markdown('<p class="section-red-title" style="border-left: 4px solid #c62828; padding-left: 8px; font-weight: bold;">DANH SÁCH CHI NHÁNH & BƯU CỤC CÓ TỶ LỆ QUÁ HẠN SLA (BẤM CHỌN DÒNG CHI NHÁNH BÊN TRÁI ĐỂ LỌC BƯU CỤC BÊN PHẢI)</p>', unsafe_allow_html=True)
+    # 3. DANH SÁCH CHI NHÁNH & BƯU CỤC CÓ TỶ LỆ QUÁ HẠN SLA (SORT: TIỀN ĐỀN BÙ -> TỶ LỆ QUÁ HẠN)
+    st.markdown('<p class="section-red-title" style="border-left: 4px solid #c62828; padding-left: 8px; font-weight: bold;">DANH SÁCH CHI NHÁNH & BƯU CỤC CÓ TỶ LỆ QUÁ HẠN SLA</p>', unsafe_allow_html=True)
 
-    # Fake dữ liệu Chi nhánh bằng DuckDB
-    cn_sla_raw = con.execute("""
-        SELECT * FROM (VALUES 
-            ('HNI', 5.8, '+2.4%', 42.0),
-            ('HCM', 5.1, '+1.9%', 36.0),
-            ('DNI', 4.6, '+1.5%', 29.0),
-            ('GLI', 4.0, '+1.1%', 22.0),
-            ('DLK', 3.7, '+0.8%', 18.0),
-            ('HPG', 3.2, '+0.5%', 15.0),
-            ('CTO', 2.9, '+0.2%', 12.0)
-        ) AS t(cn, ty_le, ss_cung_ky, den_bu)
-    """).fetchall()
+    # 1. Query danh sách Mã Tỉnh (Chi nhánh) thật từ DuckDB
+    try:
+        cn_real = con.execute(f"""
+            SELECT DISTINCT tinh_phat AS cn 
+            FROM orders 
+            WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND tinh_phat != ''
+            ORDER BY tinh_phat
+        """).fetchall()
+    except Exception:
+        cn_real = []
 
-    # Fake dữ liệu Bưu cục tương ứng bằng DuckDB
-    bc_sla_raw = con.execute("""
-        SELECT * FROM (VALUES 
-            ('HNI01', 'HNI', 6.2, '+2.8%', 18.0),
-            ('HNI02', 'HNI', 5.4, '+2.0%', 24.0),
-            ('HCM01', 'HCM', 5.5, '+2.1%', 20.0),
-            ('HCM02', 'HCM', 4.7, '+1.7%', 16.0),
-            ('DNI01', 'DNI', 4.8, '+1.6%', 17.0),
-            ('DNI02', 'DNI', 4.4, '+1.4%', 12.0),
-            ('GLI01', 'GLI', 4.1, '+1.2%', 14.0),
-            ('GLI02', 'GLI', 3.9, '+1.0%', 8.0),
-            ('DLK01', 'DLK', 3.8, '+0.9%', 10.0),
-            ('DLK02', 'DLK', 3.6, '+0.7%', 8.0)
-        ) AS t(bc, cn, ty_le, ss_cung_ky, den_bu)
-    """).fetchall()
+    if not cn_real:
+        cn_list = ['HNI', 'HCM', 'DNI', 'GLI', 'DLK', 'HPG', 'CTO']
+    else:
+        cn_list = [r[0] for r in cn_real]
 
+    # 2. Query danh sách Bưu cục + Mã Tỉnh thật từ DuckDB
+    try:
+        bc_real = con.execute(f"""
+            SELECT DISTINCT ma_buucuc_phat AS bc, tinh_phat AS cn 
+            FROM orders 
+            WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL AND ma_buucuc_phat != ''
+            ORDER BY ma_buucuc_phat
+        """).fetchall()
+    except Exception:
+        bc_real = []
+
+    if not bc_real:
+        bc_list = [
+            ('HNI01', 'HNI'), ('HNI02', 'HNI'), ('HCM01', 'HCM'), ('HCM02', 'HCM'),
+            ('DNI01', 'DNI'), ('DNI02', 'DNI'), ('GLI01', 'GLI'), ('GLI02', 'GLI')
+        ]
+    else:
+        bc_list = [(r[0], r[1]) for r in bc_real]
+
+    # Tạo dữ liệu fake kèm theo chỉ số cho Chi nhánh
+    cn_data_items = []
+    for idx, cn_code in enumerate(cn_list):
+        mock_rate = max(1.5, round(5.8 - (idx % 5) * 0.4, 1))
+        mock_diff = f"+{round(max(0.1, 2.4 - (idx % 5) * 0.3), 1)}%"
+        mock_denbu = round(max(5.0, 42.0 - idx * 4.5), 1)
+        cn_data_items.append({
+            'cn': cn_code,
+            'rate': mock_rate,
+            'diff': mock_diff,
+            'denbu': mock_denbu
+        })
+
+    # Sort Chi nhánh: Ưu tiên Tiền đền bù DESC -> Tỷ lệ quá hạn DESC
+    cn_data_items = sorted(cn_data_items, key=lambda x: (x['denbu'], x['rate']), reverse=True)
+
+    # Render HTML Chi nhánh
     rows_cn_sla_html = ""
-    for item in cn_sla_raw:
-        cn_code = item[0]
-        ty_le = f"{item[1]:.1f}%"
-        ss_cung_ky = item[2]
-        den_bu = f"{item[3]:.1f}"
+    for item in cn_data_items:
         rows_cn_sla_html += f"""
-        <tr class="cn-row" data-cn="{cn_code}" onclick="filterBC('{cn_code}', this)">
-            <td style="font-weight: bold; cursor: pointer; text-align: left; padding-left: 10px;">{cn_code}</td>
-            <td style="text-align: center;">{ty_le}</td>
-            <td class="text-red-bold" style="text-align: center;">{ss_cung_ky}</td>
-            <td style="text-align: right; padding-right: 10px;">{den_bu}</td>
+        <tr class="cn-row" data-cn="{item['cn']}" onclick="filterBC('{item['cn']}', this)">
+            <td style="font-weight: bold; cursor: pointer; text-align: left; padding-left: 10px;">{item['cn']}</td>
+            <td style="text-align: center;">{item['rate']:.1f}%</td>
+            <td class="text-red-bold" style="text-align: center;">{item['diff']}</td>
+            <td style="text-align: right; padding-right: 10px;">{item['denbu']:.1f}</td>
         </tr>
         """
 
+    # Tạo dữ liệu fake kèm theo chỉ số cho Bưu cục
+    bc_data_items = []
+    for idx, (bc_code, cn_code) in enumerate(bc_list):
+        mock_rate = max(1.2, round(6.2 - (idx % 8) * 0.3, 1))
+        mock_diff = f"+{round(max(0.1, 2.8 - (idx % 8) * 0.3), 1)}%"
+        mock_denbu = round(max(3.0, 24.0 - (idx % 8) * 2.0), 1)
+        bc_data_items.append({
+            'bc': bc_code,
+            'cn': cn_code,
+            'rate': mock_rate,
+            'diff': mock_diff,
+            'denbu': mock_denbu
+        })
+
+    # Sort Bưu cục: Ưu tiên Tiền đền bù DESC -> Tỷ lệ quá hạn DESC
+    bc_data_items = sorted(bc_data_items, key=lambda x: (x['denbu'], x['rate']), reverse=True)
+
+    # Render HTML Bưu cục
     rows_bc_sla_html = ""
-    for item in bc_sla_raw:
-        bc_code = item[0]
-        cn_code = item[1]
-        ty_le = f"{item[2]:.1f}%"
-        ss_cung_ky = item[3]
-        den_bu = f"{item[4]:.1f}"
+    for item in bc_data_items:
         rows_bc_sla_html += f"""
-        <tr class="bc-row" data-cn="{cn_code}">
-            <td style="font-weight: bold; text-align: left; padding-left: 10px;">{bc_code}</td>
-            <td style="font-weight: bold; text-align: center;">{cn_code}</td>
-            <td style="text-align: center;">{ty_le}</td>
-            <td class="text-red-bold" style="text-align: center;">{ss_cung_ky}</td>
-            <td style="text-align: right; padding-right: 10px;">{den_bu}</td>
+        <tr class="bc-row" data-cn="{item['cn']}">
+            <td style="font-weight: bold; text-align: left; padding-left: 10px;">{item['bc']}</td>
+            <td style="font-weight: bold; text-align: center;">{item['cn']}</td>
+            <td style="text-align: center;">{item['rate']:.1f}%</td>
+            <td class="text-red-bold" style="text-align: center;">{item['diff']}</td>
+            <td style="text-align: right; padding-right: 10px;">{item['denbu']:.1f}</td>
         </tr>
         """
 
@@ -2453,5 +2485,3 @@ with tab_sla:
     """
 
     components.html(interactive_sla_tables_html, height=410, scrolling=False)
-
-    st.divider()
