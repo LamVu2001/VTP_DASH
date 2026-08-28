@@ -360,7 +360,7 @@ with tab_overview:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 1. Truy vấn lấy toàn bộ ma_doitac từ database
+    # Lấy danh sách ma_doitac từ DuckDB dưới dạng List thuần
     all_dt_rows = con.execute("""
         SELECT DISTINCT ma_doitac 
         FROM orders 
@@ -370,7 +370,7 @@ with tab_overview:
 
     all_doitac = [str(r[0]) for r in all_dt_rows] if all_dt_rows else list_doitac
 
-    # 2. Các vị trí & màu sắc mẫu (
+    # Tọa độ và màu sắc mẫu để rải các điểm trên biểu đồ
     preset_positions = [
         {"x": 0.35,  "y": 0.85,  "color": "#1b5e20"}, # Xanh - Khỏe mạnh
         {"x": -0.12, "y": 0.15,  "color": "#c66900"}, # Vàng - Theo dõi
@@ -384,19 +384,20 @@ with tab_overview:
         {"x": 0.10,  "y": -0.75, "color": "#c62828"}, # Đỏ - Ưu tiên xử lý
     ]
 
-    # Map toàn bộ ma_doitac từ database vào tọa độ biểu đồ
-    quadrant_points = []
+    # Tạo các List riêng cho Plotly nhận trực tiếp (x, y, text, colors)
+    x_coords = []
+    y_coords = []
+    text_labels = []
+    point_colors = []
+
     for idx, dt_name in enumerate(all_doitac):
         pos = preset_positions[idx % len(preset_positions)]
-        quadrant_points.append({
-            "name": dt_name,
-            "x": pos["x"],
-            "y": pos["y"],
-            "color": pos["color"]
-        })
+        x_coords.append(pos["x"])
+        y_coords.append(pos["y"])
+        text_labels.append(dt_name)
+        point_colors.append(pos["color"])
 
-    df_pts = pd.DataFrame(quadrant_points)
-
+    # Khởi tạo khung biểu đồ Plotly
     fig = go.Figure()
 
     # Thêm 4 vùng màu nền (Quadrants background)
@@ -409,29 +410,29 @@ with tab_overview:
     fig.add_shape(type="line", x0=0, y0=-1, x1=0, y1=1, line=dict(color="#999999", width=1.5, dash="dash"))
     fig.add_shape(type="line", x0=-1, y0=0, x1=1, y1=0, line=dict(color="#999999", width=1.5, dash="dash"))
 
-    # Thêm Text Label góc 4 quadrant
+    # Nhãn tiêu đề 4 ô ma trận
     fig.add_annotation(x=0.5, y=0.92, text="<b>KHÁCH HÀNG KHỎE MẠNH</b>", showarrow=False, font=dict(color="#1b5e20", size=13))
     fig.add_annotation(x=-0.5, y=0.92, text="<b>THEO DÕI — CHỜ PHỤC HỒI</b>", showarrow=False, font=dict(color="#1b5e20", size=13))
     fig.add_annotation(x=-0.5, y=-0.15, text="<b>ƯU TIÊN XỬ LÝ NGAY</b>", showarrow=False, font=dict(color="#c62828", size=13))
     fig.add_annotation(x=0.5, y=-0.15, text="<b>CƠ HỘI CẢI THIỆN DỊCH VỤ</b>", showarrow=False, font=dict(color="#b78103", size=13))
 
-    # Đưa các điểm dữ liệu tròn lên biểu đồ
+    # Truyền trực tiếp List thuần vào go.Scatter (Cực nhẹ & chạy mượt)
     fig.add_trace(go.Scatter(
-        x=df_pts['x'],
-        y=df_pts['y'],
+        x=x_coords,
+        y=y_coords,
         mode='markers+text',
-        text=df_pts['name'],
+        text=text_labels,
         textposition='bottom center',
         textfont=dict(size=10, color='black', family='Arial Black'),
         marker=dict(
             size=22,
-            color=df_pts['color'],
+            color=point_colors,
             line=dict(color='white', width=1)
         ),
         hoverinfo='text'
     ))
 
-    # Tùy chỉnh Layout & Trục tọa độ
+    # Cấu hình Layout
     fig.update_layout(
         xaxis=dict(
             title="<b>BIẾN ĐỘNG DOANH THU MTD vs CÙNG KỲ THÁNG TRƯỚC (MoM)</b>",
