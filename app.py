@@ -358,37 +358,23 @@ with tab_overview:
     """
     components.html(html_overview, height=620, scrolling=False)
 
+    # -------------------------------------------------------------------------
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Lấy danh sách ma_doitac từ DuckDB dưới dạng List thuần
-    all_dt_rows = con.execute("""
-        SELECT DISTINCT ma_doitac 
-        FROM orders 
-        WHERE ma_doitac IS NOT NULL AND TRIM(CAST(ma_doitac AS VARCHAR)) != ''
-        ORDER BY ma_doitac ASC
-    """).fetchall()
-
-    all_doitac = [str(r[0]) for r in all_dt_rows] if all_dt_rows else list_doitac
-
-    # Tọa độ và màu sắc mẫu để rải các điểm trên biểu đồ
     preset_positions = [
-        {"x": 0.35,  "y": 0.85,  "color": "#1b5e20"}, # Xanh - Khỏe mạnh
-        {"x": -0.12, "y": 0.15,  "color": "#c66900"}, # Vàng - Theo dõi
-        {"x": -0.80, "y": -0.65, "color": "#c62828"}, # Đỏ - Ưu tiên xử lý
-        {"x": 0.60,  "y": 0.90,  "color": "#1b5e20"}, # Xanh - Khỏe mạnh
-        {"x": 0.30,  "y": 0.20,  "color": "#c66900"}, # Vàng - Theo dõi
-        {"x": -0.55, "y": -0.90, "color": "#c62828"}, # Đỏ - Ưu tiên xử lý
-        {"x": -0.05, "y": 0.00,  "color": "#c66900"}, # Vàng - Theo dõi
-        {"x": 0.15,  "y": 0.28,  "color": "#c66900"}, # Vàng - Theo dõi
-        {"x": 0.78,  "y": 0.95,  "color": "#1b5e20"}, # Xanh - Khỏe mạnh
-        {"x": 0.10,  "y": -0.75, "color": "#c62828"}, # Đỏ - Ưu tiên xử lý
+        {"x": 0.35,  "y": 0.85,  "color": "#1b5e20"}, 
+        {"x": -0.12, "y": 0.15,  "color": "#c66900"}, 
+        {"x": -0.80, "y": -0.65, "color": "#c62828"}, 
+        {"x": 0.60,  "y": 0.90,  "color": "#1b5e20"}, 
+        {"x": 0.30,  "y": 0.20,  "color": "#c66900"}, 
+        {"x": -0.55, "y": -0.90, "color": "#c62828"}, 
+        {"x": -0.05, "y": 0.00,  "color": "#c66900"}, 
+        {"x": 0.15,  "y": 0.28,  "color": "#c66900"}, 
+        {"x": 0.78,  "y": 0.95,  "color": "#1b5e20"}, 
+        {"x": 0.10,  "y": -0.75, "color": "#c62828"}, 
     ]
 
-    # Tạo các List riêng cho Plotly nhận trực tiếp (x, y, text, colors)
-    x_coords = []
-    y_coords = []
-    text_labels = []
-    point_colors = []
+    x_coords, y_coords, text_labels, point_colors = [], [], [], []
 
     for idx, dt_name in enumerate(all_doitac):
         pos = preset_positions[idx % len(preset_positions)]
@@ -397,26 +383,21 @@ with tab_overview:
         text_labels.append(dt_name)
         point_colors.append(pos["color"])
 
-    # Khởi tạo khung biểu đồ Plotly
     fig = go.Figure()
 
-    # Thêm 4 vùng màu nền (Quadrants background)
     fig.add_shape(type="rect", x0=0, y0=0, x1=1, y1=1, fillcolor="#edf7ed", layer="below", line_width=0)
     fig.add_shape(type="rect", x0=-1, y0=0, x1=0, y1=1, fillcolor="#f4fbf4", layer="below", line_width=0)
     fig.add_shape(type="rect", x0=-1, y0=-1, x1=0, y1=0, fillcolor="#fdebed", layer="below", line_width=0)
     fig.add_shape(type="rect", x0=0, y0=-1, x1=1, y1=0, fillcolor="#fff8ec", layer="below", line_width=0)
 
-    # Đường trục nét đứt trung tâm
     fig.add_shape(type="line", x0=0, y0=-1, x1=0, y1=1, line=dict(color="#999999", width=1.5, dash="dash"))
     fig.add_shape(type="line", x0=-1, y0=0, x1=1, y1=0, line=dict(color="#999999", width=1.5, dash="dash"))
 
-    # Nhãn tiêu đề 4 ô ma trận
     fig.add_annotation(x=0.5, y=0.92, text="<b>KHÁCH HÀNG KHỎE MẠNH</b>", showarrow=False, font=dict(color="#1b5e20", size=13))
     fig.add_annotation(x=-0.5, y=0.92, text="<b>THEO DÕI — CHỜ PHỤC HỒI</b>", showarrow=False, font=dict(color="#1b5e20", size=13))
     fig.add_annotation(x=-0.5, y=-0.15, text="<b>ƯU TIÊN XỬ LÝ NGAY</b>", showarrow=False, font=dict(color="#c62828", size=13))
     fig.add_annotation(x=0.5, y=-0.15, text="<b>CƠ HỘI CẢI THIỆN DỊCH VỤ</b>", showarrow=False, font=dict(color="#b78103", size=13))
 
-    # Truyền trực tiếp List thuần vào go.Scatter (Cực nhẹ & chạy mượt)
     fig.add_trace(go.Scatter(
         x=x_coords,
         y=y_coords,
@@ -432,7 +413,6 @@ with tab_overview:
         hoverinfo='text'
     ))
 
-    # Cấu hình Layout
     fig.update_layout(
         xaxis=dict(
             title="<b>BIẾN ĐỘNG DOANH THU MTD vs CÙNG KỲ THÁNG TRƯỚC (MoM)</b>",
