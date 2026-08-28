@@ -701,7 +701,7 @@ with tab_doanh_thu:
 
 
 # ==========================================
-# TAB 2: DASHBOARD OPR
+# TAB 3: DASHBOARD OPR
 # ==========================================
 with tab_opr:
     st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU THU</p>', unsafe_allow_html=True)
@@ -1412,7 +1412,7 @@ with tab_opr:
 
 
 # ==========================================
-# TAB 3: DASHBOARD ODR
+# TAB 4: DASHBOARD ODR
 # ==========================================
 with tab_odr:
     st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU PHÁT</p>', unsafe_allow_html=True)
@@ -2169,3 +2169,281 @@ with tab_odr:
     </body></html>
     """
     components.html(html_lm, height=390, scrolling=False)
+
+# ==========================================
+# TAB 4: DASHBOARD QUÁ HẠN SLA
+# ==========================================
+with tab_sla:
+    st.markdown('<p class="main-title">Dashboard Quá hạn SLA</p>', unsafe_allow_html=True)
+    st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
+
+    # 1. BỘ THẺ METRIC CARDS
+    m_sla1, m_sla2, m_sla3 = st.columns(3)
+    with m_sla1:
+        st.markdown('''
+            <div class="metric-card">
+                <div class="metric-title">ĐƠN QUÁ HẠN SLA</div>
+                <div class="metric-value">1,876 đơn</div>
+                <div class="metric-sub-red">▲ Tăng 2.1 lần WoW</div>
+            </div>
+        ''', unsafe_allow_html=True)
+        
+    with m_sla2:
+        st.markdown('''
+            <div class="metric-card">
+                <div class="metric-title">TỶ LỆ ĐƠN QUÁ HẠN</div>
+                <div class="metric-value">3.4%</div>
+                <div class="metric-sub-red">▲ +2.2% vs Mục tiêu</div>
+            </div>
+        ''', unsafe_allow_html=True)
+        
+    with m_sla3:
+        st.markdown('''
+            <div class="metric-card">
+                <div class="metric-title">SỐ TIỀN DỰ KIẾN ĐỀN BÙ</div>
+                <div class="metric-value">184 triệu</div>
+                <div class="metric-sub-red">▲ +62% so với tuần trước</div>
+            </div>
+        ''', unsafe_allow_html=True)
+
+    st.write("")
+
+    # 2. BIỂU ĐỒ XU HƯỚNG TỶ LỆ ĐƠN QUÁ HẠN SLA (%)
+    st.markdown('<p class="section-red-title" style="border-left: 4px solid #c62828; padding-left: 8px; font-weight: bold;">XU HƯỚNG TỶ LỆ ĐƠN QUÁ HẠN SLA (%)</p>', unsafe_allow_html=True)
+    
+    dates = ["06/08", "07/08", "08/08", "09/08", "10/08", "11/08", "12/08"]
+    thuc_te = [1.1, 1.4, 1.8, 2.2, 2.6, 3.0, 3.4]
+    muc_tieu = [1.2, 1.2, 1.2, 1.2, 1.2, 1.2, 1.2]
+
+    df_sla_chart = pd.DataFrame({
+        "Ngày": dates,
+        "Thực tế": thuc_te,
+        "Mục tiêu": muc_tieu
+    })
+
+    fig_sla = px.line(df_sla_chart, x="Ngày", y=["Thực tế", "Mục tiêu"], 
+                      markers=True,
+                      color_discrete_map={"Thực tế": "#c62828", "Mục tiêu": "#888888"})
+    
+    fig_sla.update_traces(line=dict(width=2.5), marker=dict(size=6))
+    fig_sla.update_layout(
+        height=300,
+        margin=dict(l=10, r=10, t=10, b=10),
+        yaxis=dict(title=None, range=[0, 4], gridcolor="#eee"),
+        xaxis=dict(title=None, showgrid=False),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=-0.25,
+            xanchor="center",
+            x=0.5,
+            title=None
+        ),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
+    )
+    st.plotly_chart(fig_sla, use_container_width=True)
+
+    st.write("")
+
+    # 3. DANH SÁCH CHI NHÁNH & BƯU CỤC CÓ TỶ LỆ QUÁ HẠN SLA (INTERACTIVE TABLE - NO LIMIT)
+    st.markdown('<p class="section-red-title" style="border-left: 4px solid #c62828; padding-left: 8px; font-weight: bold;">DANH SÁCH CHI NHÁNH & BƯU CỤC CÓ TỶ LỆ QUÁ HẠN SLA (BẤM CHỌN DÒNG CHI NHÁNH BÊN TRÁI ĐỂ LỌC BƯU CỤC BÊN PHẢI)</p>', unsafe_allow_html=True)
+
+    # Truy vấn không giới hạn LIMIT
+    cn_sla_raw = con.execute(f"""
+        SELECT 
+            tinh_phat AS cn,
+            COUNT(*) AS tong_don,
+            ROUND(COUNT(CASE WHEN is_overdue = 1 THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS ty_le_qua_han,
+            ROUND(SUM(tien_den_bu)/1e6, 1) AS den_bu
+        FROM orders 
+        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL
+        GROUP BY tinh_phat 
+        ORDER BY ty_le_qua_han DESC
+    """).fetchall()
+
+    bc_sla_raw = con.execute(f"""
+        SELECT 
+            ma_buucuc_phat AS bc, 
+            tinh_phat AS cn,
+            COUNT(*) AS tong_don,
+            ROUND(COUNT(CASE WHEN is_overdue = 1 THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS ty_le_qua_han,
+            ROUND(SUM(tien_den_bu)/1e6, 1) AS den_bu
+        FROM orders 
+        WHERE {where_sql_odr} AND tinh_phat IS NOT NULL AND ma_buucuc_phat IS NOT NULL
+        GROUP BY ma_buucuc_phat, tinh_phat 
+        ORDER BY ty_le_qua_han DESC
+    """).fetchall()
+
+    # Render dòng HTML Chi nhánh
+    rows_cn_sla_html = ""
+    for item in cn_sla_raw:
+        cn_code = item[0]
+        ty_le = f"{item[2]:.1f}%" if item[2] is not None else "0.0%"
+        den_bu = f"{item[3]:.1f}" if item[3] is not None else "0"
+        rows_cn_sla_html += f"""
+        <tr class="cn-row" data-cn="{cn_code}" onclick="filterBC('{cn_code}', this)">
+            <td style="font-weight: bold; cursor: pointer; text-align: left; padding-left: 10px;">{cn_code}</td>
+            <td style="text-align: center;">{ty_le}</td>
+            <td class="text-red-bold" style="text-align: center;">+1.5%</td>
+            <td style="text-align: right; padding-right: 10px;">{den_bu}</td>
+        </tr>
+        """
+
+    # Render dòng HTML Bưu cục
+    rows_bc_sla_html = ""
+    for item in bc_sla_raw:
+        bc_code = item[0]
+        cn_code = item[1]
+        ty_le = f"{item[3]:.1f}%" if item[3] is not None else "0.0%"
+        den_bu = f"{item[4]:.1f}" if item[4] is not None else "0"
+        rows_bc_sla_html += f"""
+        <tr class="bc-row" data-cn="{cn_code}">
+            <td style="font-weight: bold; text-align: left; padding-left: 10px;">{bc_code}</td>
+            <td style="font-weight: bold; text-align: center;">{cn_code}</td>
+            <td style="text-align: center;">{ty_le}</td>
+            <td class="text-green-bold" style="text-align: center;">-0.2%</td>
+            <td style="text-align: right; padding-right: 10px;">{den_bu}</td>
+        </tr>
+        """
+
+    interactive_sla_tables_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        body {{ 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            margin: 0; padding: 0; background: transparent; 
+        }}
+        .grid-container {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }}
+        .table-title {{
+            font-size: 12px; font-weight: bold; color: #333; margin-bottom: 6px;
+        }}
+        .table-scroll {{
+            max-height: 360px;
+            overflow-y: auto;
+            border: 1px solid #d3d3d3;
+            border-radius: 4px;
+            background: #fff;
+        }}
+        table {{
+            width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11.5px;
+        }}
+        th {{
+            position: sticky; top: 0; z-index: 10;
+            background-color: #111111; color: #ffffff;
+            text-align: center; padding: 7px 6px;
+            border-bottom: 1px solid #444; border-right: 1px solid #444;
+            font-weight: bold;
+        }}
+        td {{
+            padding: 6px 6px; border-bottom: 1px solid #eee; border-right: 1px solid #eee;
+            color: #111;
+        }}
+        tr.cn-row:hover {{
+            background-color: #ffebee !important;
+            cursor: pointer;
+        }}
+        tr.selected-cn {{
+            background-color: #ffcdd2 !important;
+        }}
+        .text-red-bold {{ color: #c62828; font-weight: bold; background-color: #fff5f5; }}
+        .text-green-bold {{ color: #2e7d32; font-weight: bold; background-color: #f1f8e9; }}
+        .btn-reset {{
+            display: inline-block; padding: 2px 8px; font-size: 11px;
+            background: #eee; border: 1px solid #ccc; border-radius: 3px;
+            cursor: pointer; margin-left: 8px; font-weight: normal;
+        }}
+    </style>
+    </head>
+    <body>
+
+    <div class="grid-container">
+        <div>
+            <div class="table-title">
+                Bảng Chi Nhánh Quá Hạn <span style="font-weight:normal; color:#666;">(Bấm chọn dòng để lọc Bưu cục)</span>
+                <span class="btn-reset" onclick="resetFilter()">Xóa lọc</span>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding-left: 10px;">Chi nhánh</th>
+                            <th>Tỷ lệ quá hạn</th>
+                            <th>SS cùng kỳ</th>
+                            <th style="text-align: right; padding-right: 10px;">Đền bù (tr.%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows_cn_sla_html if rows_cn_sla_html else "<tr><td colspan='4' style='text-align:center;'>Không có dữ liệu</td></tr>"}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <div class="table-title">
+                Bưu Cục Quá Hạn <span id="bc-title-status" style="color: #c62828; font-weight: bold;">(Toàn Quốc)</span>
+            </div>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align: left; padding-left: 10px;">Bưu cục</th>
+                            <th>Chi nhánh</th>
+                            <th>Tỷ lệ quá hạn</th>
+                            <th>SS cùng kỳ</th>
+                            <th style="text-align: right; padding-right: 10px;">Đền bù (tr.%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bc-tbody">
+                        {rows_bc_sla_html if rows_bc_sla_html else "<tr><td colspan='5' style='text-align:center;'>Không có dữ liệu</td></tr>"}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function filterBC(cnCode, rowElem) {{
+            var cnRows = document.getElementsByClassName('cn-row');
+            for (var i = 0; i < cnRows.length; i++) {{
+                cnRows[i].classList.remove('selected-cn');
+            }}
+            if (rowElem) rowElem.classList.add('selected-cn');
+
+            var bcRows = document.getElementsByClassName('bc-row');
+            for (var j = 0; j < bcRows.length; j++) {{
+                if (bcRows[j].getAttribute('data-cn') === cnCode) {{
+                    bcRows[j].style.display = 'table-row';
+                }} else {{
+                    bcRows[j].style.display = 'none';
+                }}
+            }}
+            document.getElementById('bc-title-status').innerText = '(Chi nhánh: ' + cnCode + ')';
+        }}
+
+        function resetFilter() {{
+            var cnRows = document.getElementsByClassName('cn-row');
+            for (var i = 0; i < cnRows.length; i++) {{
+                cnRows[i].classList.remove('selected-cn');
+            }}
+            var bcRows = document.getElementsByClassName('bc-row');
+            for (var j = 0; j < bcRows.length; j++) {{
+                bcRows[j].style.display = 'table-row';
+            }}
+            document.getElementById('bc-title-status').innerText = '(Toàn Quốc)';
+        }}
+    </script>
+    </body>
+    </html>
+    """
+
+    components.html(interactive_sla_tables_html, height=410, scrolling=False)
+
+    st.divider()
