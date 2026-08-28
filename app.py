@@ -2482,7 +2482,7 @@ with tab_sla:
 
     components.html(interactive_sla_tables_html, height=410, scrolling=False)
 
-# 1. Query dữ liệu cây
+# Query lấy cây dữ liệu
     try:
         raw_data = con.execute(f"""
             SELECT ma_doitac, tinh_phat, ma_buucuc_phat
@@ -2497,7 +2497,6 @@ with tab_sla:
     except Exception:
         raw_data = []
 
-    # 2. Re-structure Dict
     tree_dict = {}
     global_tinh_dict = {}
 
@@ -2512,7 +2511,7 @@ with tab_sla:
             global_tinh_dict[tinh] = set()
         global_tinh_dict[tinh].add(bc)
 
-    # Data fallback
+    # Fallback nếu DB trống
     if not tree_dict:
         tree_dict = {
             'VTPVN': {
@@ -2523,16 +2522,16 @@ with tab_sla:
             'AGG': ['HBKGGR', 'HBAGCM', 'HBAGPT', 'HBAGAP']
         }
 
-    # 3. Render HTML Bảng 1
+    # Render HTML Bảng 1
     dt_rows_html = ""
     for dt_idx, (dt_code, tinh_map) in enumerate(tree_dict.items()):
-        dt_group_id = f"dt-{dt_idx}"
+        dt_parent_id = f"dt-{dt_idx}"
         
-        # Dòng Đối Tác
+        # Cấp 1: Đối tác (Con trực tiếp của "kh-group")
         dt_rows_html += f"""
-        <tr class="kh-group hidden-row row-even">
+        <tr class="child-of-kh-group hidden-row row-even">
             <td class="text-left indent-1">
-                <span class="box-toggle" onclick="toggleTree('{dt_group_id}', this)">[+]</span>
+                <span class="box-toggle" onclick="toggleRow('{dt_parent_id}', this)">[+]</span>
                 <strong>Đối tác: {dt_code}</strong>
             </td>
             <td></td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td><td>12,400</td>
@@ -2545,14 +2544,14 @@ with tab_sla:
         """
         
         for tinh_idx, (tinh_code, bc_set) in enumerate(tinh_map.items()):
-            tinh_group_id = f"{dt_group_id}-tinh-{tinh_idx}"
+            tinh_parent_id = f"{dt_parent_id}-tinh-{tinh_idx}"
             bc_list = sorted(list(bc_set))
             
-            # Dòng Tỉnh
+            # Cấp 2: Tỉnh (Con trực tiếp của Đối tác)
             dt_rows_html += f"""
-            <tr class="child-of-{dt_group_id} hidden-row">
+            <tr class="child-of-{dt_parent_id} hidden-row">
                 <td class="text-left indent-2">
-                    <span class="box-toggle" onclick="toggleTree('{tinh_group_id}', this)">[+]</span>
+                    <span class="box-toggle" onclick="toggleRow('{tinh_parent_id}', this)">[+]</span>
                     <strong>{tinh_code}</strong>
                 </td>
                 <td></td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td><td>4,100</td>
@@ -2564,10 +2563,10 @@ with tab_sla:
             </tr>
             """
             
-            # Dòng Bưu Cục (Chuẩn Format • Bưu cục: [MÃ])
+            # Cấp 3: Bưu cục (Con trực tiếp của Tỉnh)
             for bc_code in bc_list:
                 dt_rows_html += f"""
-                <tr class="child-of-{tinh_group_id} child-of-{dt_group_id} hidden-row row-even">
+                <tr class="child-of-{tinh_parent_id} hidden-row row-even">
                     <td class="text-left indent-3">
                         <span class="bullet-dot">•</span> Bưu cục: {bc_code}
                     </td>
@@ -2580,16 +2579,16 @@ with tab_sla:
                 </tr>
                 """
 
-    # 4. Render HTML Bảng 2 (Cảnh báo)
+    # Render HTML Bảng 2
     tinh_warning_html = ""
     for tinh_idx, (tinh_code, bc_set) in enumerate(global_tinh_dict.items()):
-        warn_group_id = f"warn-tinh-{tinh_idx}"
+        warn_parent_id = f"warn-tinh-{tinh_idx}"
         bc_list = sorted(list(bc_set))
         
         tinh_warning_html += f"""
         <tr class="row-even">
             <td class="text-left indent-1">
-                <span class="box-toggle" onclick="toggleTree('{warn_group_id}', this)">[+]</span>
+                <span class="box-toggle" onclick="toggleRow('{warn_parent_id}', this)">[+]</span>
                 <strong>{tinh_code}</strong>
             </td>
             <td class="text-right" style="padding-right: 25px;">12,981</td>
@@ -2598,7 +2597,7 @@ with tab_sla:
         """
         for bc_code in bc_list:
             tinh_warning_html += f"""
-            <tr class="child-of-{warn_group_id} hidden-row">
+            <tr class="child-of-{warn_parent_id} hidden-row">
                 <td class="text-left indent-3">
                     <span class="bullet-dot">•</span> Bưu cục: {bc_code}
                 </td>
@@ -2661,7 +2660,6 @@ with tab_sla:
         .text-green {{ color: #2e7d32; font-weight: bold; }}
         .text-red {{ color: #c62828; font-weight: bold; }}
         
-        /* Box UI dạng [+] [-] */
         .box-toggle {{
             display: inline-block;
             font-family: monospace;
@@ -2689,7 +2687,7 @@ with tab_sla:
         <table class="sla-grid">
             <thead>
                 <tr>
-                    <th rowspan="2" style="min-width: 240px;">Chỉ tiêu</th>
+                    <th rowspan="2" style="min-width: 250px;">Chỉ tiêu</th>
                     <th rowspan="2" style="min-width: 60px;">Mục tiêu</th>
                     <th colspan="8">7 ngày gần nhất</th>
                     <th colspan="7">5 tuần gần nhất</th>
@@ -2718,7 +2716,7 @@ with tab_sla:
 
                 <tr>
                     <td class="text-left indent-1">
-                        <span class="box-toggle" onclick="toggleTree('kh-group', this)">[+]</span>
+                        <span class="box-toggle" onclick="toggleRow('kh-group', this)">[+]</span>
                         <strong>Theo mã Khách hàng (ma_doitac)</strong>
                     </td>
                     <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
@@ -2793,24 +2791,41 @@ with tab_sla:
         </table>
     </div>
 
-    <!-- JS ĐÃ TỐI ƯU CỰC MƯỢT KHÔNG BỊ LAG -->
+    <!-- SCRIPT ĐÃ SỬA CHUẨN ĐÓNG/MỞ THEO CẤP MƯỢT TUỆT ĐỐI -->
     <script>
-        function toggleTree(groupId, btnElem) {{
-            var targets = document.querySelectorAll('.child-of-' + groupId);
-            var isExpanding = (btnElem.innerText === '[+]');
+        function toggleRow(parentId, btnElem) {{
+            var isOpen = (btnElem.innerText === '[-]');
+            btnElem.innerText = isOpen ? '[+]' : '[-]';
 
-            btnElem.innerText = isExpanding ? '[-]' : '[+]';
-
-            for (var i = 0; i < targets.length; i++) {{
-                var row = targets[i];
-                if (isExpanding) {{
-                    // Mở cấp trực tiếp
-                    row.classList.remove('hidden-row');
+            // Tìm toàn bộ con trực tiếp
+            var directChildren = document.querySelectorAll('.child-of-' + parentId);
+            
+            for (var i = 0; i < directChildren.length; i++) {{
+                var child = directChildren[i];
+                if (isOpen) {{
+                    // Đóng: Ẩn dòng này và gọi đóng luôn tất cả con của nó
+                    hideRowRecursive(child);
                 }} else {{
-                    // Thu gọn toàn bộ cháu chắt bên trong
-                    row.classList.add('hidden-row');
-                    var childBtn = row.querySelector('.box-toggle');
-                    if (childBtn) childBtn.innerText = '[+]';
+                    // Mở: Hiện dòng con trực tiếp
+                    child.classList.remove('hidden-row');
+                }}
+            }}
+        }}
+
+        function hideRowRecursive(rowElem) {{
+            rowElem.classList.add('hidden-row');
+            var btn = rowElem.querySelector('.box-toggle');
+            if (btn) {{
+                btn.innerText = '[+]';
+                var btnOnClick = btn.getAttribute('onclick');
+                if (btnOnClick) {{
+                    var match = btnOnClick.match(/'([^']+)'/);
+                    if (match && match[1]) {{
+                        var subChildren = document.querySelectorAll('.child-of-' + match[1]);
+                        for (var j = 0; j < subChildren.length; j++) {{
+                            hideRowRecursive(subChildren[j]);
+                        }}
+                    }}
                 }}
             }}
         }}
