@@ -95,7 +95,7 @@ tab_overview, tab_doanh_thu, tab_opr, tab_odr , tab_sla = st.tabs(["OVERVIEW", "
 # TAB 1: OVERVIEW
 # =======================================================================================================================================
 with tab_overview:
-
+    st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
     dt_rows = con.execute("""
         SELECT DISTINCT ma_doitac 
         FROM orders 
@@ -331,8 +331,7 @@ with tab_overview:
 # TAB 2: DASHBOARD DOANH THU
 # =======================================================================================================================================
 with tab_doanh_thu:
-    st.markdown('<p class="header-title">DOANH THU</p>', unsafe_allow_html=True)
-    st.markdown('<p class="main-title">Dashboard Doanh thu</p>', unsafe_allow_html=True)
+    st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
     
     f1, f2, f3, f4, f5, f6 = st.columns(6)
     with f1: filter_date_dt = st.date_input("NGÀY", value=(), key="dt_date")
@@ -700,12 +699,11 @@ with tab_doanh_thu:
     components.html(matrix_dt_html, height=480, scrolling=True)
 
 
-# ==========================================
+# ============================================================================================================================================
 # TAB 3: DASHBOARD OPR
-# ==========================================
+# ============================================================================================================================================
 with tab_opr:
-    st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU THU</p>', unsafe_allow_html=True)
-    st.markdown('<p class="main-title">Dashboard OPR</p>', unsafe_allow_html=True)
+    st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
 
     # 1. BỘ LỌC DÀN NGANG PHÍA TRÊN
     f_opr1, f_opr2, f_opr3, f_opr4, f_opr5, f_opr6, f_opr7 = st.columns(7)
@@ -1415,8 +1413,7 @@ with tab_opr:
 # TAB 4: DASHBOARD ODR
 # ==========================================
 with tab_odr:
-    st.markdown('<p class="header-title">CHẤT LƯỢNG KHÂU PHÁT</p>', unsafe_allow_html=True)
-    st.markdown('<p class="main-title">Dashboard ODR</p>', unsafe_allow_html=True)
+    st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
 
     of1, of2, of3, of4, of5, of6 = st.columns(6)
     with of1: filter_date_odr = st.date_input("NGÀY", value=(), key="odr_date")
@@ -2174,8 +2171,7 @@ with tab_odr:
 # TAB 4: DASHBOARD QUÁ HẠN SLA
 # ==============================================================================================================================
 with tab_sla:
-    st.markdown('<p class="main-title">Dashboard Quá hạn SLA</p>', unsafe_allow_html=True)
-    st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
+st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
 
     # 1. METRIC CARDS
     m_sla1, m_sla2, m_sla3 = st.columns(3)
