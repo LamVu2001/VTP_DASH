@@ -95,25 +95,21 @@ tab_overview, tab_doanh_thu, tab_opr, tab_odr = st.tabs(["OVERVIEW", "📊 DOANH
 # TAB 1: OVERVIEW
 # =======================================================================================================================================
 with tab_overview:
-    # -------------------------------------------------------------------------
-    # 1. TRUY VẤN LẤY DANH SÁCH MÃ ĐỐI TÁC THỰC TẾ TỪ DUCKDB
-    # -------------------------------------------------------------------------
+
     dt_rows = con.execute("""
         SELECT DISTINCT ma_doitac 
         FROM orders 
         WHERE ma_doitac IS NOT NULL AND TRIM(CAST(ma_doitac AS VARCHAR)) != ''
         ORDER BY ma_doitac ASC
-        LIMIT 10
     """).fetchall()
 
-    # Nếu chưa có data thì fallback sang danh sách mẫu
     if dt_rows:
-        list_doitac = [str(r[0]) for r in dt_rows]
+        all_doitac = [str(r[0]) for r in dt_rows]
     else:
-        list_doitac = ["TIKTOK", "SHOPEE", "KH813", "TMM13", "TTQ123", "TTQ124", "TTQ125", "TTQ126", "TTQ127", "TTQ128"]
+        all_doitac = ["TIKTOK", "SHOPEE", "KH813", "TMM13", "TTQ123", "TTQ124", "TTQ125", "TTQ126", "TTQ127", "TTQ128"]
 
-    # Render danh sách hàng (Rows) động từ list_doitac
-    # Mẫu RAG & chỉ số tĩnh giả lập (sẽ thay bằng công thức sau)
+    list_doitac = all_doitac[:10]
+
     mock_data = [
         ("bg-green", "c-green", "1.1%", "+6.8%", "91.2%", "92.5%", "96.8%", "TỐT"),
         ("bg-yellow", "c-yellow", "2.1%", "-3.4%", "85.6%", "88.9%", "93.1%", "CẢNH BÁO"),
@@ -130,25 +126,16 @@ with tab_overview:
     table_rows_html = ""
     for idx, doitac in enumerate(list_doitac):
         m = mock_data[idx % len(mock_data)]
-        row_bg = m[0]
-        c_status = m[1]
-        
         table_rows_html += f"""
-        <tr class="{row_bg}">
+        <tr class="{m[0]}">
             <td style="text-align: left; padding-left: 10px;"><b>{doitac}</b></td>
             <td>100</td><td>22.30</td><td>22.30</td>
-            <td class="{c_status}">{m[2]}</td>
-            <td class="{c_status}">{m[3]}</td>
-            <td class="{c_status}">{m[4]}</td>
-            <td class="{c_status}">{m[5]}</td>
-            <td class="{c_status}">{m[6]}</td>
-            <td class="{c_status}">{m[7]}</td>
+            <td class="{m[1]}">{m[2]}</td><td class="{m[1]}">{m[3]}</td>
+            <td class="{m[1]}">{m[4]}</td><td class="{m[1]}">{m[5]}</td>
+            <td class="{m[1]}">{m[6]}</td><td class="{m[1]}">{m[7]}</td>
         </tr>
         """
 
-    # -------------------------------------------------------------------------
-    # 2. KHỐI HTML & CSS HOÀN CHỈNH
-    # -------------------------------------------------------------------------
     html_overview = f"""
     <!DOCTYPE html>
     <html>
@@ -157,23 +144,8 @@ with tab_overview:
         * {{ box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
         body {{ margin: 0; padding: 0; background-color: transparent; color: #111; }}
 
-        /* ---------------- KPI CARDS ---------------- */
-        .kpi-container {{
-            display: flex;
-            gap: 16px;
-            margin-bottom: 20px;
-        }}
-        .kpi-card {{
-            flex: 1;
-            background: #ffffff;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 12px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-        }}
+        .kpi-container {{ display: flex; gap: 16px; margin-bottom: 20px; }}
+        .kpi-card {{ flex: 1; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: flex-end; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }}
         .card-black {{ border-left: 5px solid #222222; }}
         .card-green {{ border-left: 5px solid #1b5e20; }}
         .card-yellow {{ border-left: 5px solid #b78103; }}
@@ -188,52 +160,15 @@ with tab_overview:
         .v-yellow {{ color: #b78103; }}
         .v-red {{ color: #c62828; }}
 
-        /* ---------------- GROUP HEADER BRACKET ---------------- */
-        .bracket-wrapper {{
-            position: relative;
-            width: 100%;
-            height: 28px;
-        }}
-        .bracket-box {{
-            position: absolute;
-            right: 11.2%; 
-            width: 29.8%;
-            border-top: 1.5px solid #4a7ebb;
-            border-left: 1.5px solid #4a7ebb;
-            border-right: 1.5px solid #4a7ebb;
-            height: 12px;
-            top: 12px;
-            text-align: center;
-        }}
-        .bracket-text {{
-            position: relative;
-            top: -10px;
-            background: #ffffff;
-            padding: 0 10px;
-            font-size: 11px;
-            font-weight: 700;
-            color: #2b547e;
-            display: inline-block;
-        }}
+        .bracket-wrapper {{ position: relative; width: 100%; height: 28px; }}
+        .bracket-box {{ position: absolute; right: 11.2%; width: 29.8%; border-top: 1.5px solid #4a7ebb; border-left: 1.5px solid #4a7ebb; border-right: 1.5px solid #4a7ebb; height: 12px; top: 12px; text-align: center; }}
+        .bracket-text {{ position: relative; top: -10px; background: #ffffff; padding: 0 10px; font-size: 11px; font-weight: 700; color: #2b547e; display: inline-block; }}
 
-        /* ---------------- TABLE MAIN ---------------- */
-        .tbl-main {{
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
-            text-align: center;
-        }}
-        .tbl-main th {{
-            background-color: #222222;
-            color: #ffffff;
-            padding: 9px 4px;
-            font-weight: 700;
-            border: 1px solid #333333;
-        }}
+        .tbl-main {{ width: 100%; border-collapse: collapse; font-size: 11px; text-align: center; }}
+        .tbl-main th {{ background-color: #222222; color: #ffffff; padding: 9px 4px; font-weight: 700; border: 1px solid #333333; }}
         .tbl-main th.th-red {{ background-color: #b71c1c; }}
         .tbl-main td {{ padding: 7px 4px; border: 1px solid #e2e8f0; font-weight: 600; }}
 
-        /* Color rows & cells */
         .bg-green {{ background-color: #e8f5e9; }}
         .bg-yellow {{ background-color: #fffde7; }}
         .bg-red {{ background-color: #fbe9e7; }}
@@ -242,72 +177,36 @@ with tab_overview:
         .c-yellow {{ color: #b78103; font-weight: 700; }}
         .c-red {{ color: #c62828; font-weight: 700; }}
 
-        /* ---------------- LEGEND TABLES ---------------- */
-        .legend-wrapper {{
-            display: flex;
-            gap: 20px;
-            margin-top: 12px;
-        }}
-        .tbl-legend {{
-            flex: 1;
-            border-collapse: collapse;
-            font-size: 10.5px;
-        }}
-        .tbl-legend th {{
-            background-color: #222222;
-            color: #ffffff;
-            padding: 6px;
-            border: 1px solid #333;
-            font-weight: 700;
-        }}
-        .tbl-legend td {{
-            padding: 6px 8px;
-            border: 1px solid #e2e8f0;
-        }}
+        .legend-wrapper {{ display: flex; gap: 20px; margin-top: 12px; }}
+        .tbl-legend {{ flex: 1; border-collapse: collapse; font-size: 10.5px; }}
+        .tbl-legend th {{ background-color: #222222; color: #ffffff; padding: 6px; border: 1px solid #333; font-weight: 700; }}
+        .tbl-legend td {{ padding: 6px 8px; border: 1px solid #e2e8f0; }}
     </style>
     </head>
     <body>
-
-        <!-- 1. KPI CARDS TOP -->
         <div class="kpi-container">
             <div class="kpi-card card-black">
-                <div>
-                    <div class="kpi-title">TỔNG KH THEO DÕI</div>
-                    <div class="kpi-val v-black">{len(list_doitac)}</div>
-                </div>
+                <div><div class="kpi-title">TỔNG KH THEO DÕI</div><div class="kpi-val v-black">{len(all_doitac)}</div></div>
                 <div class="kpi-sub">Lấy trực tiếp từ ma_doitac</div>
             </div>
             <div class="kpi-card card-green">
-                <div>
-                    <div class="kpi-title" style="color: #1b5e20;">ỔN ĐỊNH (XANH)</div>
-                    <div class="kpi-val v-green">20</div>
-                </div>
+                <div><div class="kpi-title" style="color: #1b5e20;">ỔN ĐỊNH (XANH)</div><div class="kpi-val v-green">20</div></div>
                 <div class="kpi-sub">Đạt mục tiêu</div>
             </div>
             <div class="kpi-card card-yellow">
-                <div>
-                    <div class="kpi-title" style="color: #b78103;">CẢNH BÁO (VÀNG)</div>
-                    <div class="kpi-val v-yellow">7</div>
-                </div>
+                <div><div class="kpi-title" style="color: #b78103;">CẢNH BÁO (VÀNG)</div><div class="kpi-val v-yellow">7</div></div>
                 <div class="kpi-sub">Cần theo dõi sát</div>
             </div>
             <div class="kpi-card card-red">
-                <div>
-                    <div class="kpi-title" style="color: #c62828;">RỦI RO (ĐỎ)</div>
-                    <div class="kpi-val v-red">3</div>
-                </div>
+                <div><div class="kpi-title" style="color: #c62828;">RỦI RO (ĐỎ)</div><div class="kpi-val v-red">3</div></div>
                 <div class="kpi-sub">Cần xử lý ngay</div>
             </div>
         </div>
 
-        <!-- 2. BRACKET HEADER -->
         <div class="bracket-wrapper">
-            <div class="bracket-box">
-                <span class="bracket-text">Thực hiện trung bình 7 ngày gần nhất</span>
-            </div>
+            <div class="bracket-box"><span class="bracket-text">Thực hiện trung bình 7 ngày gần nhất</span></div>
         </div>
 
-        <!-- 3. MAIN HEALTH SCORE TABLE -->
         <table class="tbl-main">
             <thead>
                 <tr>
@@ -328,23 +227,17 @@ with tab_overview:
             </tbody>
         </table>
 
-        <!-- 4. FOOTER LEGEND TABLES -->
         <div class="legend-wrapper">
             <table class="tbl-legend">
-                <thead>
-                    <tr><th style="width: 30%;">CẢNH BÁO</th><th style="width: 70%;">RULE</th></tr>
-                </thead>
+                <thead><tr><th style="width: 30%;">CẢNH BÁO</th><th style="width: 70%;">RULE</th></tr></thead>
                 <tbody>
                     <tr class="bg-green"><td class="c-green">Xanh - tốt</td><td>Chỉ số thực hiện lớn hơn so với mục tiêu</td></tr>
                     <tr class="bg-yellow"><td class="c-yellow">Vàng – cảnh báo</td><td>Chỉ số thực hiện thực hiện ở mức 80 – 99.99% so với mục tiêu</td></tr>
                     <tr class="bg-red"><td class="c-red">Đỏ - rủi ro</td><td>Chỉ số thực hiện thực hiện dưới mức 80% so với mục tiêu</td></tr>
                 </tbody>
             </table>
-
             <table class="tbl-legend">
-                <thead>
-                    <tr><th style="width: 25%;">CẢNH BÁO</th><th style="width: 75%;">RULE</th></tr>
-                </thead>
+                <thead><tr><th style="width: 25%;">CẢNH BÁO</th><th style="width: 75%;">RULE</th></tr></thead>
                 <tbody>
                     <tr class="bg-green"><td class="c-green">TỐT</td><td>Cả 4 chỉ số (Doanh thu, OPR, ODR, FD) đều ở mức Xanh</td></tr>
                     <tr class="bg-yellow"><td class="c-yellow">CẢNH BÁO</td><td>Có ít nhất 1 chỉ số ở mức Vàng, và không có chỉ số nào ở mức Đỏ</td></tr>
@@ -352,13 +245,11 @@ with tab_overview:
                 </tbody>
             </table>
         </div>
-
     </body>
     </html>
     """
     components.html(html_overview, height=620, scrolling=False)
 
-    # -------------------------------------------------------------------------
     st.markdown("<br>", unsafe_allow_html=True)
 
     preset_positions = [
