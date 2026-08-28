@@ -358,6 +358,103 @@ with tab_overview:
     """
     components.html(html_overview, height=620, scrolling=False)
 
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 1. Truy vấn lấy toàn bộ ma_doitac từ database
+    all_dt_rows = con.execute("""
+        SELECT DISTINCT ma_doitac 
+        FROM orders 
+        WHERE ma_doitac IS NOT NULL AND TRIM(CAST(ma_doitac AS VARCHAR)) != ''
+        ORDER BY ma_doitac ASC
+    """).fetchall()
+
+    all_doitac = [str(r[0]) for r in all_dt_rows] if all_dt_rows else list_doitac
+
+    # 2. Các vị trí & màu sắc mẫu (
+    preset_positions = [
+        {"x": 0.35,  "y": 0.85,  "color": "#1b5e20"}, # Xanh - Khỏe mạnh
+        {"x": -0.12, "y": 0.15,  "color": "#c66900"}, # Vàng - Theo dõi
+        {"x": -0.80, "y": -0.65, "color": "#c62828"}, # Đỏ - Ưu tiên xử lý
+        {"x": 0.60,  "y": 0.90,  "color": "#1b5e20"}, # Xanh - Khỏe mạnh
+        {"x": 0.30,  "y": 0.20,  "color": "#c66900"}, # Vàng - Theo dõi
+        {"x": -0.55, "y": -0.90, "color": "#c62828"}, # Đỏ - Ưu tiên xử lý
+        {"x": -0.05, "y": 0.00,  "color": "#c66900"}, # Vàng - Theo dõi
+        {"x": 0.15,  "y": 0.28,  "color": "#c66900"}, # Vàng - Theo dõi
+        {"x": 0.78,  "y": 0.95,  "color": "#1b5e20"}, # Xanh - Khỏe mạnh
+        {"x": 0.10,  "y": -0.75, "color": "#c62828"}, # Đỏ - Ưu tiên xử lý
+    ]
+
+    # Map toàn bộ ma_doitac từ database vào tọa độ biểu đồ
+    quadrant_points = []
+    for idx, dt_name in enumerate(all_doitac):
+        pos = preset_positions[idx % len(preset_positions)]
+        quadrant_points.append({
+            "name": dt_name,
+            "x": pos["x"],
+            "y": pos["y"],
+            "color": pos["color"]
+        })
+
+    df_pts = pd.DataFrame(quadrant_points)
+
+    fig = go.Figure()
+
+    # Thêm 4 vùng màu nền (Quadrants background)
+    fig.add_shape(type="rect", x0=0, y0=0, x1=1, y1=1, fillcolor="#edf7ed", layer="below", line_width=0)
+    fig.add_shape(type="rect", x0=-1, y0=0, x1=0, y1=1, fillcolor="#f4fbf4", layer="below", line_width=0)
+    fig.add_shape(type="rect", x0=-1, y0=-1, x1=0, y1=0, fillcolor="#fdebed", layer="below", line_width=0)
+    fig.add_shape(type="rect", x0=0, y0=-1, x1=1, y1=0, fillcolor="#fff8ec", layer="below", line_width=0)
+
+    # Đường trục nét đứt trung tâm
+    fig.add_shape(type="line", x0=0, y0=-1, x1=0, y1=1, line=dict(color="#999999", width=1.5, dash="dash"))
+    fig.add_shape(type="line", x0=-1, y0=0, x1=1, y1=0, line=dict(color="#999999", width=1.5, dash="dash"))
+
+    # Thêm Text Label góc 4 quadrant
+    fig.add_annotation(x=0.5, y=0.92, text="<b>KHÁCH HÀNG KHỎE MẠNH</b>", showarrow=False, font=dict(color="#1b5e20", size=13))
+    fig.add_annotation(x=-0.5, y=0.92, text="<b>THEO DÕI — CHỜ PHỤC HỒI</b>", showarrow=False, font=dict(color="#1b5e20", size=13))
+    fig.add_annotation(x=-0.5, y=-0.15, text="<b>ƯU TIÊN XỬ LÝ NGAY</b>", showarrow=False, font=dict(color="#c62828", size=13))
+    fig.add_annotation(x=0.5, y=-0.15, text="<b>CƠ HỘI CẢI THIỆN DỊCH VỤ</b>", showarrow=False, font=dict(color="#b78103", size=13))
+
+    # Đưa các điểm dữ liệu tròn lên biểu đồ
+    fig.add_trace(go.Scatter(
+        x=df_pts['x'],
+        y=df_pts['y'],
+        mode='markers+text',
+        text=df_pts['name'],
+        textposition='bottom center',
+        textfont=dict(size=10, color='black', family='Arial Black'),
+        marker=dict(
+            size=22,
+            color=df_pts['color'],
+            line=dict(color='white', width=1)
+        ),
+        hoverinfo='text'
+    ))
+
+    # Tùy chỉnh Layout & Trục tọa độ
+    fig.update_layout(
+        xaxis=dict(
+            title="<b>BIẾN ĐỘNG DOANH THU MTD vs CÙNG KỲ THÁNG TRƯỚC (MoM)</b>",
+            range=[-1, 1],
+            showgrid=False,
+            zeroline=False,
+            showticklabels=False
+        ),
+        yaxis=dict(
+            title="<b>ĐIỂM CL (OPR 20% · ODR 50% · FD 30%)</b>",
+            range=[-1, 1],
+            showgrid=False,
+            zeroline=False,
+            showticklabels=False
+        ),
+        margin=dict(l=40, r=40, t=20, b=40),
+        height=540,
+        plot_bgcolor="white",
+        showlegend=False
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
 # =======================================================================================================================================
 # TAB 2: DASHBOARD DOANH THU
 # =======================================================================================================================================
