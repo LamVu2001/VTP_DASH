@@ -7,7 +7,7 @@ import gdown
 import streamlit.components.v1 as components
 
 # =======================================================================================================================================
-# 1. CẤU HÌNH TRANG STREAMLIT
+# CẤU HÌNH TRANG STREAMLIT
 # =======================================================================================================================================
 st.set_page_config(page_title="Dashboard Health Score", layout="wide")
 
@@ -90,6 +90,289 @@ def get_filter_options():
 kh_list, tinh_list, dt_list = get_filter_options()
 
 tab_overview, tab_doanh_thu, tab_opr, tab_odr = st.tabs(["OVERVIEW", "📊 DOANH THU", "📦 OPR", "🚚 ODR"])
+
+# =======================================================================================================================================
+# TAB 1: OVERVIEW
+# =======================================================================================================================================
+with tab_overview:
+    html_overview = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <style>
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { margin: 0; padding: 0; background-color: transparent; color: #111; }
+
+        /* ---------------- KPI CARDS ---------------- */
+        .kpi-container {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .kpi-card {
+            flex: 1;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        .card-black { border-left: 5px solid #222222; }
+        .card-green { border-left: 5px solid #1b5e20; }
+        .card-yellow { border-left: 5px solid #b78103; }
+        .card-red { border-left: 5px solid #c62828; }
+
+        .kpi-title { font-size: 11px; font-weight: 800; color: #444; text-transform: uppercase; }
+        .kpi-val { font-size: 36px; font-weight: 800; line-height: 1; margin-top: 8px; }
+        .kpi-sub { font-size: 11px; color: #777; font-weight: 500; }
+
+        .v-black { color: #222; }
+        .v-green { color: #1b5e20; }
+        .v-yellow { color: #b78103; }
+        .v-red { color: #c62828; }
+
+        /* ---------------- GROUP HEADER BRACKET ---------------- */
+        .bracket-wrapper {
+            position: relative;
+            width: 100%;
+            height: 28px;
+        }
+        .bracket-box {
+            position: absolute;
+            right: 15%; /* Căn chỉnh đè đúng 3 cột OPR, ODR, FD */
+            width: 29.8%;
+            border-top: 1.5px solid #4a7ebb;
+            border-left: 1.5px solid #4a7ebb;
+            border-right: 1.5px solid #4a7ebb;
+            height: 12px;
+            top: 12px;
+            text-align: center;
+        }
+        .bracket-text {
+            position: relative;
+            top: -10px;
+            background: #ffffff;
+            padding: 0 10px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #2b547e;
+            display: inline-block;
+        }
+
+        /* ---------------- TABLE MAIN ---------------- */
+        .tbl-main {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            text-align: center;
+        }
+        .tbl-main th {
+            background-color: #222222;
+            color: #ffffff;
+            padding: 9px 4px;
+            font-weight: 700;
+            border: 1px solid #333333;
+        }
+        .tbl-main th.th-red { background-color: #b71c1c; }
+        .tbl-main td { padding: 7px 4px; border: 1px solid #e2e8f0; font-weight: 600; }
+
+        /* Color rows & cells */
+        .bg-green { background-color: #e8f5e9; }
+        .bg-yellow { background-color: #fffde7; }
+        .bg-red { background-color: #fbe9e7; }
+
+        .c-green { color: #2e7d32; font-weight: 700; }
+        .c-yellow { color: #b78103; font-weight: 700; }
+        .c-red { color: #c62828; font-weight: 700; }
+
+        /* ---------------- LEGEND TABLES ---------------- */
+        .legend-wrapper {
+            display: flex;
+            gap: 20px;
+            margin-top: 12px;
+        }
+        .tbl-legend {
+            flex: 1;
+            border-collapse: collapse;
+            font-size: 10.5px;
+        }
+        .tbl-legend th {
+            background-color: #222222;
+            color: #ffffff;
+            padding: 6px;
+            border: 1px solid #333;
+            font-weight: 700;
+        }
+        .tbl-legend td {
+            padding: 6px 8px;
+            border: 1px solid #e2e8f0;
+        }
+    </style>
+    </head>
+    <body>
+
+        <!-- 1. KPI CARDS TOP -->
+        <div class="kpi-container">
+            <div class="kpi-card card-black">
+                <div>
+                    <div class="kpi-title">TỔNG KH THEO DÕI</div>
+                    <div class="kpi-val v-black">30</div>
+                </div>
+                <div class="kpi-sub">Đang hiển thị mẫu 10</div>
+            </div>
+            <div class="kpi-card card-green">
+                <div>
+                    <div class="kpi-title" style="color: #1b5e20;">ỔN ĐỊNH (XANH)</div>
+                    <div class="kpi-val v-green">20</div>
+                </div>
+                <div class="kpi-sub">Đạt mục tiêu</div>
+            </div>
+            <div class="kpi-card card-yellow">
+                <div>
+                    <div class="kpi-title" style="color: #b78103;">CẢNH BÁO (VÀNG)</div>
+                    <div class="kpi-val v-yellow">7</div>
+                </div>
+                <div class="kpi-sub">Cần theo dõi sát</div>
+            </div>
+            <div class="kpi-card card-red">
+                <div>
+                    <div class="kpi-title" style="color: #c62828;">RỦI RO (ĐỎ)</div>
+                    <div class="kpi-val v-red">3</div>
+                </div>
+                <div class="kpi-sub">Cần xử lý ngay</div>
+            </div>
+        </div>
+
+        <!-- 2. BRACKET HEADER -->
+        <div class="bracket-wrapper">
+            <div class="bracket-box">
+                <span class="bracket-text">Thực hiện trung bình 7 ngày gần nhất</span>
+            </div>
+        </div>
+
+        <!-- 3. MAIN HEALTH SCORE TABLE -->
+        <table class="tbl-main">
+            <thead>
+                <tr>
+                    <th style="width: 12%;">Mã Khách hàng</th>
+                    <th style="width: 10%;">Doanh thu<br>mục tiêu FM</th>
+                    <th style="width: 9%;">Doanh thu<br>D</th>
+                    <th style="width: 9%;">Doanh thu<br>MTD</th>
+                    <th style="width: 10%;">% Doanh thu<br>MTD/mục tiêu</th>
+                    <th style="width: 9%;">Doanh thu<br>Δ WTD</th>
+                    <th style="width: 9.9%;">OPR (%)</th>
+                    <th style="width: 9.9%;">ODR (%)</th>
+                    <th style="width: 10%;">FD (%)</th>
+                    <th class="th-red" style="width: 11.2%;">Sức khỏe Khách hàng</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="bg-green">
+                    <td style="text-align: left; padding-left: 10px;">TIKTOK</td>
+                    <td>100</td><td>22.30</td><td>22.30</td>
+                    <td class="c-green">1.1%</td><td class="c-green">+6.8%</td>
+                    <td class="c-green">91.2%</td><td class="c-green">92.5%</td><td class="c-green">96.8%</td>
+                    <td class="c-green">TỐT</td>
+                </tr>
+                <tr class="bg-yellow">
+                    <td style="text-align: left; padding-left: 10px;">SHOPEE</td>
+                    <td>100</td><td>22.30</td><td>22.30</td>
+                    <td class="c-yellow">2.1%</td><td class="c-red">-3.4%</td>
+                    <td class="c-green">85.6%</td><td class="c-yellow">88.9%</td><td class="c-green">93.1%</td>
+                    <td class="c-yellow">CẢNH BÁO</td>
+                </tr>
+                <tr class="bg-red">
+                    <td style="text-align: left; padding-left: 10px;">KH813</td>
+                    <td>100</td><td>22.30</td><td>22.30</td>
+                    <td class="c-red">4.8%</td><td class="c-red">-14.5%</td>
+                    <td class="c-red">74.2%</td><td class="c-yellow">82.1%</td><td class="c-red">79.5%</td>
+                    <td class="c-red">RỦI RO</td>
+                </tr>
+                <tr class="bg-green">
+                    <td style="text-align: left; padding-left: 10px;">TMM13</td>
+                    <td>100</td><td>22.30</td><td>22.30</td>
+                    <td class="c-green">0.9%</td><td class="c-green">+10.4%</td>
+                    <td class="c-green">93.4%</td><td class="c-green">94.0%</td><td class="c-green">95.2%</td>
+                    <td class="c-green">TỐT</td>
+                </tr>
+                <tr class="bg-yellow">
+                    <td style="text-align: left; padding-left: 10px;">TTQ123</td>
+                    <td>100</td><td>22.30</td><td>22.30</td>
+                    <td class="c-yellow">1.8%</td><td class="c-green">+5.8%</td>
+                    <td class="c-yellow">86.3%</td><td class="c-green">91.0%</td><td class="c-green">92.4%</td>
+                    <td class="c-yellow">CẢNH BÁO</td>
+                </tr>
+                <tr class="bg-red">
+                    <td style="text-align: left; padding-left: 10px;">TTQ124</td>
+                    <td>100</td><td>22.30</td><td>22.30</td>
+                    <td class="c-red">3.4%</td><td class="c-red">-10.3%</td>
+                    <td class="c-red">78.1%</td><td class="c-red">74.8%</td><td class="c-yellow">85.0%</td>
+                    <td class="c-red">RỦI RO</td>
+                </tr>
+                <tr class="bg-yellow">
+                    <td style="text-align: left; padding-left: 10px;">TTQ125</td>
+                    <td>100</td><td>22.30</td><td>22.30</td>
+                    <td class="c-yellow">2.4%</td><td class="c-red">-0.6%</td>
+                    <td class="c-yellow">84.2%</td><td class="c-yellow">85.9%</td><td class="c-yellow">87.1%</td>
+                    <td class="c-yellow">CẢNH BÁO</td>
+                </tr>
+                <tr class="bg-yellow">
+                    <td style="text-align: left; padding-left: 10px;">TTQ126</td>
+                    <td>100</td><td>22.30</td><td>22.30</td>
+                    <td class="c-yellow">1.6%</td><td class="c-green">+3.7%</td>
+                    <td class="c-yellow">89.9%</td><td class="c-green">92.1%</td><td class="c-green">90.5%</td>
+                    <td class="c-red">CẢNH BÁO</td>
+                </tr>
+                <tr class="bg-green">
+                    <td style="text-align: left; padding-left: 10px;">TTQ127</td>
+                    <td>100</td><td>22.30</td><td>22.30</td>
+                    <td class="c-green">0.7%</td><td class="c-green">+13.7%</td>
+                    <td class="c-green">95.1%</td><td class="c-green">96.3%</td><td class="c-green">97.0%</td>
+                    <td class="c-green">TỐT</td>
+                </tr>
+                <tr class="bg-red">
+                    <td style="text-align: left; padding-left: 10px;">TTQ128</td>
+                    <td>100</td><td>22.30</td><td>22.30</td>
+                    <td class="c-red">3.1%</td><td class="c-green">+1.6%</td>
+                    <td class="c-yellow">81.4%</td><td class="c-red">76.2%</td><td class="c-red">79.8%</td>
+                    <td class="c-red">RỦI RO</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- 4. FOOTER LEGEND TABLES -->
+        <div class="legend-wrapper">
+            <table class="tbl-legend">
+                <thead>
+                    <tr><th style="width: 30%;">CẢNH BÁO</th><th style="width: 70%;">RULE</th></tr>
+                </thead>
+                <tbody>
+                    <tr class="bg-green"><td class="c-green">Xanh - tốt</td><td>Chỉ số thực hiện lớn hơn so với mục tiêu</td></tr>
+                    <tr class="bg-yellow"><td class="c-yellow">Vàng – cảnh báo</td><td>Chỉ số thực hiện thực hiện ở mức 80 – 99.99% so với mục tiêu</td></tr>
+                    <tr class="bg-red"><td class="c-red">Đỏ - rủi ro</td><td>Chỉ số thực hiện thực hiện dưới mức 80% so với mục tiêu</td></tr>
+                </tbody>
+            </table>
+
+            <table class="tbl-legend">
+                <thead>
+                    <tr><th style="width: 25%;">CẢNH BÁO</th><th style="width: 75%;">RULE</th></tr>
+                </thead>
+                <tbody>
+                    <tr class="bg-green"><td class="c-green">TỐT</td><td>Cả 4 chỉ số (Doanh thu, OPR, ODR, FD) đều ở mức Xanh</td></tr>
+                    <tr class="bg-yellow"><td class="c-yellow">CẢNH BÁO</td><td>Có ít nhất 1 chỉ số ở mức Vàng, và không có chỉ số nào ở mức Đỏ</td></tr>
+                    <tr class="bg-red"><td class="c-red">RỦI RO</td><td>Có ít nhất 1 chỉ số ở mức Đỏ (worst-of theo bảng ngưỡng RAG)</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+    </body>
+    </html>
+    """
+    components.html(html_overview, height=620, scrolling=False)
+
 
 # =======================================================================================================================================
 # TAB 2: DASHBOARD DOANH THU
