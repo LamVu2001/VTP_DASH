@@ -95,21 +95,75 @@ tab_overview, tab_doanh_thu, tab_opr, tab_odr = st.tabs(["OVERVIEW", "📊 DOANH
 # TAB 1: OVERVIEW
 # =======================================================================================================================================
 with tab_overview:
-    html_overview = """
+    # -------------------------------------------------------------------------
+    # 1. TRUY VẤN LẤY DANH SÁCH MÃ ĐỐI TÁC THỰC TẾ TỪ DUCKDB
+    # -------------------------------------------------------------------------
+    dt_rows = con.execute("""
+        SELECT DISTINCT ma_doitac 
+        FROM orders 
+        WHERE ma_doitac IS NOT NULL AND TRIM(CAST(ma_doitac AS VARCHAR)) != ''
+        ORDER BY ma_doitac ASC
+        LIMIT 10
+    """).fetchall()
+
+    # Nếu chưa có data thì fallback sang danh sách mẫu
+    if dt_rows:
+        list_doitac = [str(r[0]) for r in dt_rows]
+    else:
+        list_doitac = ["TIKTOK", "SHOPEE", "KH813", "TMM13", "TTQ123", "TTQ124", "TTQ125", "TTQ126", "TTQ127", "TTQ128"]
+
+    # Render danh sách hàng (Rows) động từ list_doitac
+    # Mẫu RAG & chỉ số tĩnh giả lập (sẽ thay bằng công thức sau)
+    mock_data = [
+        ("bg-green", "c-green", "1.1%", "+6.8%", "91.2%", "92.5%", "96.8%", "TỐT"),
+        ("bg-yellow", "c-yellow", "2.1%", "-3.4%", "85.6%", "88.9%", "93.1%", "CẢNH BÁO"),
+        ("bg-red", "c-red", "4.8%", "-14.5%", "74.2%", "82.1%", "79.5%", "RỦI RO"),
+        ("bg-green", "c-green", "0.9%", "+10.4%", "93.4%", "94.0%", "95.2%", "TỐT"),
+        ("bg-yellow", "c-yellow", "1.8%", "+5.8%", "86.3%", "91.0%", "92.4%", "CẢNH BÁO"),
+        ("bg-red", "c-red", "3.4%", "-10.3%", "78.1%", "74.8%", "85.0%", "RỦI RO"),
+        ("bg-yellow", "c-yellow", "2.4%", "-0.6%", "84.2%", "85.9%", "87.1%", "CẢNH BÁO"),
+        ("bg-yellow", "c-yellow", "1.6%", "+3.7%", "89.9%", "92.1%", "90.5%", "CẢNH BÁO"),
+        ("bg-green", "c-green", "0.7%", "+13.7%", "95.1%", "96.3%", "97.0%", "TỐT"),
+        ("bg-red", "c-red", "3.1%", "+1.6%", "81.4%", "76.2%", "79.8%", "RỦI RO"),
+    ]
+
+    table_rows_html = ""
+    for idx, doitac in enumerate(list_doitac):
+        m = mock_data[idx % len(mock_data)]
+        row_bg = m[0]
+        c_status = m[1]
+        
+        table_rows_html += f"""
+        <tr class="{row_bg}">
+            <td style="text-align: left; padding-left: 10px;"><b>{doitac}</b></td>
+            <td>100</td><td>22.30</td><td>22.30</td>
+            <td class="{c_status}">{m[2]}</td>
+            <td class="{c_status}">{m[3]}</td>
+            <td class="{c_status}">{m[4]}</td>
+            <td class="{c_status}">{m[5]}</td>
+            <td class="{c_status}">{m[6]}</td>
+            <td class="{c_status}">{m[7]}</td>
+        </tr>
+        """
+
+    # -------------------------------------------------------------------------
+    # 2. KHỐI HTML & CSS HOÀN CHỈNH
+    # -------------------------------------------------------------------------
+    html_overview = f"""
     <!DOCTYPE html>
     <html>
     <head>
     <style>
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { margin: 0; padding: 0; background-color: transparent; color: #111; }
+        * {{ box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+        body {{ margin: 0; padding: 0; background-color: transparent; color: #111; }}
 
         /* ---------------- KPI CARDS ---------------- */
-        .kpi-container {
+        .kpi-container {{
             display: flex;
             gap: 16px;
             margin-bottom: 20px;
-        }
-        .kpi-card {
+        }}
+        .kpi-card {{
             flex: 1;
             background: #ffffff;
             border: 1px solid #e0e0e0;
@@ -119,30 +173,30 @@ with tab_overview:
             justify-content: space-between;
             align-items: flex-end;
             box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-        }
-        .card-black { border-left: 5px solid #222222; }
-        .card-green { border-left: 5px solid #1b5e20; }
-        .card-yellow { border-left: 5px solid #b78103; }
-        .card-red { border-left: 5px solid #c62828; }
+        }}
+        .card-black {{ border-left: 5px solid #222222; }}
+        .card-green {{ border-left: 5px solid #1b5e20; }}
+        .card-yellow {{ border-left: 5px solid #b78103; }}
+        .card-red {{ border-left: 5px solid #c62828; }}
 
-        .kpi-title { font-size: 11px; font-weight: 800; color: #444; text-transform: uppercase; }
-        .kpi-val { font-size: 36px; font-weight: 800; line-height: 1; margin-top: 8px; }
-        .kpi-sub { font-size: 11px; color: #777; font-weight: 500; }
+        .kpi-title {{ font-size: 11px; font-weight: 800; color: #444; text-transform: uppercase; }}
+        .kpi-val {{ font-size: 36px; font-weight: 800; line-height: 1; margin-top: 8px; }}
+        .kpi-sub {{ font-size: 11px; color: #777; font-weight: 500; }}
 
-        .v-black { color: #222; }
-        .v-green { color: #1b5e20; }
-        .v-yellow { color: #b78103; }
-        .v-red { color: #c62828; }
+        .v-black {{ color: #222; }}
+        .v-green {{ color: #1b5e20; }}
+        .v-yellow {{ color: #b78103; }}
+        .v-red {{ color: #c62828; }}
 
         /* ---------------- GROUP HEADER BRACKET ---------------- */
-        .bracket-wrapper {
+        .bracket-wrapper {{
             position: relative;
             width: 100%;
             height: 28px;
-        }
-        .bracket-box {
+        }}
+        .bracket-box {{
             position: absolute;
-            right: 15%; /* Căn chỉnh đè đúng 3 cột OPR, ODR, FD */
+            right: 11.2%; 
             width: 29.8%;
             border-top: 1.5px solid #4a7ebb;
             border-left: 1.5px solid #4a7ebb;
@@ -150,8 +204,8 @@ with tab_overview:
             height: 12px;
             top: 12px;
             text-align: center;
-        }
-        .bracket-text {
+        }}
+        .bracket-text {{
             position: relative;
             top: -10px;
             background: #ffffff;
@@ -160,56 +214,56 @@ with tab_overview:
             font-weight: 700;
             color: #2b547e;
             display: inline-block;
-        }
+        }}
 
         /* ---------------- TABLE MAIN ---------------- */
-        .tbl-main {
+        .tbl-main {{
             width: 100%;
             border-collapse: collapse;
             font-size: 11px;
             text-align: center;
-        }
-        .tbl-main th {
+        }}
+        .tbl-main th {{
             background-color: #222222;
             color: #ffffff;
             padding: 9px 4px;
             font-weight: 700;
             border: 1px solid #333333;
-        }
-        .tbl-main th.th-red { background-color: #b71c1c; }
-        .tbl-main td { padding: 7px 4px; border: 1px solid #e2e8f0; font-weight: 600; }
+        }}
+        .tbl-main th.th-red {{ background-color: #b71c1c; }}
+        .tbl-main td {{ padding: 7px 4px; border: 1px solid #e2e8f0; font-weight: 600; }}
 
         /* Color rows & cells */
-        .bg-green { background-color: #e8f5e9; }
-        .bg-yellow { background-color: #fffde7; }
-        .bg-red { background-color: #fbe9e7; }
+        .bg-green {{ background-color: #e8f5e9; }}
+        .bg-yellow {{ background-color: #fffde7; }}
+        .bg-red {{ background-color: #fbe9e7; }}
 
-        .c-green { color: #2e7d32; font-weight: 700; }
-        .c-yellow { color: #b78103; font-weight: 700; }
-        .c-red { color: #c62828; font-weight: 700; }
+        .c-green {{ color: #2e7d32; font-weight: 700; }}
+        .c-yellow {{ color: #b78103; font-weight: 700; }}
+        .c-red {{ color: #c62828; font-weight: 700; }}
 
         /* ---------------- LEGEND TABLES ---------------- */
-        .legend-wrapper {
+        .legend-wrapper {{
             display: flex;
             gap: 20px;
             margin-top: 12px;
-        }
-        .tbl-legend {
+        }}
+        .tbl-legend {{
             flex: 1;
             border-collapse: collapse;
             font-size: 10.5px;
-        }
-        .tbl-legend th {
+        }}
+        .tbl-legend th {{
             background-color: #222222;
             color: #ffffff;
             padding: 6px;
             border: 1px solid #333;
             font-weight: 700;
-        }
-        .tbl-legend td {
+        }}
+        .tbl-legend td {{
             padding: 6px 8px;
             border: 1px solid #e2e8f0;
-        }
+        }}
     </style>
     </head>
     <body>
@@ -219,9 +273,9 @@ with tab_overview:
             <div class="kpi-card card-black">
                 <div>
                     <div class="kpi-title">TỔNG KH THEO DÕI</div>
-                    <div class="kpi-val v-black">30</div>
+                    <div class="kpi-val v-black">{len(list_doitac)}</div>
                 </div>
-                <div class="kpi-sub">Đang hiển thị mẫu 10</div>
+                <div class="kpi-sub">Lấy trực tiếp từ ma_doitac</div>
             </div>
             <div class="kpi-card card-green">
                 <div>
@@ -270,76 +324,7 @@ with tab_overview:
                 </tr>
             </thead>
             <tbody>
-                <tr class="bg-green">
-                    <td style="text-align: left; padding-left: 10px;">TIKTOK</td>
-                    <td>100</td><td>22.30</td><td>22.30</td>
-                    <td class="c-green">1.1%</td><td class="c-green">+6.8%</td>
-                    <td class="c-green">91.2%</td><td class="c-green">92.5%</td><td class="c-green">96.8%</td>
-                    <td class="c-green">TỐT</td>
-                </tr>
-                <tr class="bg-yellow">
-                    <td style="text-align: left; padding-left: 10px;">SHOPEE</td>
-                    <td>100</td><td>22.30</td><td>22.30</td>
-                    <td class="c-yellow">2.1%</td><td class="c-red">-3.4%</td>
-                    <td class="c-green">85.6%</td><td class="c-yellow">88.9%</td><td class="c-green">93.1%</td>
-                    <td class="c-yellow">CẢNH BÁO</td>
-                </tr>
-                <tr class="bg-red">
-                    <td style="text-align: left; padding-left: 10px;">KH813</td>
-                    <td>100</td><td>22.30</td><td>22.30</td>
-                    <td class="c-red">4.8%</td><td class="c-red">-14.5%</td>
-                    <td class="c-red">74.2%</td><td class="c-yellow">82.1%</td><td class="c-red">79.5%</td>
-                    <td class="c-red">RỦI RO</td>
-                </tr>
-                <tr class="bg-green">
-                    <td style="text-align: left; padding-left: 10px;">TMM13</td>
-                    <td>100</td><td>22.30</td><td>22.30</td>
-                    <td class="c-green">0.9%</td><td class="c-green">+10.4%</td>
-                    <td class="c-green">93.4%</td><td class="c-green">94.0%</td><td class="c-green">95.2%</td>
-                    <td class="c-green">TỐT</td>
-                </tr>
-                <tr class="bg-yellow">
-                    <td style="text-align: left; padding-left: 10px;">TTQ123</td>
-                    <td>100</td><td>22.30</td><td>22.30</td>
-                    <td class="c-yellow">1.8%</td><td class="c-green">+5.8%</td>
-                    <td class="c-yellow">86.3%</td><td class="c-green">91.0%</td><td class="c-green">92.4%</td>
-                    <td class="c-yellow">CẢNH BÁO</td>
-                </tr>
-                <tr class="bg-red">
-                    <td style="text-align: left; padding-left: 10px;">TTQ124</td>
-                    <td>100</td><td>22.30</td><td>22.30</td>
-                    <td class="c-red">3.4%</td><td class="c-red">-10.3%</td>
-                    <td class="c-red">78.1%</td><td class="c-red">74.8%</td><td class="c-yellow">85.0%</td>
-                    <td class="c-red">RỦI RO</td>
-                </tr>
-                <tr class="bg-yellow">
-                    <td style="text-align: left; padding-left: 10px;">TTQ125</td>
-                    <td>100</td><td>22.30</td><td>22.30</td>
-                    <td class="c-yellow">2.4%</td><td class="c-red">-0.6%</td>
-                    <td class="c-yellow">84.2%</td><td class="c-yellow">85.9%</td><td class="c-yellow">87.1%</td>
-                    <td class="c-yellow">CẢNH BÁO</td>
-                </tr>
-                <tr class="bg-yellow">
-                    <td style="text-align: left; padding-left: 10px;">TTQ126</td>
-                    <td>100</td><td>22.30</td><td>22.30</td>
-                    <td class="c-yellow">1.6%</td><td class="c-green">+3.7%</td>
-                    <td class="c-yellow">89.9%</td><td class="c-green">92.1%</td><td class="c-green">90.5%</td>
-                    <td class="c-red">CẢNH BÁO</td>
-                </tr>
-                <tr class="bg-green">
-                    <td style="text-align: left; padding-left: 10px;">TTQ127</td>
-                    <td>100</td><td>22.30</td><td>22.30</td>
-                    <td class="c-green">0.7%</td><td class="c-green">+13.7%</td>
-                    <td class="c-green">95.1%</td><td class="c-green">96.3%</td><td class="c-green">97.0%</td>
-                    <td class="c-green">TỐT</td>
-                </tr>
-                <tr class="bg-red">
-                    <td style="text-align: left; padding-left: 10px;">TTQ128</td>
-                    <td>100</td><td>22.30</td><td>22.30</td>
-                    <td class="c-red">3.1%</td><td class="c-green">+1.6%</td>
-                    <td class="c-yellow">81.4%</td><td class="c-red">76.2%</td><td class="c-red">79.8%</td>
-                    <td class="c-red">RỦI RO</td>
-                </tr>
+                {table_rows_html}
             </tbody>
         </table>
 
@@ -372,7 +357,6 @@ with tab_overview:
     </html>
     """
     components.html(html_overview, height=620, scrolling=False)
-
 
 # =======================================================================================================================================
 # TAB 2: DASHBOARD DOANH THU
