@@ -2168,7 +2168,7 @@ with tab_odr:
     components.html(html_lm, height=390, scrolling=False)
 
 # ==============================================================================================================================
-# TAB 4: DASHBOARD QUÁ HẠN SLA
+# TAB 5: DASHBOARD QUÁ HẠN SLA
 # ==============================================================================================================================
 with tab_sla:
     st.markdown('<div style="height: 3px; background-color: #c62828; margin-bottom: 20px;"></div>', unsafe_allow_html=True)
@@ -2837,7 +2837,7 @@ with tab_sla:
     components.html(html_sla_full_tables, height=780, scrolling=True)
 
 # =============================================================================
-# TAB 5: FD DASHBOARD
+# TAB 6: FD DASHBOARD
 # =============================================================================
     with tab_fd:
         
