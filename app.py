@@ -3160,7 +3160,7 @@ with tab_sla:
         <head>
         <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background: transparent; }
-            .table-scroll { max-height: 420px; overflow: auto; border: 1px solid #ccc; background: #fff; }
+            .table-scroll { max-height: 450px; overflow: auto; border: 1px solid #ccc; background: #fff; }
             table.fd-grid { width: 100%; border-collapse: collapse; font-size: 11px; white-space: nowrap; }
             table.fd-grid th { position: sticky; top: 0; z-index: 10; background-color: #222222; color: #ffffff; text-align: center; padding: 6px 8px; border: 1px solid #444; font-weight: bold; }
             table.fd-grid td { padding: 5px 8px; border: 1px solid #e0e0e0; text-align: center; }
@@ -3170,21 +3170,25 @@ with tab_sla:
             .text-green { color: #2e7d32; font-weight: bold; }
             .text-red { color: #c62828; font-weight: bold; }
             .box-toggle { display: inline-block; font-family: monospace; font-weight: bold; font-size: 12px; cursor: pointer; margin-right: 6px; color: #c62828; user-select: none; }
+            
+            /* Độ thụt lùi theo từng cấp độ */
             .indent-0 { padding-left: 8px !important; }
-            .indent-1 { padding-left: 20px !important; }
-            .indent-2 { padding-left: 38px !important; }
-            .indent-3 { padding-left: 56px !important; }
-            .indent-4 { padding-left: 74px !important; }
+            .indent-1 { padding-left: 22px !important; }
+            .indent-2 { padding-left: 36px !important; }
+            .indent-3 { padding-left: 50px !important; }
+            .indent-4 { padding-left: 64px !important; }
+            .indent-5 { padding-left: 78px !important; }
+            
             .hidden-row { display: none !important; }
         </style>
         </head>
         <body>
-    
+        
         <div class="table-scroll">
             <table class="fd-grid">
                 <thead>
                     <tr>
-                        <th rowspan="2" style="min-width: 260px;">Chỉ tiêu</th>
+                        <th rowspan="2" style="min-width: 280px;">Chỉ tiêu</th>
                         <th rowspan="2" style="min-width: 60px;">Mục tiêu</th>
                         <th rowspan="2" style="min-width: 60px;">Kết quả thực hiện</th>
                         <th colspan="8">7 ngày gần nhất</th>
@@ -3201,60 +3205,92 @@ with tab_sla:
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Dòng tổng sản lượng -->
-                    <tr class="row-group">
+                    <!-- CẤP 0: SẢN LƯỢNG PHẢI PHÁT -->
+                    <tr class="row-group" id="node-root">
                         <td class="text-left indent-0">
-                            <span class="box-toggle" onclick="toggleRow('kh-root', this)">[-]</span>
+                            <span class="box-toggle" onclick="toggleNode('root', this)">[-]</span>
                             <strong>Sản lượng phải phát</strong>
                         </td>
                         <td></td><td></td>
-                        <td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td>
-                        <td class="text-green">+ 5.22</td>
-                        <td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td>
-                        <td class="text-green">+ 5.22</td>
-                        <td>91,281</td><td>91,281</td>
-                        <td class="text-green">+ 5.22</td>
+                        <td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td class="text-green">+ 5.22</td>
+                        <td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td class="text-green">+ 5.22</td>
+                        <td>91,281</td><td>91,281</td><td class="text-green">+ 5.22</td>
                     </tr>
-    
-                    <!-- CẤP 1: MÃ KHÁCH HÀNG -->
-                    <tr class="child-of-kh-root">
+        
+                    <!-- CẤP 1: THEO MÃ KHÁCH HÀNG -->
+                    <tr class="child-of-root" id="node-theo-kh">
                         <td class="text-left indent-1">
-                            <span class="box-toggle" onclick="toggleRow('kh-01', this)">[-]</span>
-                            <strong>Mã KH: KH_TEST_01</strong>
+                            <span class="box-toggle" onclick="toggleNode('theo-kh', this)">[-]</span>
+                            <strong>Theo Mã khách hàng</strong>
+                        </td>
+                        <td></td><td></td>
+                        <td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td class="text-green">+ 5.22</td>
+                        <td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td class="text-green">+ 5.22</td>
+                        <td>91,281</td><td>91,281</td><td class="text-green">+ 5.22</td>
+                    </tr>
+        
+                    <!-- CẤP 2: KH_TEST_01 -->
+                    <tr class="child-of-theo-kh" id="node-kh-01">
+                        <td class="text-left indent-2">
+                            <span class="box-toggle" onclick="toggleNode('kh-01', this)">[-]</span>
+                            <em>KH_TEST_01</em>
                         </td>
                         <td></td><td></td>
                         <td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td class="text-green">+0.00</td>
                         <td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td class="text-green">+0.00</td>
                         <td>100</td><td>100</td><td class="text-green">+0.00</td>
                     </tr>
-    
-                    <!-- CẤP 2: NẰM TRONG MÃ KH -> THEO TUYẾN -->
-                    <tr class="child-of-kh-01">
-                        <td class="text-left indent-2">
-                            <span class="box-toggle" onclick="toggleRow('tuyen-01', this)">[-]</span>
-                            <strong>Theo tuyến: Tuyến Nội Thành</strong>
+        
+                    <!-- CẤP 3: THEO TUYẾN (Con của KH_TEST_01) -->
+                    <tr class="child-of-kh-01" id="node-theo-tuyen">
+                        <td class="text-left indent-3">
+                            <span class="box-toggle" onclick="toggleNode('theo-tuyen', this)">[-]</span>
+                            <strong>Theo Tuyến</strong>
                         </td>
                         <td></td><td></td>
                         <td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td class="text-green">+0.00</td>
                         <td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td class="text-green">+0.00</td>
                         <td>500</td><td>500</td><td class="text-green">+0.00</td>
                     </tr>
-    
-                    <!-- CẤP 2: NẰM TRONG MÃ KH -> THEO CHI NHÁNH -->
-                    <tr class="child-of-kh-01">
-                        <td class="text-left indent-2">
-                            <span class="box-toggle" onclick="toggleRow('cn-hni', this)">[-]</span>
-                            <strong>Theo Chi nhánh: Chi nhánh HNI</strong>
+        
+                    <!-- CẤP 4: TUYẾN NỘI THÀNH -->
+                    <tr class="child-of-theo-tuyen">
+                        <td class="text-left indent-4">
+                            <em>Tuyến Nội Thành</em>
+                        </td>
+                        <td></td><td></td>
+                        <td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td class="text-green">+0.00</td>
+                        <td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td class="text-green">+0.00</td>
+                        <td>500</td><td>500</td><td class="text-green">+0.00</td>
+                    </tr>
+        
+                    <!-- CẤP 3: THEO CHI NHÁNH (Con của KH_TEST_01) -->
+                    <tr class="child-of-kh-01" id="node-theo-cn">
+                        <td class="text-left indent-3">
+                            <span class="box-toggle" onclick="toggleNode('theo-cn', this)">[-]</span>
+                            <strong>Theo Chi nhánh</strong>
                         </td>
                         <td></td><td></td>
                         <td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td>
                         <td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td>
                         <td>1,200</td><td>1,200</td><td class="text-green">+0.00</td>
                     </tr>
-    
-                    <!-- CẤP 3: NẰM TRONG CHI NHÁNH -> THEO BƯU CỤC -->
-                    <tr class="child-of-kh-01 child-of-cn-hni">
-                        <td class="text-left indent-3">
+        
+                    <!-- CẤP 4: CHI NHÁNH HNI -->
+                    <tr class="child-of-theo-cn" id="node-cn-hni">
+                        <td class="text-left indent-4">
+                            <span class="box-toggle" onclick="toggleNode('cn-hni', this)">[-]</span>
+                            <em>Chi nhánh HNI</em>
+                        </td>
+                        <td></td><td></td>
+                        <td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td>
+                        <td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td>
+                        <td>1,200</td><td>1,200</td><td class="text-green">+0.00</td>
+                    </tr>
+        
+                    <!-- CẤP 5: BƯU CỤC AVC (Con của Chi nhánh HNI) -->
+                    <tr class="child-of-cn-hni">
+                        <td class="text-left indent-5">
                             <em>Bưu cục AVC</em>
                         </td>
                         <td></td><td></td>
@@ -3262,9 +3298,9 @@ with tab_sla:
                         <td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td class="text-green">+0.00</td>
                         <td>300</td><td>300</td><td class="text-green">+0.00</td>
                     </tr>
-    
-                    <!-- DÒNG CỦA CÁC CHỈ TIÊU HOÀN -->
-                    <tr>
+        
+                    <!-- CÁC CHỈ TIÊU BẢNG NGOÀI (CẤP ROOT) -->
+                    <tr class="row-group">
                         <td class="text-left indent-0">Sản lượng hoàn</td>
                         <td></td><td></td>
                         <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td><td class="text-red">-14.05</td>
@@ -3295,28 +3331,46 @@ with tab_sla:
                 </tbody>
             </table>
         </div>
-    
+        
         <script>
-            function toggleRow(groupId, btnElem) {
+            function toggleNode(nodeId, btnElem) {
                 var isOpen = (btnElem.innerText === '[-]');
                 btnElem.innerText = isOpen ? '[+]' : '[-]';
-                var targets = document.querySelectorAll('.child-of-' + groupId);
-                for (var i = 0; i < targets.length; i++) {
-                    if (isOpen) {
-                        targets[i].classList.add('hidden-row');
-                        // Tự động thu gọn biểu tượng nút bấm của các cấp con bên trong
-                        var childBtns = targets[i].querySelectorAll('.box-toggle');
-                        childBtns.forEach(function(b) { b.innerText = '[+]'; });
-                    } else {
-                        targets[i].classList.remove('hidden-row');
-                    }
+                
+                if (isOpen) {
+                    // Khi đóng node cha -> ẩn tất cả con, cháu,... bằng đệ quy
+                    hideChildren(nodeId);
+                } else {
+                    // Khi mở node cha -> chỉ hiện các con trực tiếp
+                    var directChildren = document.querySelectorAll('.child-of-' + nodeId);
+                    directChildren.forEach(function(child) {
+                        child.classList.remove('hidden-row');
+                    });
                 }
+            }
+        
+            function hideChildren(nodeId) {
+                var directChildren = document.querySelectorAll('.child-of-' + nodeId);
+                directChildren.forEach(function(child) {
+                    child.classList.add('hidden-row');
+                    
+                    // Nếu dòng con này có nút toggle, reset trạng thái nút thành [+] và ẩn luôn các con của nó
+                    var btn = child.querySelector('.box-toggle');
+                    if (btn) {
+                        btn.innerText = '[+]';
+                        var childNodeId = child.id.replace('node-', '');
+                        if (childNodeId) {
+                            hideChildren(childNodeId);
+                        }
+                    }
+                });
             }
         </script>
         </body>
         </html>
         """
-        components.html(html_fd_matrix_table, height=450, scrolling=True)
+        
+        components.html(html_fd_matrix_table, height=480, scrolling=True)
 
 
 
