@@ -3170,9 +3170,11 @@ with tab_sla:
             .text-green { color: #2e7d32; font-weight: bold; }
             .text-red { color: #c62828; font-weight: bold; }
             .box-toggle { display: inline-block; font-family: monospace; font-weight: bold; font-size: 12px; cursor: pointer; margin-right: 6px; color: #c62828; user-select: none; }
-            .indent-1 { padding-left: 15px !important; }
-            .indent-2 { padding-left: 35px !important; }
-            .indent-3 { padding-left: 55px !important; }
+            .indent-0 { padding-left: 8px !important; }
+            .indent-1 { padding-left: 20px !important; }
+            .indent-2 { padding-left: 38px !important; }
+            .indent-3 { padding-left: 56px !important; }
+            .indent-4 { padding-left: 74px !important; }
             .hidden-row { display: none !important; }
         </style>
         </head>
@@ -3182,7 +3184,7 @@ with tab_sla:
             <table class="fd-grid">
                 <thead>
                     <tr>
-                        <th rowspan="2" style="min-width: 240px;">Chỉ tiêu</th>
+                        <th rowspan="2" style="min-width: 260px;">Chỉ tiêu</th>
                         <th rowspan="2" style="min-width: 60px;">Mục tiêu</th>
                         <th rowspan="2" style="min-width: 60px;">Kết quả thực hiện</th>
                         <th colspan="8">7 ngày gần nhất</th>
@@ -3201,7 +3203,10 @@ with tab_sla:
                 <tbody>
                     <!-- Dòng tổng sản lượng -->
                     <tr class="row-group">
-                        <td class="text-left">Sản lượng phải phát</td>
+                        <td class="text-left indent-0">
+                            <span class="box-toggle" onclick="toggleRow('kh-root', this)">[-]</span>
+                            <strong>Sản lượng phải phát</strong>
+                        </td>
                         <td></td><td></td>
                         <td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td>
                         <td class="text-green">+ 5.22</td>
@@ -3211,107 +3216,97 @@ with tab_sla:
                         <td class="text-green">+ 5.22</td>
                     </tr>
     
-                    <!-- Cấp 1: KH -->
-                    <tr>
+                    <!-- CẤP 1: MÃ KHÁCH HÀNG -->
+                    <tr class="child-of-kh-root">
                         <td class="text-left indent-1">
-                            <span class="box-toggle" onclick="toggleTree('kh', this)">[-]</span>
-                            <strong>Theo mã Khách hàng</strong>
+                            <span class="box-toggle" onclick="toggleRow('kh-01', this)">[-]</span>
+                            <strong>Mã KH: KH_TEST_01</strong>
                         </td>
-                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                    </tr>
-                    <tr class="child-of-kh">
-                        <td class="text-left indent-2"><em>KH_TEST_01</em></td><td></td><td></td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td class="text-green">+0.00</td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td class="text-green">+0.00</td><td>100</td><td>100</td><td class="text-green">+0.00</td>
-                    </tr>
-    
-                    <!-- Cấp 1: Tuyến -->
-                    <tr>
-                        <td class="text-left indent-1">
-                            <span class="box-toggle" onclick="toggleTree('tuyen', this)">[-]</span>
-                            <strong>Theo tuyến</strong>
-                        </td>
-                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                    </tr>
-                    <tr class="child-of-tuyen">
-                        <td class="text-left indent-2"><em>Tuyến Nội Thành</em></td><td></td><td></td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td class="text-green">+0.00</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td class="text-green">+0.00</td><td>500</td><td>500</td><td class="text-green">+0.00</td>
-                    </tr>
-    
-                    <!-- Cấp 1: Chi nhánh -->
-                    <tr>
-                        <td class="text-left indent-1">
-                            <span class="box-toggle" onclick="toggleTree('cn', this)">[+]</span>
-                            <strong>Theo Chi nhánh</strong>
-                        </td>
-                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                    </tr>
-                    <tr class="child-of-cn hidden-row">
-                        <td class="text-left indent-2"><em>Chi nhánh HNI</em></td><td></td><td></td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td>
-                    </tr>
-    
-                    <!-- Cấp 1: Bưu cục -->
-                    <tr>
-                        <td class="text-left indent-1">
-                            <span class="box-toggle" onclick="toggleTree('bc', this)">[+]</span>
-                            <strong>Theo Bưu cục</strong>
-                        </td>
-                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-                    </tr>
-                    <tr class="child-of-bc hidden-row">
-                        <td class="text-left indent-2"><em>Bưu cục AVC</em></td><td></td><td></td><td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td class="text-green">+0.00</td><td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td class="text-green">+0.00</td><td>300</td><td>300</td><td class="text-green">+0.00</td>
-                    </tr>
-    
-                    <!-- Chi tiết các dòng chỉ tiêu -->
-                    <tr>
-                        <td class="text-left">Sản lượng hoàn</td>
                         <td></td><td></td>
-                        <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td>
-                        <td class="text-red">-14.05</td>
-                        <td>16.8</td><td>26.36</td><td>16.22</td><td>26.4</td><td>11.9</td>
-                        <td class="text-red">-14.05</td>
-                        <td>26.29</td><td>22.93</td>
-                        <td class="text-red">-14.05</td>
+                        <td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td class="text-green">+0.00</td>
+                        <td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td class="text-green">+0.00</td>
+                        <td>100</td><td>100</td><td class="text-green">+0.00</td>
+                    </tr>
+    
+                    <!-- CẤP 2: NẰM TRONG MÃ KH -> THEO TUYẾN -->
+                    <tr class="child-of-kh-01">
+                        <td class="text-left indent-2">
+                            <span class="box-toggle" onclick="toggleRow('tuyen-01', this)">[-]</span>
+                            <strong>Theo tuyến: Tuyến Nội Thành</strong>
+                        </td>
+                        <td></td><td></td>
+                        <td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td class="text-green">+0.00</td>
+                        <td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td class="text-green">+0.00</td>
+                        <td>500</td><td>500</td><td class="text-green">+0.00</td>
+                    </tr>
+    
+                    <!-- CẤP 2: NẰM TRONG MÃ KH -> THEO CHI NHÁNH -->
+                    <tr class="child-of-kh-01">
+                        <td class="text-left indent-2">
+                            <span class="box-toggle" onclick="toggleRow('cn-hni', this)">[-]</span>
+                            <strong>Theo Chi nhánh: Chi nhánh HNI</strong>
+                        </td>
+                        <td></td><td></td>
+                        <td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td>
+                        <td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td>
+                        <td>1,200</td><td>1,200</td><td class="text-green">+0.00</td>
+                    </tr>
+    
+                    <!-- CẤP 3: NẰM TRONG CHI NHÁNH -> THEO BƯU CỤC -->
+                    <tr class="child-of-kh-01 child-of-cn-hni">
+                        <td class="text-left indent-3">
+                            <em>Bưu cục AVC</em>
+                        </td>
+                        <td></td><td></td>
+                        <td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td class="text-green">+0.00</td>
+                        <td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td class="text-green">+0.00</td>
+                        <td>300</td><td>300</td><td class="text-green">+0.00</td>
+                    </tr>
+    
+                    <!-- DÒNG CỦA CÁC CHỈ TIÊU HOÀN -->
+                    <tr>
+                        <td class="text-left indent-0">Sản lượng hoàn</td>
+                        <td></td><td></td>
+                        <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td><td class="text-red">-14.05</td>
+                        <td>16.8</td><td>26.36</td><td>16.22</td><td>26.4</td><td>11.9</td><td class="text-red">-14.05</td>
+                        <td>26.29</td><td>22.93</td><td class="text-red">-14.05</td>
                     </tr>
                     <tr class="row-even">
-                        <td class="text-left">Tỷ lệ hoàn</td>
+                        <td class="text-left indent-0">Tỷ lệ hoàn</td>
                         <td>4.50</td><td>100</td>
-                        <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td>
-                        <td class="text-green">+11.93</td>
-                        <td>14.89</td><td>16.89</td><td>25.81</td><td>12.91</td><td>26.96</td>
-                        <td class="text-green">+11.93</td>
-                        <td>22.59</td><td>12.32</td>
-                        <td class="text-green">+11.93</td>
+                        <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td><td class="text-green">+11.93</td>
+                        <td>14.89</td><td>16.89</td><td>25.81</td><td>12.91</td><td>26.96</td><td class="text-green">+11.93</td>
+                        <td>22.59</td><td>12.32</td><td class="text-green">+11.93</td>
                     </tr>
                     <tr>
-                        <td class="text-left">Tỷ lệ hoàn theo Tiktok</td>
+                        <td class="text-left indent-0">Tỷ lệ hoàn theo Tiktok</td>
                         <td>4.50</td><td>100</td>
-                        <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td>
-                        <td class="text-red">-14.05</td>
-                        <td>16.8</td><td>26.36</td><td>16.22</td><td>26.4</td><td>11.9</td>
-                        <td class="text-red">-14.05</td>
-                        <td>26.29</td><td>22.93</td>
-                        <td class="text-red">-14.05</td>
+                        <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td><td class="text-red">-14.05</td>
+                        <td>16.8</td><td>26.36</td><td>16.22</td><td>26.4</td><td>11.9</td><td class="text-red">-14.05</td>
+                        <td>26.29</td><td>22.93</td><td class="text-red">-14.05</td>
                     </tr>
                     <tr class="row-even">
-                        <td class="text-left">Tỷ lệ hoàn theo Shopee</td>
+                        <td class="text-left indent-0">Tỷ lệ hoàn theo Shopee</td>
                         <td>4.50</td><td>100</td>
-                        <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td>
-                        <td class="text-green">+11.93</td>
-                        <td>14.89</td><td>16.89</td><td>25.81</td><td>12.91</td><td>26.96</td>
-                        <td class="text-green">+11.93</td>
-                        <td>22.59</td><td>12.32</td>
-                        <td class="text-green">+11.93</td>
+                        <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td><td class="text-green">+11.93</td>
+                        <td>14.89</td><td>16.89</td><td>25.81</td><td>12.91</td><td>26.96</td><td class="text-green">+11.93</td>
+                        <td>22.59</td><td>12.32</td><td class="text-green">+11.93</td>
                     </tr>
                 </tbody>
             </table>
         </div>
     
         <script>
-            function toggleTree(groupId, btnElem) {
+            function toggleRow(groupId, btnElem) {
                 var isOpen = (btnElem.innerText === '[-]');
                 btnElem.innerText = isOpen ? '[+]' : '[-]';
                 var targets = document.querySelectorAll('.child-of-' + groupId);
                 for (var i = 0; i < targets.length; i++) {
                     if (isOpen) {
                         targets[i].classList.add('hidden-row');
+                        // Tự động thu gọn biểu tượng nút bấm của các cấp con bên trong
+                        var childBtns = targets[i].querySelectorAll('.box-toggle');
+                        childBtns.forEach(function(b) { b.innerText = '[+]'; });
                     } else {
                         targets[i].classList.remove('hidden-row');
                     }
