@@ -3170,7 +3170,6 @@ with tab_sla:
             .text-green { color: #2e7d32; font-weight: bold; }
             .text-red { color: #c62828; font-weight: bold; }
             .box-toggle { display: inline-block; font-family: monospace; font-weight: bold; font-size: 12px; cursor: pointer; margin-right: 6px; color: #c62828; user-select: none; }
-            .bullet-dot { color: #666; margin-right: 4px; }
             .indent-1 { padding-left: 15px !important; }
             .indent-2 { padding-left: 35px !important; }
             .indent-3 { padding-left: 55px !important; }
@@ -3178,7 +3177,7 @@ with tab_sla:
         </style>
         </head>
         <body>
-        
+    
         <div class="table-scroll">
             <table class="fd-grid">
                 <thead>
@@ -3211,42 +3210,56 @@ with tab_sla:
                         <td>91,281</td><td>91,281</td>
                         <td class="text-green">+ 5.22</td>
                     </tr>
-        
-                    <!-- Cây phân cấp -->
+    
+                    <!-- Cấp 1: KH -->
                     <tr>
                         <td class="text-left indent-1">
-                            <span class="box-toggle" onclick="toggleTree('tree-kh', this)">[+]</span>
+                            <span class="box-toggle" onclick="toggleTree('kh', this)">[-]</span>
                             <strong>Theo mã Khách hàng</strong>
                         </td>
                         <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
                     </tr>
-        
+                    <tr class="child-of-kh">
+                        <td class="text-left indent-2"><em>KH_TEST_01</em></td><td></td><td></td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td class="text-green">+0.00</td><td>100</td><td>100</td><td>100</td><td>100</td><td>100</td><td class="text-green">+0.00</td><td>100</td><td>100</td><td class="text-green">+0.00</td>
+                    </tr>
+    
+                    <!-- Cấp 1: Tuyến -->
                     <tr>
-                        <td class="text-left indent-2">
-                            <span class="box-toggle" onclick="toggleTree('tree-tuyen', this)">[+]</span>
+                        <td class="text-left indent-1">
+                            <span class="box-toggle" onclick="toggleTree('tuyen', this)">[-]</span>
                             <strong>Theo tuyến</strong>
                         </td>
                         <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
                     </tr>
-        
+                    <tr class="child-of-tuyen">
+                        <td class="text-left indent-2"><em>Tuyến Nội Thành</em></td><td></td><td></td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td class="text-green">+0.00</td><td>500</td><td>500</td><td>500</td><td>500</td><td>500</td><td class="text-green">+0.00</td><td>500</td><td>500</td><td class="text-green">+0.00</td>
+                    </tr>
+    
+                    <!-- Cấp 1: Chi nhánh -->
                     <tr>
-                        <td class="text-left indent-2">
-                            <span class="box-toggle" onclick="toggleTree('tree-cn', this)">[+]</span>
+                        <td class="text-left indent-1">
+                            <span class="box-toggle" onclick="toggleTree('cn', this)">[+]</span>
                             <strong>Theo Chi nhánh</strong>
                         </td>
                         <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
                     </tr>
-        
-                    <!-- Cấp Bưu cục mở sẵn demo theo ảnh -->
+                    <tr class="child-of-cn hidden-row">
+                        <td class="text-left indent-2"><em>Chi nhánh HNI</em></td><td></td><td></td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td><td>1,200</td><td>1,200</td><td class="text-green">+0.00</td>
+                    </tr>
+    
+                    <!-- Cấp 1: Bưu cục -->
                     <tr>
-                        <td class="text-left indent-2">
-                            <span class="box-toggle" onclick="toggleTree('tree-bc', this)">[-]</span>
+                        <td class="text-left indent-1">
+                            <span class="box-toggle" onclick="toggleTree('bc', this)">[+]</span>
                             <strong>Theo Bưu cục</strong>
                         </td>
                         <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
                     </tr>
-        
-                    <!-- Chi tiết các dòng dưới -->
+                    <tr class="child-of-bc hidden-row">
+                        <td class="text-left indent-2"><em>Bưu cục AVC</em></td><td></td><td></td><td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td class="text-green">+0.00</td><td>300</td><td>300</td><td>300</td><td>300</td><td>300</td><td class="text-green">+0.00</td><td>300</td><td>300</td><td class="text-green">+0.00</td>
+                    </tr>
+    
+                    <!-- Chi tiết các dòng chỉ tiêu -->
                     <tr>
                         <td class="text-left">Sản lượng hoàn</td>
                         <td></td><td></td>
@@ -3290,7 +3303,7 @@ with tab_sla:
                 </tbody>
             </table>
         </div>
-        
+    
         <script>
             function toggleTree(groupId, btnElem) {
                 var isOpen = (btnElem.innerText === '[-]');
@@ -3308,7 +3321,6 @@ with tab_sla:
         </body>
         </html>
         """
-        
         components.html(html_fd_matrix_table, height=450, scrolling=True)
 
 
