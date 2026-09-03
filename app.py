@@ -2910,10 +2910,10 @@ with tab_sla:
             .text-red { color: #c62828; font-weight: bold; }
         </style>
         """, unsafe_allow_html=True)
-        
-        # ---------------------------------------------------------
-        # 1. BỘ LỌC HEADER (RIGHT FILTERS) & METRIC CARDS
-        # ---------------------------------------------------------
+
+# ---------------------------------------------------------
+# 1. BỘ LỌC HEADER (RIGHT FILTERS) & METRIC CARDS
+# ---------------------------------------------------------
         m_col1, m_col2, m_col3, m_col4, f_col = st.columns([1.5, 1.5, 1.5, 1.5, 2])
         
         with m_col1:
@@ -2966,9 +2966,9 @@ with tab_sla:
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        # ---------------------------------------------------------
-        # 2. BẢNG BIỂU ĐỒ (LINE CHART + 2 BAR CHARTS)
-        # ---------------------------------------------------------
+# ---------------------------------------------------------
+# 2. BẢNG BIỂU ĐỒ (LINE CHART + 2 BAR CHARTS)
+# ---------------------------------------------------------
         c_chart1, c_chart2, c_chart3 = st.columns([2.2, 1.4, 1.4])
         
         # Biểu đồ 1: Xu hướng tỷ lệ hoàn (%)
@@ -3043,9 +3043,9 @@ with tab_sla:
             )
             st.plotly_chart(fig3, use_container_width=True)
         
-        # ---------------------------------------------------------
-        # 3. TOP 5 CHI NHÁNH / BƯU CỤC THỰC HIỆN KÉM NHẤT
-        # ---------------------------------------------------------
+# ---------------------------------------------------------
+# 3. TOP 5 CHI NHÁNH / BƯU CỤC THỰC HIỆN KÉM NHẤT
+# ---------------------------------------------------------
         st.markdown('<div class="fd-section-title">TOP 5 CHI NHÁNH/BƯU CỤC THỰC HIỆN KÉM NHẤT</div>', unsafe_allow_html=True)
         
         t_col1, t_col2 = st.columns(2)
@@ -3094,222 +3094,222 @@ with tab_sla:
                 </tbody>
             </table>
             """, unsafe_allow_html=True)
-
-
+        
+        
 # ---------------------------------------------------------
 # 4. TOP 5 MÃ ĐỐI TÁC / KHÁCH HÀNG ĐANG PHỤC VỤ KÉM NHẤT
 # ---------------------------------------------------------
-st.markdown('<div class="fd-section-title">TOP 5 MÃ ĐỐI TÁC/KHÁCH HÀNG ĐANG PHỤC VỤ KÉM NHẤT</div>', unsafe_allow_html=True)
-
-top_dt_col1, top_dt_col2 = st.columns(2)
-
-with top_dt_col1:
-    st.markdown("""
-    <table class="fd-table">
-        <thead>
-            <tr>
-                <th>Chi nhánh</th>
-                <th>Tỷ lệ hoàn</th>
-                <th>SS cùng kỳ</th>
-                <th>Tỷ lệ nỗ lực giao lần 1</th>
-                <th>SS cùng kỳ</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td>HNI</td><td>70.1%</td><td class="text-red">-8.4%</td><td>412 đơn</td><td style="color:#2e7d32; font-weight:bold;">+180</td></tr>
-            <tr><td>HCM</td><td>71.8%</td><td class="text-red">-7.1%</td><td>388 đơn</td><td style="color:#2e7d32; font-weight:bold;">+150</td></tr>
-            <tr><td>DNI</td><td>73.0%</td><td class="text-red">-5.9%</td><td>301 đơn</td><td style="color:#2e7d32; font-weight:bold;">+95</td></tr>
-            <tr><td>GLI</td><td>74.4%</td><td class="text-red">-4.2%</td><td>266 đơn</td><td style="color:#2e7d32; font-weight:bold;">+62</td></tr>
-            <tr><td>DLK</td><td>75.6%</td><td class="text-red">-3.5%</td><td>220 đơn</td><td style="color:#2e7d32; font-weight:bold;">+40</td></tr>
-        </tbody>
-    </table>
-    """, unsafe_allow_html=True)
-
-with top_dt_col2:
-    st.markdown("""
-    <table class="fd-table">
-        <thead>
-            <tr>
-                <th>Mã khách hàng</th>
-                <th>Mã đối tác</th>
-                <th>Chi nhánh</th>
-                <th>Tỷ lệ hoàn</th>
-                <th>SS cùng kỳ</th>
-                <th>Tỷ lệ nỗ lực giao lần 1</th>
-                <th>SS cùng kỳ</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td>AVC</td><td>VTPVN</td><td>HNI</td><td>76.2%</td><td class="text-red">-4.8%</td><td>88.1%</td><td class="text-red">-2.1%</td></tr>
-            <tr><td>HUB10</td><td>SHOPEE</td><td>HCM</td><td>78.5%</td><td class="text-red">-3.2%</td><td>90.4%</td><td class="text-red">-1.5%</td></tr>
-            <tr><td>DPC</td><td>AVV</td><td>DNI</td><td>79.1%</td><td class="text-red">-2.6%</td><td>91.0%</td><td class="text-red">-0.9%</td></tr>
-            <tr><td>TPU</td><td>PAN</td><td>GLI</td><td>80.3%</td><td class="text-red">-1.9%</td><td>92.2%</td><td class="text-red">-0.6%</td></tr>
-            <tr><td>TSNI</td><td>SPP</td><td>DLK</td><td>81.0%</td><td class="text-red">-1.4%</td><td>92.8%</td><td class="text-red">-0.4%</td></tr>
-        </tbody>
-    </table>
-    """, unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
+        st.markdown('<div class="fd-section-title">TOP 5 MÃ ĐỐI TÁC/KHÁCH HÀNG ĐANG PHỤC VỤ KÉM NHẤT</div>', unsafe_allow_html=True)
+        
+        top_dt_col1, top_dt_col2 = st.columns(2)
+        
+        with top_dt_col1:
+            st.markdown("""
+            <table class="fd-table">
+                <thead>
+                    <tr>
+                        <th>Chi nhánh</th>
+                        <th>Tỷ lệ hoàn</th>
+                        <th>SS cùng kỳ</th>
+                        <th>Tỷ lệ nỗ lực giao lần 1</th>
+                        <th>SS cùng kỳ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>HNI</td><td>70.1%</td><td class="text-red">-8.4%</td><td>412 đơn</td><td style="color:#2e7d32; font-weight:bold;">+180</td></tr>
+                    <tr><td>HCM</td><td>71.8%</td><td class="text-red">-7.1%</td><td>388 đơn</td><td style="color:#2e7d32; font-weight:bold;">+150</td></tr>
+                    <tr><td>DNI</td><td>73.0%</td><td class="text-red">-5.9%</td><td>301 đơn</td><td style="color:#2e7d32; font-weight:bold;">+95</td></tr>
+                    <tr><td>GLI</td><td>74.4%</td><td class="text-red">-4.2%</td><td>266 đơn</td><td style="color:#2e7d32; font-weight:bold;">+62</td></tr>
+                    <tr><td>DLK</td><td>75.6%</td><td class="text-red">-3.5%</td><td>220 đơn</td><td style="color:#2e7d32; font-weight:bold;">+40</td></tr>
+                </tbody>
+            </table>
+            """, unsafe_allow_html=True)
+        
+        with top_dt_col2:
+            st.markdown("""
+            <table class="fd-table">
+                <thead>
+                    <tr>
+                        <th>Mã khách hàng</th>
+                        <th>Mã đối tác</th>
+                        <th>Chi nhánh</th>
+                        <th>Tỷ lệ hoàn</th>
+                        <th>SS cùng kỳ</th>
+                        <th>Tỷ lệ nỗ lực giao lần 1</th>
+                        <th>SS cùng kỳ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>AVC</td><td>VTPVN</td><td>HNI</td><td>76.2%</td><td class="text-red">-4.8%</td><td>88.1%</td><td class="text-red">-2.1%</td></tr>
+                    <tr><td>HUB10</td><td>SHOPEE</td><td>HCM</td><td>78.5%</td><td class="text-red">-3.2%</td><td>90.4%</td><td class="text-red">-1.5%</td></tr>
+                    <tr><td>DPC</td><td>AVV</td><td>DNI</td><td>79.1%</td><td class="text-red">-2.6%</td><td>91.0%</td><td class="text-red">-0.9%</td></tr>
+                    <tr><td>TPU</td><td>PAN</td><td>GLI</td><td>80.3%</td><td class="text-red">-1.9%</td><td>92.2%</td><td class="text-red">-0.6%</td></tr>
+                    <tr><td>TSNI</td><td>SPP</td><td>DLK</td><td>81.0%</td><td class="text-red">-1.4%</td><td>92.8%</td><td class="text-red">-0.4%</td></tr>
+                </tbody>
+            </table>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
 # ---------------------------------------------------------
 # 5. BẢNG MA TRẬN CHỈ TIÊU CHI TIẾT (TREE TABLE TỐI ƯU MƯỢT TỐI ĐA)
 # ---------------------------------------------------------
-html_fd_matrix_table = """
-<!DOCTYPE html>
-<html>
-<head>
-<style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background: transparent; }
-    .table-scroll { max-height: 420px; overflow: auto; border: 1px solid #ccc; background: #fff; }
-    table.fd-grid { width: 100%; border-collapse: collapse; font-size: 11px; white-space: nowrap; }
-    table.fd-grid th { position: sticky; top: 0; z-index: 10; background-color: #222222; color: #ffffff; text-align: center; padding: 6px 8px; border: 1px solid #444; font-weight: bold; }
-    table.fd-grid td { padding: 5px 8px; border: 1px solid #e0e0e0; text-align: center; }
-    tr.row-even { background-color: #fafafa; }
-    tr.row-group { background-color: #f5f5f5; font-weight: bold; }
-    .text-left { text-align: left !important; }
-    .text-green { color: #2e7d32; font-weight: bold; }
-    .text-red { color: #c62828; font-weight: bold; }
-    .box-toggle { display: inline-block; font-family: monospace; font-weight: bold; font-size: 12px; cursor: pointer; margin-right: 6px; color: #c62828; user-select: none; }
-    .bullet-dot { color: #666; margin-right: 4px; }
-    .indent-1 { padding-left: 15px !important; }
-    .indent-2 { padding-left: 35px !important; }
-    .indent-3 { padding-left: 55px !important; }
-    .hidden-row { display: none !important; }
-</style>
-</head>
-<body>
-
-<div class="table-scroll">
-    <table class="fd-grid">
-        <thead>
-            <tr>
-                <th rowspan="2" style="min-width: 240px;">Chỉ tiêu</th>
-                <th rowspan="2" style="min-width: 60px;">Mục tiêu</th>
-                <th rowspan="2" style="min-width: 60px;">Kết quả thực hiện</th>
-                <th colspan="8">7 ngày gần nhất</th>
-                <th colspan="7">7 tuần gần nhất</th>
-                <th colspan="3">Tháng</th>
-            </tr>
-            <tr>
-                <th>06/08</th><th>07/08</th><th>08/08</th><th>09/08</th><th>10/08</th><th>11/08</th><th>12/08</th>
-                <th style="color: #ffcdd2;">DoD</th>
-                <th>W30</th><th>W31</th><th>W32</th><th>W33</th><th>W34</th>
-                <th style="color: #ffcdd2;">WoW</th>
-                <th>M-1</th><th>M</th>
-                <th style="color: #ffcdd2;">MoM</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Dòng tổng sản lượng -->
-            <tr class="row-group">
-                <td class="text-left">Sản lượng phải phát</td>
-                <td></td><td></td>
-                <td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td>
-                <td class="text-green">+ 5.22</td>
-                <td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td>
-                <td class="text-green">+ 5.22</td>
-                <td>91,281</td><td>91,281</td>
-                <td class="text-green">+ 5.22</td>
-            </tr>
-
-            <!-- Cây phân cấp -->
-            <tr>
-                <td class="text-left indent-1">
-                    <span class="box-toggle" onclick="toggleTree('tree-kh', this)">[+]</span>
-                    <strong>Theo mã Khách hàng</strong>
-                </td>
-                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-            </tr>
-
-            <tr>
-                <td class="text-left indent-2">
-                    <span class="box-toggle" onclick="toggleTree('tree-tuyen', this)">[+]</span>
-                    <strong>Theo tuyến</strong>
-                </td>
-                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-            </tr>
-
-            <tr>
-                <td class="text-left indent-2">
-                    <span class="box-toggle" onclick="toggleTree('tree-cn', this)">[+]</span>
-                    <strong>Theo Chi nhánh</strong>
-                </td>
-                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-            </tr>
-
-            <!-- Cấp Bưu cục mở sẵn demo theo ảnh -->
-            <tr>
-                <td class="text-left indent-2">
-                    <span class="box-toggle" onclick="toggleTree('tree-bc', this)">[-]</span>
-                    <strong>Theo Bưu cục</strong>
-                </td>
-                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-            </tr>
-
-            <!-- Chi tiết các dòng dưới -->
-            <tr>
-                <td class="text-left">Sản lượng hoàn</td>
-                <td></td><td></td>
-                <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td>
-                <td class="text-red">-14.05</td>
-                <td>16.8</td><td>26.36</td><td>16.22</td><td>26.4</td><td>11.9</td>
-                <td class="text-red">-14.05</td>
-                <td>26.29</td><td>22.93</td>
-                <td class="text-red">-14.05</td>
-            </tr>
-            <tr class="row-even">
-                <td class="text-left">Tỷ lệ hoàn</td>
-                <td>4.50</td><td>100</td>
-                <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td>
-                <td class="text-green">+11.93</td>
-                <td>14.89</td><td>16.89</td><td>25.81</td><td>12.91</td><td>26.96</td>
-                <td class="text-green">+11.93</td>
-                <td>22.59</td><td>12.32</td>
-                <td class="text-green">+11.93</td>
-            </tr>
-            <tr>
-                <td class="text-left">Tỷ lệ hoàn theo Tiktok</td>
-                <td>4.50</td><td>100</td>
-                <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td>
-                <td class="text-red">-14.05</td>
-                <td>16.8</td><td>26.36</td><td>16.22</td><td>26.4</td><td>11.9</td>
-                <td class="text-red">-14.05</td>
-                <td>26.29</td><td>22.93</td>
-                <td class="text-red">-14.05</td>
-            </tr>
-            <tr class="row-even">
-                <td class="text-left">Tỷ lệ hoàn theo Shopee</td>
-                <td>4.50</td><td>100</td>
-                <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td>
-                <td class="text-green">+11.93</td>
-                <td>14.89</td><td>16.89</td><td>25.81</td><td>12.91</td><td>26.96</td>
-                <td class="text-green">+11.93</td>
-                <td>22.59</td><td>12.32</td>
-                <td class="text-green">+11.93</td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-
-<script>
-    function toggleTree(groupId, btnElem) {
-        var isOpen = (btnElem.innerText === '[-]');
-        btnElem.innerText = isOpen ? '[+]' : '[-]';
-        var targets = document.querySelectorAll('.child-of-' + groupId);
-        for (var i = 0; i < targets.length; i++) {
-            if (isOpen) {
-                targets[i].classList.add('hidden-row');
-            } else {
-                targets[i].classList.remove('hidden-row');
+        html_fd_matrix_table = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background: transparent; }
+            .table-scroll { max-height: 420px; overflow: auto; border: 1px solid #ccc; background: #fff; }
+            table.fd-grid { width: 100%; border-collapse: collapse; font-size: 11px; white-space: nowrap; }
+            table.fd-grid th { position: sticky; top: 0; z-index: 10; background-color: #222222; color: #ffffff; text-align: center; padding: 6px 8px; border: 1px solid #444; font-weight: bold; }
+            table.fd-grid td { padding: 5px 8px; border: 1px solid #e0e0e0; text-align: center; }
+            tr.row-even { background-color: #fafafa; }
+            tr.row-group { background-color: #f5f5f5; font-weight: bold; }
+            .text-left { text-align: left !important; }
+            .text-green { color: #2e7d32; font-weight: bold; }
+            .text-red { color: #c62828; font-weight: bold; }
+            .box-toggle { display: inline-block; font-family: monospace; font-weight: bold; font-size: 12px; cursor: pointer; margin-right: 6px; color: #c62828; user-select: none; }
+            .bullet-dot { color: #666; margin-right: 4px; }
+            .indent-1 { padding-left: 15px !important; }
+            .indent-2 { padding-left: 35px !important; }
+            .indent-3 { padding-left: 55px !important; }
+            .hidden-row { display: none !important; }
+        </style>
+        </head>
+        <body>
+        
+        <div class="table-scroll">
+            <table class="fd-grid">
+                <thead>
+                    <tr>
+                        <th rowspan="2" style="min-width: 240px;">Chỉ tiêu</th>
+                        <th rowspan="2" style="min-width: 60px;">Mục tiêu</th>
+                        <th rowspan="2" style="min-width: 60px;">Kết quả thực hiện</th>
+                        <th colspan="8">7 ngày gần nhất</th>
+                        <th colspan="7">7 tuần gần nhất</th>
+                        <th colspan="3">Tháng</th>
+                    </tr>
+                    <tr>
+                        <th>06/08</th><th>07/08</th><th>08/08</th><th>09/08</th><th>10/08</th><th>11/08</th><th>12/08</th>
+                        <th style="color: #ffcdd2;">DoD</th>
+                        <th>W30</th><th>W31</th><th>W32</th><th>W33</th><th>W34</th>
+                        <th style="color: #ffcdd2;">WoW</th>
+                        <th>M-1</th><th>M</th>
+                        <th style="color: #ffcdd2;">MoM</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dòng tổng sản lượng -->
+                    <tr class="row-group">
+                        <td class="text-left">Sản lượng phải phát</td>
+                        <td></td><td></td>
+                        <td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td>
+                        <td class="text-green">+ 5.22</td>
+                        <td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td><td>91,281</td>
+                        <td class="text-green">+ 5.22</td>
+                        <td>91,281</td><td>91,281</td>
+                        <td class="text-green">+ 5.22</td>
+                    </tr>
+        
+                    <!-- Cây phân cấp -->
+                    <tr>
+                        <td class="text-left indent-1">
+                            <span class="box-toggle" onclick="toggleTree('tree-kh', this)">[+]</span>
+                            <strong>Theo mã Khách hàng</strong>
+                        </td>
+                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                    </tr>
+        
+                    <tr>
+                        <td class="text-left indent-2">
+                            <span class="box-toggle" onclick="toggleTree('tree-tuyen', this)">[+]</span>
+                            <strong>Theo tuyến</strong>
+                        </td>
+                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                    </tr>
+        
+                    <tr>
+                        <td class="text-left indent-2">
+                            <span class="box-toggle" onclick="toggleTree('tree-cn', this)">[+]</span>
+                            <strong>Theo Chi nhánh</strong>
+                        </td>
+                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                    </tr>
+        
+                    <!-- Cấp Bưu cục mở sẵn demo theo ảnh -->
+                    <tr>
+                        <td class="text-left indent-2">
+                            <span class="box-toggle" onclick="toggleTree('tree-bc', this)">[-]</span>
+                            <strong>Theo Bưu cục</strong>
+                        </td>
+                        <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+                    </tr>
+        
+                    <!-- Chi tiết các dòng dưới -->
+                    <tr>
+                        <td class="text-left">Sản lượng hoàn</td>
+                        <td></td><td></td>
+                        <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td>
+                        <td class="text-red">-14.05</td>
+                        <td>16.8</td><td>26.36</td><td>16.22</td><td>26.4</td><td>11.9</td>
+                        <td class="text-red">-14.05</td>
+                        <td>26.29</td><td>22.93</td>
+                        <td class="text-red">-14.05</td>
+                    </tr>
+                    <tr class="row-even">
+                        <td class="text-left">Tỷ lệ hoàn</td>
+                        <td>4.50</td><td>100</td>
+                        <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td>
+                        <td class="text-green">+11.93</td>
+                        <td>14.89</td><td>16.89</td><td>25.81</td><td>12.91</td><td>26.96</td>
+                        <td class="text-green">+11.93</td>
+                        <td>22.59</td><td>12.32</td>
+                        <td class="text-green">+11.93</td>
+                    </tr>
+                    <tr>
+                        <td class="text-left">Tỷ lệ hoàn theo Tiktok</td>
+                        <td>4.50</td><td>100</td>
+                        <td>18.15</td><td>10.17</td><td>15.94</td><td>25.08</td><td>19.14</td><td>28.11</td><td>27.75</td>
+                        <td class="text-red">-14.05</td>
+                        <td>16.8</td><td>26.36</td><td>16.22</td><td>26.4</td><td>11.9</td>
+                        <td class="text-red">-14.05</td>
+                        <td>26.29</td><td>22.93</td>
+                        <td class="text-red">-14.05</td>
+                    </tr>
+                    <tr class="row-even">
+                        <td class="text-left">Tỷ lệ hoàn theo Shopee</td>
+                        <td>4.50</td><td>100</td>
+                        <td>28.42</td><td>27.42</td><td>25.96</td><td>19.36</td><td>13.26</td><td>22.42</td><td>18.79</td>
+                        <td class="text-green">+11.93</td>
+                        <td>14.89</td><td>16.89</td><td>25.81</td><td>12.91</td><td>26.96</td>
+                        <td class="text-green">+11.93</td>
+                        <td>22.59</td><td>12.32</td>
+                        <td class="text-green">+11.93</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <script>
+            function toggleTree(groupId, btnElem) {
+                var isOpen = (btnElem.innerText === '[-]');
+                btnElem.innerText = isOpen ? '[+]' : '[-]';
+                var targets = document.querySelectorAll('.child-of-' + groupId);
+                for (var i = 0; i < targets.length; i++) {
+                    if (isOpen) {
+                        targets[i].classList.add('hidden-row');
+                    } else {
+                        targets[i].classList.remove('hidden-row');
+                    }
+                }
             }
-        }
-    }
-</script>
-</body>
-</html>
-"""
-
-components.html(html_fd_matrix_table, height=450, scrolling=True)
+        </script>
+        </body>
+        </html>
+        """
+        
+        components.html(html_fd_matrix_table, height=450, scrolling=True)
 
 
 
